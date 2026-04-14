@@ -1,0 +1,27 @@
+{
+  "vps": {
+    "host": "76.13.59.88",
+    "services": [
+      { "name": "COMEX Dashboard API", "port": 3751, "path": "/api/overview", "critical": true },
+      { "name": "LLM Router", "port": 3800, "path": "/health", "critical": true },
+      { "name": "Commercial Server", "port": 3760, "path": "/health", "critical": true },
+      { "name": "Campaign Tracker", "port": 3770, "path": "/health", "critical": false },
+      { "name": "Stripe Webhook", "port": 3780, "path": "/health", "critical": true },
+      { "name": "PilotCPF Site", "port": 3790, "path": "/", "critical": true },
+      { "name": "BDR Alexandra", "port": 3402, "path": "/health", "critical": true },
+      { "name": "PilotCPF CRM", "port": 3700, "path": "/health", "critical": false }
+    ]
+  },
+  "domains": [
+    { "name": "PilotCPF", "url": "https://pilotcpf.monpermiscpf.com", "check_ssl": true },
+    { "name": "API MonPermisCPF", "url": "https://api.monpermiscpf.com", "check_ssl": true },
+    { "name": "ABACUS RH", "url": "https://abacus-rh.com", "check_ssl": true },
+    { "name": "ABACUS Platform", "url": "https://platform.abacus-rh.com", "check_ssl": true },
+    { "name": "ABACUS Formations", "url": "https://formations.abacus-rh.com", "check_ssl": true },
+    { "name": "ABACUS Academy", "url": "https://academy.abacus-rh.com", "check_ssl": true },
+    { "name": "Annuaire MonPermisCPF", "url": "https://annuaire.monpermiscpf.com", "check_ssl": true }
+  ],
+  "notifications": {
+    "email": "md@abacus-rh.com"
+  }
+}
