@@ -6,6 +6,10 @@ import type { PGlite } from "@electric-sql/pglite";
 import type {
   CrmStore,
   EmailInput,
+  IntakeInput,
+  NotificationLog,
+  ProfileFields,
+  QuoteInput,
   RecordingRef,
   StoragePort,
   WebhookEventInput,
@@ -242,6 +246,103 @@ export class PgliteCrmStore implements CrmStore {
         e.from_addr ?? null, e.to_addr ?? null, e.status ?? "queued", e.provider ?? null,
         e.template_code ?? null, e.status === "sent" ? new Date().toISOString() : null,
         j(e.metadata ?? {}),
+      ],
+    );
+    return r!.id;
+  }
+
+  async updateProfile(beneficiaryId: string, fields: ProfileFields): Promise<void> {
+    await this.db.query(
+      `update crm.beneficiaries set
+         first_name        = coalesce($2, first_name),
+         last_name         = coalesce($3, last_name),
+         email             = coalesce($4, email),
+         financeur         = coalesce($5, financeur),
+         is_france_travail = coalesce($6, is_france_travail),
+         source            = coalesce($7, source)
+       where id=$1`,
+      [
+        beneficiaryId, fields.first_name ?? null, fields.last_name ?? null,
+        fields.email ?? null, fields.financeur ?? null,
+        fields.is_france_travail ?? null, fields.source ?? null,
+      ],
+    );
+  }
+
+  async insertIntake(e: IntakeInput): Promise<string> {
+    const r = await this.one<{ id: string }>(
+      `insert into crm.intake_submissions (beneficiary_id, form_type, source, payload, completed)
+       values ($1,$2,$3,$4::jsonb,$5) returning id`,
+      [e.beneficiary_id, e.form_type, e.source ?? "portail", j(e.payload ?? {}), e.completed ?? true],
+    );
+    return r!.id;
+  }
+
+  async recordDocument(
+    beneficiaryId: string,
+    docType: string,
+    ref: RecordingRef | null,
+  ): Promise<string> {
+    const r = await this.one<{ id: string }>(
+      `select crm.record_document($1,$2,$3,$4,$5) as id`,
+      [beneficiaryId, docType, ref?.bucket ?? null, ref?.path ?? null, ref?.bytes ?? null],
+    );
+    return r!.id;
+  }
+
+  async validateDocument(documentId: string): Promise<void> {
+    await this.db.query(`select crm.validate_document($1)`, [documentId]);
+  }
+
+  async advanceJourney(beneficiaryId: string, actor = "parcours"): Promise<string | null> {
+    const r = await this.one<{ s: string | null }>(`select crm.advance_journey($1,$2) as s`, [
+      beneficiaryId, actor,
+    ]);
+    return r?.s ?? null;
+  }
+
+  async nextStep(beneficiaryId: string): Promise<string | null> {
+    const r = await this.one<{ s: string | null }>(`select crm.beneficiary_next_step($1) as s`, [
+      beneficiaryId,
+    ]);
+    return r?.s ?? null;
+  }
+
+  async createQuote(q: QuoteInput): Promise<string> {
+    const r = await this.one<{ id: string }>(
+      `insert into crm.quotes (beneficiary_id, financeur, formation_label, amount_cents, external_ref, valid_until, metadata)
+       values ($1,$2,$3,$4,$5,$6::date,$7::jsonb) returning id`,
+      [
+        q.beneficiary_id, q.financeur, q.formation_label ?? null, q.amount_cents ?? null,
+        q.external_ref ?? null, q.valid_until ?? null, j(q.metadata ?? {}),
+      ],
+    );
+    return r!.id;
+  }
+
+  async transmitQuote(quoteId: string): Promise<boolean> {
+    const r = await this.one<{ ok: boolean }>(`select crm.transmit_quote($1) as ok`, [quoteId]);
+    return r?.ok === true;
+  }
+
+  async setQuoteStatus(quoteId: string, status: string): Promise<void> {
+    await this.db.query(
+      `update crm.quotes set status=$2, decided_at = case when $2 in ('accepted','refused','expired') then now() else decided_at end where id=$1`,
+      [quoteId, status],
+    );
+  }
+
+  async logNotification(n: NotificationLog): Promise<string> {
+    const r = await this.one<{ id: string }>(
+      `insert into crm.notifications
+         (beneficiary_id, channel, to_addr, template_code, subject, body, status, provider, provider_message_id, error, sent_at, metadata)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb) returning id`,
+      [
+        n.beneficiary_id, n.channel, n.to_addr ?? null, n.template_code ?? null,
+        n.subject ?? null, n.body ?? null, n.status, n.provider ?? null,
+        n.provider_message_id ?? null, n.error ?? null,
+        n.status === "sent" || n.status === "delivered" ? new Date().toISOString() : null,
+        j(n.metadata ?? {}),
       ],
     );
     return r!.id;

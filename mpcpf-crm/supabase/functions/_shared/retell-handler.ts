@@ -10,6 +10,8 @@ import {
   verifyRetellSignature,
 } from "./retell.ts";
 import { applyCallAutomations } from "./automation.ts";
+import { captureLucieCall } from "./lucie.ts";
+import type { Notifier } from "./notifier.ts";
 import type { RetellWebhookPayload } from "./types.ts";
 
 export interface RetellHandlerDeps {
@@ -18,6 +20,9 @@ export interface RetellHandlerDeps {
   fetchFn: FetchLike;
   apiKey: string | undefined;
   verifySignature?: boolean; // défaut true
+  // Si fourni, déclenche la capture d'infos Lucie + notifications après un
+  // appel décroché (prise d'infos -> profil + SMS/email + amorce parcours).
+  notifier?: Notifier;
 }
 
 export interface HandlerResponse {
@@ -143,6 +148,19 @@ export async function handleRetellWebhook(
           outcome: data.outcome,
         });
         response.automation = auto;
+
+        // 9) Capture d'infos Lucie + notifications (si appel décroché).
+        if (
+          deps.notifier &&
+          (data.outcome === "answered" || data.outcome === "callback")
+        ) {
+          const capture = await captureLucieCall(deps.store, deps.notifier, {
+            beneficiaryId,
+            call: payload.call,
+            phone,
+          });
+          response.lucie_capture = capture;
+        }
       }
     }
 

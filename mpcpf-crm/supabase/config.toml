@@ -13,3 +13,7 @@ verify_jwt = false
 [functions.process-relances]
 # Déclenchée par cron interne / scheduler -> JWT service_role requis.
 verify_jwt = true
+
+[functions.intake-api]
+# Appelée par le portail bénéficiaire ; auth par INTAKE_API_SECRET.
+verify_jwt = false

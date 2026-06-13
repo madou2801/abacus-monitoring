@@ -7,7 +7,7 @@ export const RECORDINGS_BUCKET = "call-recordings";
 
 export type FetchLike = (
   input: string,
-  init?: { headers?: Record<string, string> },
+  init?: { method?: string; headers?: Record<string, string>; body?: string },
 ) => Promise<{
   ok: boolean;
   status: number;

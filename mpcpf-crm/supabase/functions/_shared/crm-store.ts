@@ -46,6 +46,48 @@ export interface EmailInput {
   metadata?: Record<string, unknown>;
 }
 
+export interface IntakeInput {
+  beneficiary_id: string;
+  form_type: string; // intake | eligibility | france_travail | financeur
+  source?: string; // portail | lucie | web
+  payload?: Record<string, unknown>;
+  completed?: boolean;
+}
+
+export interface QuoteInput {
+  beneficiary_id: string;
+  financeur: string; // edof | kairos | opco | entreprise | autofinancement
+  formation_label?: string;
+  amount_cents?: number;
+  external_ref?: string;
+  valid_until?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// Champs de profil modifiables d'un dossier (capture d'infos).
+export interface ProfileFields {
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
+  financeur?: string | null;
+  is_france_travail?: boolean | null;
+  source?: string | null;
+}
+
+export interface NotificationLog {
+  beneficiary_id: string | null;
+  channel: "sms" | "email";
+  to_addr: string | null;
+  template_code?: string | null;
+  subject?: string | null;
+  body?: string | null;
+  status: "queued" | "sent" | "delivered" | "failed";
+  provider?: string | null;
+  provider_message_id?: string | null;
+  error?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
 /** Port de stockage d'objets (enregistrements audio). */
 export interface StoragePort {
   upload(
@@ -110,4 +152,26 @@ export interface CrmStore {
 
   // Emails
   insertEmail(e: EmailInput): Promise<string>;
+
+  // Profil / capture d'infos
+  updateProfile(beneficiaryId: string, fields: ProfileFields): Promise<void>;
+
+  // Parcours bénéficiaire
+  insertIntake(e: IntakeInput): Promise<string>;
+  recordDocument(
+    beneficiaryId: string,
+    docType: string,
+    ref: RecordingRef | null,
+  ): Promise<string>;
+  validateDocument(documentId: string): Promise<void>;
+  advanceJourney(beneficiaryId: string, actor?: string): Promise<string | null>;
+  nextStep(beneficiaryId: string): Promise<string | null>;
+
+  // Devis
+  createQuote(q: QuoteInput): Promise<string>;
+  transmitQuote(quoteId: string): Promise<boolean>;
+  setQuoteStatus(quoteId: string, status: string): Promise<void>;
+
+  // Notifications (journal SMS/email)
+  logNotification(n: NotificationLog): Promise<string>;
 }

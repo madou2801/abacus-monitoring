@@ -15,8 +15,9 @@ Construit nativement sur **Supabase** (Postgres + Edge Functions + Storage).
 | Couche | Emplacement | Rôle |
 |--------|-------------|------|
 | Schéma | `supabase/migrations/0001..0006_*.sql` | Tables, fonctions DMAIC, relances, vues unifiées, RLS, bucket Storage |
-| Webhook Retell | `supabase/functions/retell-webhook/` | Reçoit les évènements d'appel, vérifie la signature HMAC |
+| Webhook Retell | `supabase/functions/retell-webhook/` | Reçoit les évènements d'appel (agent Lucie), vérifie la signature HMAC, capture d'infos + notifications |
 | Webhook Wedof | `supabase/functions/wedof-webhook/` | Reçoit les changements de statut CPF |
+| API parcours | `supabase/functions/intake-api/` | Appelée par le portail : formulaires, pièces, devis, décision |
 | Moteur de relances | `supabase/functions/process-relances/` | Traite les relances échues (cron) |
 | Logique partagée | `supabase/functions/_shared/` | Handlers, automatisations, ports d'accès aux données (testables) |
 | Tests | `tests/` | DB réelle (PGlite), unitaires, intégration de bout en bout |
@@ -64,6 +65,38 @@ de conversion + délai cible), journalisé dans `pipeline_transitions`.
 contrôle et mesure le temps passé dans l'étape précédente — la matière première
 du pilotage DMAIC, exposée par `vw_pipeline_metrics`.
 
+## Parcours bénéficiaire
+
+Le parcours est une suite d'**étapes séquentielles** (`crm.journey_steps`) ; le
+pipeline avance jusqu'à l'étape débloquée par le plus long préfixe d'étapes
+satisfaites (`crm.advance_journey`).
+
+| Étape parcours | Pré-requis | Débloque |
+|----------------|------------|----------|
+| `intake` | formulaire de prise de contact | — |
+| `eligibilite` | formulaire d'éligibilité (CPF / France Travail / OPCO) | `qualifie` |
+| `pieces` | CNI + justificatif de domicile validés | — |
+| `devis` | un devis **accepté** | `inscrit` |
+
+**Acquisition Lucie (Retell, in/outbound)** : à l'issue d'un appel décroché,
+`captureLucieCall` extrait les infos (prénom, nom, email, **financeur**,
+**France Travail**), met à jour le dossier, envoie une confirmation SMS/email
+avec le lien du formulaire, et planifie la relance intake.
+
+**Formulaires** : le portail appelle `intake-api` (`submit_intake`,
+`submit_document`, `send_quote`, `decide_quote`, `journey`). Chaque action fait
+progresser le parcours et renvoie la prochaine étape attendue.
+
+**Devis multi-financeurs** : EDOF (CPF), Kairos (France Travail), OPCO,
+entreprise, autofinancement. `send_quote` crée + transmet le devis, notifie le
+bénéficiaire et planifie la relance d'acceptation ; `decide_quote` enregistre la
+décision du financeur et fait avancer le pipeline.
+
+**Notifications** : port `Notifier` agnostique. Adaptateur `BrevoNotifier`
+(SMS + email) en prod si `BREVO_API_KEY` est défini, sinon `QueueNotifier`
+(mise en file traçable dans `crm.notifications`). Branchable sur un autre
+fournisseur sans toucher la logique métier.
+
 ## Flux de bout en bout
 
 **Appel Retell** → `retell-webhook` :
@@ -85,7 +118,7 @@ détection des dossiers dormants (dépassement du délai cible du point de contr
 
 ```bash
 npm install
-npm test            # 36 tests : DB réelle (PGlite) + unitaires + intégration
+npm test            # 49 tests : DB réelle (PGlite) + unitaires + intégration
 npm run typecheck   # tsc --noEmit
 ```
 
@@ -104,6 +137,7 @@ supabase secrets set --env-file .env
 # 3. Edge functions
 supabase functions deploy retell-webhook  --no-verify-jwt
 supabase functions deploy wedof-webhook   --no-verify-jwt
+supabase functions deploy intake-api      --no-verify-jwt
 supabase functions deploy process-relances
 
 # 4. Webhooks

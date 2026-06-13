@@ -6,6 +6,10 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type {
   CrmStore,
   EmailInput,
+  IntakeInput,
+  NotificationLog,
+  ProfileFields,
+  QuoteInput,
   RecordingRef,
   StoragePort,
   WebhookEventInput,
@@ -246,6 +250,113 @@ export class SupabaseCrmStore implements CrmStore {
     const { data, error } = await this.db()
       .from("emails")
       .insert({ ...e, sent_at: e.status === "sent" ? new Date().toISOString() : null })
+      .select("id")
+      .single();
+    if (error) throw error;
+    return data.id;
+  }
+
+  async updateProfile(beneficiaryId: string, fields: ProfileFields): Promise<void> {
+    // On n'écrase pas avec des valeurs nulles : on ne pousse que les champs fournis.
+    const patch: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(fields)) {
+      if (v !== null && v !== undefined) patch[k] = v;
+    }
+    if (Object.keys(patch).length === 0) return;
+    const { error } = await this.db().from("beneficiaries").update(patch).eq("id", beneficiaryId);
+    if (error) throw error;
+  }
+
+  async insertIntake(e: IntakeInput): Promise<string> {
+    const { data, error } = await this.db()
+      .from("intake_submissions")
+      .insert({
+        beneficiary_id: e.beneficiary_id,
+        form_type: e.form_type,
+        source: e.source ?? "portail",
+        payload: e.payload ?? {},
+        completed: e.completed ?? true,
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    return data.id;
+  }
+
+  async recordDocument(
+    beneficiaryId: string,
+    docType: string,
+    ref: RecordingRef | null,
+  ): Promise<string> {
+    const { data, error } = await this.db().rpc("record_document", {
+      p_benef: beneficiaryId,
+      p_doc_type: docType,
+      p_bucket: ref?.bucket ?? null,
+      p_path: ref?.path ?? null,
+      p_bytes: ref?.bytes ?? null,
+    });
+    if (error) throw error;
+    return data as string;
+  }
+
+  async validateDocument(documentId: string): Promise<void> {
+    const { error } = await this.db().rpc("validate_document", { p_doc: documentId });
+    if (error) throw error;
+  }
+
+  async advanceJourney(beneficiaryId: string, actor = "parcours"): Promise<string | null> {
+    const { data, error } = await this.db().rpc("advance_journey", {
+      p_benef: beneficiaryId,
+      p_actor: actor,
+    });
+    if (error) throw error;
+    return (data as string) ?? null;
+  }
+
+  async nextStep(beneficiaryId: string): Promise<string | null> {
+    const { data, error } = await this.db().rpc("beneficiary_next_step", { p_benef: beneficiaryId });
+    if (error) throw error;
+    return (data as string) ?? null;
+  }
+
+  async createQuote(q: QuoteInput): Promise<string> {
+    const { data, error } = await this.db()
+      .from("quotes")
+      .insert({
+        beneficiary_id: q.beneficiary_id,
+        financeur: q.financeur,
+        formation_label: q.formation_label ?? null,
+        amount_cents: q.amount_cents ?? null,
+        external_ref: q.external_ref ?? null,
+        valid_until: q.valid_until ?? null,
+        metadata: q.metadata ?? {},
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    return data.id;
+  }
+
+  async transmitQuote(quoteId: string): Promise<boolean> {
+    const { data, error } = await this.db().rpc("transmit_quote", { p_quote: quoteId });
+    if (error) throw error;
+    return data === true;
+  }
+
+  async setQuoteStatus(quoteId: string, status: string): Promise<void> {
+    const decided = ["accepted", "refused", "expired"].includes(status);
+    const { error } = await this.db()
+      .from("quotes")
+      .update({ status, decided_at: decided ? new Date().toISOString() : undefined })
+      .eq("id", quoteId);
+    if (error) throw error;
+  }
+
+  async logNotification(n: NotificationLog): Promise<string> {
+    const sent = n.status === "sent" || n.status === "delivered";
+    const { data, error } = await this.db()
+      .from("notifications")
+      .insert({ ...n, sent_at: sent ? new Date().toISOString() : null })
       .select("id")
       .single();
     if (error) throw error;

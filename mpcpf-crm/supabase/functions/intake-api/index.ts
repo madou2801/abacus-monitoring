@@ -1,0 +1,57 @@
+// Edge function Supabase : API du parcours bénéficiaire, appelée par le portail.
+// Déploiement : supabase functions deploy intake-api --no-verify-jwt
+//
+// Auth : header Authorization: Bearer <INTAKE_API_SECRET>.
+// Secrets : INTAKE_API_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+//           BREVO_API_KEY (optionnel — sinon notifications mises en file).
+
+import { corsHeaders, json } from "../_shared/cors.ts";
+import { handleIntakeRequest } from "../_shared/intake-handler.ts";
+import { createServiceClient, SupabaseCrmStore } from "../_shared/supabase-store.ts";
+import { BrevoNotifier, QueueNotifier, type Notifier } from "../_shared/notifier.ts";
+
+// deno-lint-ignore no-explicit-any
+const env = (globalThis as any).Deno?.env;
+
+function buildNotifier(): Notifier {
+  const apiKey = env.get("BREVO_API_KEY");
+  if (!apiKey) return new QueueNotifier();
+  return new BrevoNotifier({
+    apiKey,
+    fetchFn: fetch as never,
+    emailSender: {
+      name: env.get("BREVO_SENDER_NAME") ?? "MonPermisCPF",
+      email: env.get("BREVO_SENDER_EMAIL") ?? "contact@monpermiscpf.com",
+    },
+    smsSender: env.get("BREVO_SMS_SENDER") ?? "MonPermis",
+  });
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "méthode non autorisée" }, 405);
+
+  // Auth par secret partagé.
+  const secret = env.get("INTAKE_API_SECRET");
+  const provided = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  if (secret && provided !== secret) return json({ error: "non autorisé" }, 401);
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: "JSON invalide" }, 400);
+  }
+
+  const sb = createServiceClient(
+    env.get("SUPABASE_URL"),
+    env.get("SUPABASE_SERVICE_ROLE_KEY"),
+  );
+
+  // deno-lint-ignore no-explicit-any
+  const res = await handleIntakeRequest(body as any, {
+    store: new SupabaseCrmStore(sb),
+    notifier: buildNotifier(),
+  });
+  return json(res.body, res.status);
+});
