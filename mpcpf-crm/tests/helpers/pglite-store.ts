@@ -4,9 +4,11 @@
 
 import type { PGlite } from "@electric-sql/pglite";
 import type {
+  AcceptedQuote,
   CrmStore,
   EmailInput,
   IntakeInput,
+  InvoiceInput,
   NotificationLog,
   ProfileFields,
   QuoteInput,
@@ -330,6 +332,48 @@ export class PgliteCrmStore implements CrmStore {
       `update crm.quotes set status=$2, decided_at = case when $2 in ('accepted','refused','expired') then now() else decided_at end where id=$1`,
       [quoteId, status],
     );
+  }
+
+  async latestAcceptedQuote(beneficiaryId: string): Promise<AcceptedQuote | null> {
+    return this.one<AcceptedQuote>(
+      `select id, financeur, amount_cents, formation_label
+         from crm.quotes
+        where beneficiary_id=$1 and status='accepted'
+        order by decided_at desc nulls last
+        limit 1`,
+      [beneficiaryId],
+    );
+  }
+
+  async createInvoice(input: InvoiceInput): Promise<string> {
+    const r = await this.one<{ id: string }>(
+      `select crm.create_invoice($1,$2,$3,$4,$5,$6,$7) as id`,
+      [
+        input.beneficiary_id, input.financeur, input.amount_cents ?? null,
+        input.formation_label ?? null, input.quote_id ?? null,
+        input.external_ref ?? null, input.channel ?? null,
+      ],
+    );
+    return r!.id;
+  }
+
+  async setInvoiceStatus(
+    invoiceId: string,
+    status: string,
+    externalRef?: string | null,
+  ): Promise<boolean> {
+    const r = await this.one<{ ok: boolean }>(
+      `select crm.set_invoice_status($1,$2,$3) as ok`,
+      [invoiceId, status, externalRef ?? null],
+    );
+    return r?.ok === true;
+  }
+
+  async detectOverdueInvoices(): Promise<number> {
+    const r = await this.one<{ n: number }>(
+      `select crm.detect_overdue_invoices_and_schedule() as n`,
+    );
+    return Number(r?.n ?? 0);
   }
 
   async logNotification(n: NotificationLog): Promise<string> {

@@ -64,6 +64,23 @@ export interface QuoteInput {
   metadata?: Record<string, unknown>;
 }
 
+export interface InvoiceInput {
+  beneficiary_id: string;
+  financeur: string; // edof | kairos | opco | entreprise | autofinancement
+  amount_cents?: number;
+  formation_label?: string;
+  quote_id?: string;
+  external_ref?: string;
+  channel?: string; // forcé si fourni, sinon dérivé du financeur
+}
+
+export interface AcceptedQuote {
+  id: string;
+  financeur: string;
+  amount_cents: number | null;
+  formation_label: string | null;
+}
+
 // Champs de profil modifiables d'un dossier (capture d'infos).
 export interface ProfileFields {
   first_name?: string | null;
@@ -171,6 +188,16 @@ export interface CrmStore {
   createQuote(q: QuoteInput): Promise<string>;
   transmitQuote(quoteId: string): Promise<boolean>;
   setQuoteStatus(quoteId: string, status: string): Promise<void>;
+  latestAcceptedQuote(beneficiaryId: string): Promise<AcceptedQuote | null>;
+
+  // Facturation
+  createInvoice(input: InvoiceInput): Promise<string>;
+  setInvoiceStatus(
+    invoiceId: string,
+    status: string,
+    externalRef?: string | null,
+  ): Promise<boolean>;
+  detectOverdueInvoices(): Promise<number>;
 
   // Notifications (journal SMS/email)
   logNotification(n: NotificationLog): Promise<string>;

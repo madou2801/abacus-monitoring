@@ -19,6 +19,7 @@ export interface RelanceDeps {
 
 export interface RelanceReport {
   staleScheduled: number;
+  overdueInvoicesScheduled: number;
   processed: number;
   done: number;
   failed: number;
@@ -28,15 +29,17 @@ export interface RelanceReport {
 export async function processRelances(deps: RelanceDeps): Promise<RelanceReport> {
   const report: RelanceReport = {
     staleScheduled: 0,
+    overdueInvoicesScheduled: 0,
     processed: 0,
     done: 0,
     failed: 0,
     details: [],
   };
 
-  // 1) Détection des dossiers dormants -> planifie des relances 'stale'.
+  // 1) Détection des dossiers dormants + factures impayées -> planifie relances.
   if (deps.detectStale) {
     report.staleScheduled = await deps.store.detectStaleAndSchedule();
+    report.overdueInvoicesScheduled = await deps.store.detectOverdueInvoices();
   }
 
   // 2) Traitement des relances échues.

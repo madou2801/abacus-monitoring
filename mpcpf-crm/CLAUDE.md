@@ -23,17 +23,17 @@ Tout est **additif**, sur la branche `claude/mpcpf-crm-audit-integration-hxl53q`
 
 Tout est sous `mpcpf-crm/` (brique Supabase autonome, schéma `crm`) :
 
-- `supabase/migrations/0001..0008_*.sql` — schéma, DMAIC, relances, parcours, vues, RLS, buckets
-- `supabase/functions/_shared/` — logique métier **agnostique du runtime** (port `CrmStore` + `fetch`/`Notifier` injectés)
+- `supabase/migrations/0001..0009_*.sql` — schéma, DMAIC, relances, parcours, vues, RLS, buckets, **facturation (0009)**
+- `supabase/functions/_shared/` — logique métier **agnostique du runtime** (port `CrmStore` + `fetch`/`Notifier` injectés) ; inclut `billing.ts` (facturation)
 - `supabase/functions/{retell-webhook,wedof-webhook,intake-api,process-relances}/` — edge functions (Deno)
-- `tests/` — DB réelle via **PGlite**, unitaires, intégration (49 tests)
+- `tests/` — DB réelle via **PGlite**, unitaires, intégration (60 tests)
 
 ## Commandes
 
 ```bash
 cd mpcpf-crm
 npm install
-npm test          # 49/49 attendus
+npm test          # 60/60 attendus (scripts en --test-concurrency=1 : séquentiel, évite l'OOM V8 sur machine à faible RAM)
 npm run typecheck # tsc --noEmit, doit passer
 ```
 
@@ -59,6 +59,18 @@ npm run typecheck # tsc --noEmit, doit passer
 Fait & testé : dossier unifié, webhook Retell (signature, enregistrement→Storage,
 capture Lucie, automatisations), webhook Wedof, API parcours `intake-api`,
 devis multi-financeurs, relances, pipeline DMAIC, vues unifiées.
+
+**Facturation (ajout 27/06, migration 0009 + `billing.ts`)** — « jusqu'à facturation » :
+table `crm.invoices` (cycle `a_emettre→emise→transmise→payee→encaissee`/`annulee`,
+ref externe Wedof/Chorus/Stripe, échéance), **orthogonale** au pipeline commercial
+(0 modif des tables/tests existants). Canal dérivé du financeur
+(edof→wedof, kairos→france_travail, opco→opco, entreprise→facture_directe,
+autofinancement→stripe). Auto-facture à la **certification Wedof** depuis le devis
+accepté (idempotent). Relance `relance_facture_impayee` + `detect_overdue_invoices`
+branchée dans `process-relances`. API `intake-api` : actions `create_invoice` /
+`set_invoice_status`. Vues `vw_facturation` (retard) + `vw_facturation_funnel`.
+Le CRM **pilote/consolide** la facturation tous financeurs ; il ne re-facture pas
+le CPF (géré par Wedof) mais en suit le cycle via les refs externes.
 
 ## Décisions / infos EN ATTENTE du client
 

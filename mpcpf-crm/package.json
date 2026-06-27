@@ -5,10 +5,10 @@
   "type": "module",
   "description": "CRM MonPermisCPF — vue unifiée des dossiers bénéficiaires (Retell, Wedof, emails), pipeline DMAIC et relances automatisées sur Supabase.",
   "scripts": {
-    "test": "node --import tsx --test tests/unit/*.test.ts tests/db/*.test.ts tests/integration/*.test.ts",
-    "test:db": "node --import tsx --test tests/db/*.test.ts",
-    "test:unit": "node --import tsx --test tests/unit/*.test.ts",
-    "test:integration": "node --import tsx --test tests/integration/*.test.ts",
+    "test": "node --import tsx --test --test-concurrency=1 tests/unit/*.test.ts tests/db/*.test.ts tests/integration/*.test.ts",
+    "test:db": "node --import tsx --test --test-concurrency=1 tests/db/*.test.ts",
+    "test:unit": "node --import tsx --test --test-concurrency=1 tests/unit/*.test.ts",
+    "test:integration": "node --import tsx --test --test-concurrency=1 tests/integration/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

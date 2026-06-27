@@ -67,6 +67,34 @@ export interface FollowUpTask {
   payload: Record<string, unknown>;
 }
 
+// ---- Facturation --------------------------------------------------------
+export type InvoiceStatus =
+  | "a_emettre"
+  | "emise"
+  | "transmise"
+  | "payee"
+  | "encaissee"
+  | "annulee";
+
+export interface Invoice {
+  id: string;
+  beneficiary_id: string;
+  quote_id: string | null;
+  financeur: string;
+  channel: string; // wedof | france_travail | opco | facture_directe | stripe | manuel
+  formation_label: string | null;
+  amount_cents: number | null;
+  currency: string;
+  status: InvoiceStatus;
+  external_ref: string | null;
+  invoice_number: string | null;
+  due_date: string | null;
+  issued_at: string | null;
+  transmitted_at: string | null;
+  paid_at: string | null;
+  settled_at: string | null;
+}
+
 export interface WebhookRecord {
   alreadyProcessed: boolean;
   id: string;

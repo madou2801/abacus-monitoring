@@ -4,9 +4,11 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type {
+  AcceptedQuote,
   CrmStore,
   EmailInput,
   IntakeInput,
+  InvoiceInput,
   NotificationLog,
   ProfileFields,
   QuoteInput,
@@ -350,6 +352,53 @@ export class SupabaseCrmStore implements CrmStore {
       .update({ status, decided_at: decided ? new Date().toISOString() : undefined })
       .eq("id", quoteId);
     if (error) throw error;
+  }
+
+  async latestAcceptedQuote(beneficiaryId: string): Promise<AcceptedQuote | null> {
+    const { data, error } = await this.db()
+      .from("quotes")
+      .select("id, financeur, amount_cents, formation_label")
+      .eq("beneficiary_id", beneficiaryId)
+      .eq("status", "accepted")
+      .order("decided_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return (data as AcceptedQuote) ?? null;
+  }
+
+  async createInvoice(input: InvoiceInput): Promise<string> {
+    const { data, error } = await this.db().rpc("create_invoice", {
+      p_benef: input.beneficiary_id,
+      p_financeur: input.financeur,
+      p_amount_cents: input.amount_cents ?? null,
+      p_formation_label: input.formation_label ?? null,
+      p_quote_id: input.quote_id ?? null,
+      p_external_ref: input.external_ref ?? null,
+      p_channel: input.channel ?? null,
+    });
+    if (error) throw error;
+    return data as string;
+  }
+
+  async setInvoiceStatus(
+    invoiceId: string,
+    status: string,
+    externalRef?: string | null,
+  ): Promise<boolean> {
+    const { data, error } = await this.db().rpc("set_invoice_status", {
+      p_invoice: invoiceId,
+      p_status: status,
+      p_external_ref: externalRef ?? null,
+    });
+    if (error) throw error;
+    return data === true;
+  }
+
+  async detectOverdueInvoices(): Promise<number> {
+    const { data, error } = await this.db().rpc("detect_overdue_invoices_and_schedule");
+    if (error) throw error;
+    return (data as number) ?? 0;
   }
 
   async logNotification(n: NotificationLog): Promise<string> {

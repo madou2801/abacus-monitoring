@@ -4,11 +4,13 @@
 
 import type { CrmStore } from "./crm-store.ts";
 import type { CallOutcome } from "./types.ts";
+import { issueInvoiceFromCertification } from "./billing.ts";
 
 export interface AutomationResult {
   stageChanged: boolean;
   newStage?: string;
   followUpsScheduled: string[]; // rule_codes effectivement planifiés
+  invoiceCreated?: string | null; // id de la facture créée à la certification
 }
 
 /**
@@ -113,6 +115,13 @@ export async function applyWedofAutomations(
     );
     result.stageChanged = changed;
     if (changed) result.newStage = targetStage;
+
+    // À la certification, on génère la facture depuis le devis accepté
+    // (idempotent : pas de doublon si la facture existe déjà).
+    if (targetStage === "certifie") {
+      const inv = await issueInvoiceFromCertification(store, args.beneficiaryId);
+      if (inv.created) result.invoiceCreated = inv.invoiceId;
+    }
   }
 
   if (WEDOF_DOC_STATES.has(state)) {

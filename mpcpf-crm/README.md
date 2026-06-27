@@ -38,6 +38,7 @@ bout sans dépendance réseau.
 - `webhook_events` — journal brut (idempotence + audit)
 - `pipeline_stages`, `control_points`, `pipeline_transitions` — pipeline DMAIC
 - `follow_up_rules`, `follow_up_tasks` — relances
+- `invoices` — facturation (cycle de vie propre, multi-financeurs, refs externes)
 
 ### Vues unifiées
 
@@ -96,6 +97,27 @@ décision du financeur et fait avancer le pipeline.
 (SMS + email) en prod si `BREVO_API_KEY` est défini, sinon `QueueNotifier`
 (mise en file traçable dans `crm.notifications`). Branchable sur un autre
 fournisseur sans toucher la logique métier.
+
+## Facturation (« jusqu'à facturation »)
+
+Couche **orthogonale** au pipeline commercial : chaque dossier porte une facture
+au cycle de vie propre — `a_emettre → emise → transmise → payee → encaissee`
+(ou `annulee`). Le **canal** est dérivé du financeur : EDOF→Wedof,
+France Travail→Kairos, OPCO→OPCO, entreprise→facture directe,
+autofinancement→Stripe. Les refs externes (id facturation Wedof, Chorus Pro,
+PaymentIntent Stripe, n° AIF) sont stockées dans `external_ref`.
+
+- **Auto-facture** : à la certification Wedof (`terminated`/`completed`/
+  `serviceisdone`), `crm.create_invoice` génère la facture depuis le dernier
+  devis accepté (financeur + montant). Idempotent (pas de doublon par dossier+financeur).
+- **API back-office** (`intake-api`) : `create_invoice`, `set_invoice_status`.
+- **Relances impayés** : règle `relance_facture_impayee` + `detect_overdue_invoices`
+  (factures émises/transmises échues), branchées dans `process-relances`.
+- **Vues** : `vw_facturation` (statut + jours de retard) et `vw_facturation_funnel`
+  (répartition + montants par statut).
+
+Le CRM **pilote et consolide** la facturation tous financeurs ; il ne re-facture
+pas le CPF (géré par Wedof) mais en suit le cycle via les refs externes.
 
 ## Flux de bout en bout
 

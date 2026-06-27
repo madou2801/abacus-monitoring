@@ -5,6 +5,7 @@ import type { CrmStore, ProfileFields } from "./crm-store.ts";
 import type { Notifier } from "./notifier.ts";
 import type { HandlerResponse } from "./retell-handler.ts";
 import { decideQuote, sendQuote, submitDocument, submitIntake } from "./journey.ts";
+import { advanceInvoice, createInvoice } from "./billing.ts";
 
 export interface IntakeDeps {
   store: CrmStore;
@@ -42,6 +43,22 @@ type IntakeRequest =
     beneficiary_id: string;
     quote_id: string;
     status: "accepted" | "refused" | "expired";
+  }
+  | {
+    action: "create_invoice";
+    beneficiary_id: string;
+    financeur: string;
+    amount_cents?: number;
+    formation_label?: string;
+    quote_id?: string;
+    external_ref?: string;
+    channel?: string;
+  }
+  | {
+    action: "set_invoice_status";
+    invoice_id: string;
+    status: string;
+    external_ref?: string;
   }
   | { action: "journey"; beneficiary_id: string };
 
@@ -129,6 +146,32 @@ export async function handleIntakeRequest(
           status: req.status,
         });
         return { status: 200, body: { ok: true, next_step: r.nextStep } };
+      }
+
+      case "create_invoice": {
+        if (!FINANCEURS.has(req.financeur)) {
+          return { status: 400, body: { error: `financeur inconnu: ${req.financeur}` } };
+        }
+        const invoiceId = await createInvoice(store, {
+          beneficiary_id: req.beneficiary_id,
+          financeur: req.financeur,
+          amount_cents: req.amount_cents,
+          formation_label: req.formation_label,
+          quote_id: req.quote_id,
+          external_ref: req.external_ref,
+          channel: req.channel,
+        });
+        return { status: 200, body: { ok: true, invoice_id: invoiceId } };
+      }
+
+      case "set_invoice_status": {
+        const changed = await advanceInvoice(
+          store,
+          req.invoice_id,
+          req.status,
+          req.external_ref,
+        );
+        return { status: 200, body: { ok: true, changed } };
       }
 
       case "journey": {
