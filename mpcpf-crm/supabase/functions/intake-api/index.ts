@@ -2,18 +2,38 @@
 // Déploiement : supabase functions deploy intake-api --no-verify-jwt
 //
 // Auth : header Authorization: Bearer <INTAKE_API_SECRET>.
-// Secrets : INTAKE_API_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
-//           BREVO_API_KEY (optionnel — sinon notifications mises en file).
+// Secrets : INTAKE_API_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
+//   PROD (préféré) : N8N_EMAIL_WEBHOOK + CLICKSEND_USERNAME + CLICKSEND_API_KEY.
+//   Repli optionnel : BREVO_API_KEY. Sinon notifications mises en file (QueueNotifier).
 
 import { corsHeaders, json } from "../_shared/cors.ts";
 import { handleIntakeRequest } from "../_shared/intake-handler.ts";
 import { createServiceClient, SupabaseCrmStore } from "../_shared/supabase-store.ts";
-import { BrevoNotifier, QueueNotifier, type Notifier } from "../_shared/notifier.ts";
+import {
+  BrevoNotifier,
+  MpcpfNotifier,
+  QueueNotifier,
+  type Notifier,
+} from "../_shared/notifier.ts";
 
 // deno-lint-ignore no-explicit-any
 const env = (globalThis as any).Deno?.env;
 
 function buildNotifier(): Notifier {
+  // Stack PROD réelle : email via webhook n8n (Gmail OAuth2) + SMS ClickSend.
+  const emailWebhookUrl = env.get("N8N_EMAIL_WEBHOOK");
+  const clickSendUser = env.get("CLICKSEND_USERNAME");
+  const clickSendKey = env.get("CLICKSEND_API_KEY");
+  if (emailWebhookUrl && clickSendUser && clickSendKey) {
+    return new MpcpfNotifier({
+      fetchFn: fetch as never,
+      emailWebhookUrl,
+      clickSendUser,
+      clickSendKey,
+      smsSender: env.get("CLICKSEND_SENDER") ?? "MonPermis",
+    });
+  }
+  // Repli Brevo si configuré, sinon file traçable (aucun envoi externe).
   const apiKey = env.get("BREVO_API_KEY");
   if (!apiKey) return new QueueNotifier();
   return new BrevoNotifier({
