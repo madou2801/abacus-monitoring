@@ -91,6 +91,76 @@ export class BrevoNotifier implements Notifier {
 }
 
 /**
+ * Adaptateur PROD MonPermisCPF : email via le webhook n8n (Gmail OAuth2,
+ * contact@monpermiscpf.com) et SMS via ClickSend (expéditeur « MonPermis »,
+ * mobiles FR +33 6/7). C'est la stack réellement en production (pas Brevo).
+ */
+export class MpcpfNotifier implements Notifier {
+  constructor(
+    private readonly opts: {
+      fetchFn: FetchLike;
+      emailWebhookUrl: string; // N8N_EMAIL_WEBHOOK -> Gmail OAuth2
+      clickSendUser: string; // CLICKSEND_USERNAME
+      clickSendKey: string; // CLICKSEND_API_KEY
+      smsSender?: string; // défaut "MonPermis"
+    },
+  ) {}
+
+  async send(m: OutgoingMessage): Promise<SendResult> {
+    try {
+      return m.channel === "email" ? await this.sendEmail(m) : await this.sendSms(m);
+    } catch (err) {
+      return { status: "failed", provider: "mpcpf", error: (err as Error).message };
+    }
+  }
+
+  private async sendEmail(m: OutgoingMessage): Promise<SendResult> {
+    const res = await this.opts.fetchFn(this.opts.emailWebhookUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        to: m.to,
+        subject: m.subject ?? "MonPermisCPF",
+        body: m.body,
+        template_code: m.templateCode ?? null,
+        metadata: m.metadata ?? {},
+      }),
+    });
+    if (!res.ok) return { status: "failed", provider: "n8n-gmail", error: `HTTP ${res.status}` };
+    let id: string | undefined;
+    try {
+      const d = JSON.parse(new TextDecoder().decode(await res.arrayBuffer()));
+      id = d.id ?? d.messageId ?? d.message_id;
+    } catch { /* corps non-JSON : on ignore */ }
+    return { status: "sent", provider: "n8n-gmail", providerMessageId: id };
+  }
+
+  private async sendSms(m: OutgoingMessage): Promise<SendResult> {
+    const to = m.to.replace(/\s+/g, "");
+    const auth = btoa(`${this.opts.clickSendUser}:${this.opts.clickSendKey}`);
+    const res = await this.opts.fetchFn("https://rest.clicksend.com/v3/sms/send", {
+      method: "POST",
+      headers: { "authorization": `Basic ${auth}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        messages: [{
+          source: "mpcpf-crm",
+          from: this.opts.smsSender ?? "MonPermis",
+          to,
+          body: m.body,
+        }],
+      }),
+    });
+    if (!res.ok) return { status: "failed", provider: "clicksend", error: `HTTP ${res.status}` };
+    let id: string | undefined;
+    try {
+      const d = JSON.parse(new TextDecoder().decode(await res.arrayBuffer()));
+      id = d?.data?.messages?.[0]?.message_id ?? d?.data?.messages?.[0]?.messageId;
+    } catch { /* corps non-JSON : on ignore */ }
+    return { status: "sent", provider: "clicksend", providerMessageId: id };
+  }
+}
+
+/**
  * Envoie une notification et la journalise dans crm.notifications.
  * Ne jette jamais : une notification ratée n'interrompt pas le parcours.
  */
