@@ -271,6 +271,15 @@ export class PgliteCrmStore implements CrmStore {
     );
   }
 
+  async getBeneficiaryContact(
+    beneficiaryId: string,
+  ): Promise<{ email: string | null; phone: string | null } | null> {
+    return this.one<{ email: string | null; phone: string | null }>(
+      `select email, coalesce(phone_e164, phone) as phone from crm.beneficiaries where id=$1`,
+      [beneficiaryId],
+    );
+  }
+
   async insertIntake(e: IntakeInput): Promise<string> {
     const r = await this.one<{ id: string }>(
       `insert into crm.intake_submissions (beneficiary_id, form_type, source, payload, completed)

@@ -269,6 +269,19 @@ export class SupabaseCrmStore implements CrmStore {
     if (error) throw error;
   }
 
+  async getBeneficiaryContact(
+    beneficiaryId: string,
+  ): Promise<{ email: string | null; phone: string | null } | null> {
+    const { data, error } = await this.db()
+      .from("beneficiaries")
+      .select("email, phone, phone_e164")
+      .eq("id", beneficiaryId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    return { email: data.email ?? null, phone: data.phone_e164 ?? data.phone ?? null };
+  }
+
   async insertIntake(e: IntakeInput): Promise<string> {
     const { data, error } = await this.db()
       .from("intake_submissions")

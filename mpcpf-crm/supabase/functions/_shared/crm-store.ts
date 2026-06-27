@@ -172,6 +172,9 @@ export interface CrmStore {
 
   // Profil / capture d'infos
   updateProfile(beneficiaryId: string, fields: ProfileFields): Promise<void>;
+  getBeneficiaryContact(
+    beneficiaryId: string,
+  ): Promise<{ email: string | null; phone: string | null } | null>;
 
   // Parcours bénéficiaire
   insertIntake(e: IntakeInput): Promise<string>;

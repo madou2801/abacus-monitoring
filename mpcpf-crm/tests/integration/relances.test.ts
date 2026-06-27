@@ -9,6 +9,7 @@ import {
   type ChannelDispatcher,
   processRelances,
 } from "../../supabase/functions/_shared/relances-handler.ts";
+import { notify, QueueNotifier } from "../../supabase/functions/_shared/notifier.ts";
 
 async function ctx() {
   const db = await applyMigrations();
@@ -72,4 +73,41 @@ test("un dispatcher qui jette est capturé et marque failed", async () => {
   assert.equal(report.failed, 1);
   const t = await db.query(`select status, last_error from crm.follow_up_tasks`);
   assert.equal((t.rows[0] as any).last_error, "SMTP down");
+});
+
+test("getBeneficiaryContact renvoie email + téléphone E.164", async () => {
+  const { store } = await ctx();
+  const b = await store.findOrCreateBeneficiaryByPhone("+33612345678", {});
+  await store.updateProfile(b!.id, { email: "contact@y.com" });
+  const c = await store.getBeneficiaryContact(b!.id);
+  assert.equal(c?.email, "contact@y.com");
+  assert.equal(c?.phone, "+33612345678");
+});
+
+test("dispatcher email réel : lookup contact + notify + journal", async () => {
+  const { db, store } = await ctx();
+  const b = await store.findOrCreateBeneficiaryByPhone("+33699998888", {});
+  await store.updateProfile(b!.id, { email: "benef@y.com" });
+  await store.scheduleFollowUp(b!.id, "relance_voicemail"); // canal email
+  await db.query(`update crm.follow_up_tasks set due_at = now() - interval '1 minute'`);
+
+  // dispatcher qui réplique le câblage edge function (contact + notify).
+  const realEmail: ChannelDispatcher = async (task, s) => {
+    const contact = await s.getBeneficiaryContact(task.beneficiary_id);
+    if (!contact?.email) throw new Error("email manquant");
+    const { result } = await notify(s, new QueueNotifier(), task.beneficiary_id, {
+      channel: "email", to: contact.email, subject: "Relance", body: "corps",
+      templateCode: task.template_code ?? undefined,
+    });
+    return { result: `email ${result.status}` };
+  };
+
+  const report = await processRelances({ store, dispatchers: { email: realEmail } });
+  assert.equal(report.done, 1);
+
+  const notifs = await db.query(
+    `select channel, to_addr, status from crm.notifications where beneficiary_id=$1`, [b!.id],
+  );
+  assert.equal(notifs.rows.length, 1);
+  assert.equal((notifs.rows[0] as any).to_addr, "benef@y.com");
 });
