@@ -99,6 +99,24 @@ test("repli SIÈGE quand aucune AE locale (autre ville) → low + review", async
   assert.equal(r.needsReview, true);
 });
 
+test("ville-dans-le-code : overlap exact échoue (PCB vs PCB2) → code_ville high", async () => {
+  const { store } = await setup();
+  const AE_STPOL = "66666666-6666-6666-6666-666666666666";
+  // AE avec codes en PCB2_… et ville St-Pol ; le dossier a PCB_… (pas d'overlap exact)
+  await store.upsertAutoEcole({
+    id: AE_STPOL, raison_sociale: "AE St-Pol", ville: "St-Pol-sur-Ternoise",
+    codes_actions: ["PCB2_ST-POL-SUR-TERNOISE", "Bauto13_ST-POL-SUR-TERNOISE"], active: true,
+  });
+  // bénéficiaire : code PCB_… (≠ PCB2) + ville bénéficiaire ailleurs (Le Quesnoy)
+  const r = await matchAutoEcole(store, await benef(store, "stpol@x.com"), {
+    codesPossibles: ["PCB_ST-POL-SUR-TERNOISE", "88433529000034_PCB_ST-POL-SUR-TERNOISE"],
+    villeFormation: "Le Quesnoy en Artois",
+  });
+  assert.equal(r.aeId, AE_STPOL, "matché par la ville encodée dans le code, pas le siège");
+  assert.equal(r.method, "code_ville");
+  assert.equal(r.confidence, "high");
+});
+
 test("une AE locale l'emporte sur le siège (siège exclu du niveau ville)", async () => {
   const { store } = await setup();
   await store.upsertAutoEcole({ id: AE_SIEGE, raison_sociale: "Siège", ville: "Chessy", is_siege: true, active: true });
