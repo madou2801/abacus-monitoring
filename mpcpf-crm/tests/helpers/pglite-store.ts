@@ -366,21 +366,22 @@ export class PgliteCrmStore implements CrmStore {
     const r = await this.one<{ id: string }>(
       `insert into crm.auto_ecoles
          (id,nom,raison_sociale,siret,codes_actions,ville,code_postal,email,contact_email,
-          telephone,active,statut,tarif_horaire,user_id,sites_formation,metadata)
-       values ($1,$2,$3,$4,$5::text[],$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb,$16::jsonb)
+          telephone,active,statut,tarif_horaire,user_id,is_siege,sites_formation,metadata)
+       values ($1,$2,$3,$4,$5::text[],$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,$17::jsonb)
        on conflict (id) do update set
          nom=excluded.nom, raison_sociale=excluded.raison_sociale, siret=excluded.siret,
          codes_actions=excluded.codes_actions, ville=excluded.ville, code_postal=excluded.code_postal,
          email=excluded.email, contact_email=excluded.contact_email, telephone=excluded.telephone,
          active=excluded.active, statut=excluded.statut, tarif_horaire=excluded.tarif_horaire,
-         user_id=excluded.user_id, sites_formation=excluded.sites_formation, metadata=excluded.metadata
+         user_id=excluded.user_id, is_siege=excluded.is_siege,
+         sites_formation=excluded.sites_formation, metadata=excluded.metadata
        returning id`,
       [
         ae.id, ae.nom ?? null, ae.raison_sociale ?? null, ae.siret ?? null,
         pgTextArray(ae.codes_actions), ae.ville ?? null, ae.code_postal ?? null,
         ae.email ?? null, ae.contact_email ?? null, ae.telephone ?? null,
         ae.active ?? true, ae.statut ?? null, ae.tarif_horaire ?? null,
-        ae.user_id ?? null, j(ae.sites_formation ?? []), j(ae.metadata ?? {}),
+        ae.user_id ?? null, ae.is_siege ?? false, j(ae.sites_formation ?? []), j(ae.metadata ?? {}),
       ],
     );
     return r!.id;
@@ -404,10 +405,20 @@ export class PgliteCrmStore implements CrmStore {
 
   async matchAutoEcole(beneficiaryId: string): Promise<AutoEcoleMatch> {
     const r = await this.one<{ ae: string | null }>(`select crm.match_auto_ecole($1) as ae`, [beneficiaryId]);
-    const m = await this.one<{ ae_match_method: string }>(
-      `select ae_match_method from crm.beneficiaries where id=$1`, [beneficiaryId],
+    const m = await this.one<{
+      ae_match_method: string; ae_match_confidence: string;
+      ae_match_needs_review: boolean; ae_match_candidates: number;
+    }>(
+      `select ae_match_method, ae_match_confidence, ae_match_needs_review, ae_match_candidates
+         from crm.beneficiaries where id=$1`, [beneficiaryId],
     );
-    return { aeId: r?.ae ?? null, method: m?.ae_match_method ?? "none" };
+    return {
+      aeId: r?.ae ?? null,
+      method: m?.ae_match_method ?? "none",
+      confidence: m?.ae_match_confidence ?? "none",
+      needsReview: m?.ae_match_needs_review === true,
+      candidates: Number(m?.ae_match_candidates ?? 0),
+    };
   }
 
   async createInvoice(input: InvoiceInput): Promise<string> {

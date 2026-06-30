@@ -399,6 +399,7 @@ export class SupabaseCrmStore implements CrmStore {
       statut: ae.statut ?? null,
       tarif_horaire: ae.tarif_horaire ?? null,
       user_id: ae.user_id ?? null,
+      is_siege: ae.is_siege ?? false,
       sites_formation: ae.sites_formation ?? [],
       metadata: ae.metadata ?? {},
     };
@@ -422,8 +423,16 @@ export class SupabaseCrmStore implements CrmStore {
     const { data, error } = await this.db().rpc("match_auto_ecole", { p_benef: beneficiaryId });
     if (error) throw error;
     const { data: b } = await this.db()
-      .from("beneficiaries").select("ae_match_method").eq("id", beneficiaryId).single();
-    return { aeId: (data as string) ?? null, method: (b?.ae_match_method as string) ?? "none" };
+      .from("beneficiaries")
+      .select("ae_match_method, ae_match_confidence, ae_match_needs_review, ae_match_candidates")
+      .eq("id", beneficiaryId).single();
+    return {
+      aeId: (data as string) ?? null,
+      method: (b?.ae_match_method as string) ?? "none",
+      confidence: (b?.ae_match_confidence as string) ?? "none",
+      needsReview: b?.ae_match_needs_review === true,
+      candidates: (b?.ae_match_candidates as number) ?? 0,
+    };
   }
 
   async createInvoice(input: InvoiceInput): Promise<string> {
