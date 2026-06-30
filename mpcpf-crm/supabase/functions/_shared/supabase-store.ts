@@ -5,7 +5,10 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type {
   AcceptedQuote,
+  AutoEcoleInput,
+  AutoEcoleMatch,
   CrmStore,
+  DossierFormation,
   EmailInput,
   IntakeInput,
   InvoiceInput,
@@ -378,6 +381,49 @@ export class SupabaseCrmStore implements CrmStore {
       .maybeSingle();
     if (error) throw error;
     return (data as AcceptedQuote) ?? null;
+  }
+
+  async upsertAutoEcole(ae: AutoEcoleInput): Promise<string> {
+    const row = {
+      id: ae.id,
+      nom: ae.nom ?? null,
+      raison_sociale: ae.raison_sociale ?? null,
+      siret: ae.siret ?? null,
+      codes_actions: ae.codes_actions ?? [],
+      ville: ae.ville ?? null,
+      code_postal: ae.code_postal ?? null,
+      email: ae.email ?? null,
+      contact_email: ae.contact_email ?? null,
+      telephone: ae.telephone ?? null,
+      active: ae.active ?? true,
+      statut: ae.statut ?? null,
+      tarif_horaire: ae.tarif_horaire ?? null,
+      user_id: ae.user_id ?? null,
+      sites_formation: ae.sites_formation ?? [],
+      metadata: ae.metadata ?? {},
+    };
+    const { data, error } = await this.db()
+      .from("auto_ecoles").upsert(row, { onConflict: "id" }).select("id").single();
+    if (error) throw error;
+    return data.id;
+  }
+
+  async setDossierFormation(beneficiaryId: string, info: DossierFormation): Promise<void> {
+    const patch: Record<string, unknown> = {};
+    if (info.codesPossibles !== undefined) patch.wedof_codes_possibles = info.codesPossibles;
+    if (info.siretFormation !== undefined) patch.siret_formation = info.siretFormation;
+    if (info.villeFormation !== undefined) patch.ville_formation = info.villeFormation;
+    if (Object.keys(patch).length === 0) return;
+    const { error } = await this.db().from("beneficiaries").update(patch).eq("id", beneficiaryId);
+    if (error) throw error;
+  }
+
+  async matchAutoEcole(beneficiaryId: string): Promise<AutoEcoleMatch> {
+    const { data, error } = await this.db().rpc("match_auto_ecole", { p_benef: beneficiaryId });
+    if (error) throw error;
+    const { data: b } = await this.db()
+      .from("beneficiaries").select("ae_match_method").eq("id", beneficiaryId).single();
+    return { aeId: (data as string) ?? null, method: (b?.ae_match_method as string) ?? "none" };
   }
 
   async createInvoice(input: InvoiceInput): Promise<string> {

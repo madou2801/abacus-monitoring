@@ -5,7 +5,10 @@
 import type { PGlite } from "@electric-sql/pglite";
 import type {
   AcceptedQuote,
+  AutoEcoleInput,
+  AutoEcoleMatch,
   CrmStore,
+  DossierFormation,
   EmailInput,
   IntakeInput,
   InvoiceInput,
@@ -17,6 +20,11 @@ import type {
   WebhookEventInput,
   WedofEventInput,
 } from "../../supabase/functions/_shared/crm-store.ts";
+
+// Littéral de tableau Postgres (text[]) — fiable pour le binding PGlite.
+function pgTextArray(a: string[] | undefined): string {
+  return "{" + (a || []).map((x) => '"' + String(x).replace(/(["\\])/g, "\\$1") + '"').join(",") + "}";
+}
 import type {
   Beneficiary,
   CallInput,
@@ -352,6 +360,54 @@ export class PgliteCrmStore implements CrmStore {
         limit 1`,
       [beneficiaryId],
     );
+  }
+
+  async upsertAutoEcole(ae: AutoEcoleInput): Promise<string> {
+    const r = await this.one<{ id: string }>(
+      `insert into crm.auto_ecoles
+         (id,nom,raison_sociale,siret,codes_actions,ville,code_postal,email,contact_email,
+          telephone,active,statut,tarif_horaire,user_id,sites_formation,metadata)
+       values ($1,$2,$3,$4,$5::text[],$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb,$16::jsonb)
+       on conflict (id) do update set
+         nom=excluded.nom, raison_sociale=excluded.raison_sociale, siret=excluded.siret,
+         codes_actions=excluded.codes_actions, ville=excluded.ville, code_postal=excluded.code_postal,
+         email=excluded.email, contact_email=excluded.contact_email, telephone=excluded.telephone,
+         active=excluded.active, statut=excluded.statut, tarif_horaire=excluded.tarif_horaire,
+         user_id=excluded.user_id, sites_formation=excluded.sites_formation, metadata=excluded.metadata
+       returning id`,
+      [
+        ae.id, ae.nom ?? null, ae.raison_sociale ?? null, ae.siret ?? null,
+        pgTextArray(ae.codes_actions), ae.ville ?? null, ae.code_postal ?? null,
+        ae.email ?? null, ae.contact_email ?? null, ae.telephone ?? null,
+        ae.active ?? true, ae.statut ?? null, ae.tarif_horaire ?? null,
+        ae.user_id ?? null, j(ae.sites_formation ?? []), j(ae.metadata ?? {}),
+      ],
+    );
+    return r!.id;
+  }
+
+  async setDossierFormation(beneficiaryId: string, info: DossierFormation): Promise<void> {
+    await this.db.query(
+      `update crm.beneficiaries set
+         wedof_codes_possibles = coalesce($2::text[], wedof_codes_possibles),
+         siret_formation       = coalesce($3, siret_formation),
+         ville_formation       = coalesce($4, ville_formation)
+       where id=$1`,
+      [
+        beneficiaryId,
+        info.codesPossibles !== undefined ? pgTextArray(info.codesPossibles) : null,
+        info.siretFormation ?? null,
+        info.villeFormation ?? null,
+      ],
+    );
+  }
+
+  async matchAutoEcole(beneficiaryId: string): Promise<AutoEcoleMatch> {
+    const r = await this.one<{ ae: string | null }>(`select crm.match_auto_ecole($1) as ae`, [beneficiaryId]);
+    const m = await this.one<{ ae_match_method: string }>(
+      `select ae_match_method from crm.beneficiaries where id=$1`, [beneficiaryId],
+    );
+    return { aeId: r?.ae ?? null, method: m?.ae_match_method ?? "none" };
   }
 
   async createInvoice(input: InvoiceInput): Promise<string> {

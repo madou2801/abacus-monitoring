@@ -81,6 +81,36 @@ export interface AcceptedQuote {
   formation_label: string | null;
 }
 
+export interface AutoEcoleInput {
+  id: string; // = id prod (public.auto_ecoles.id) pour aligner les 2 bases
+  nom?: string | null;
+  raison_sociale?: string | null;
+  siret?: string | null;
+  codes_actions?: string[];
+  ville?: string | null;
+  code_postal?: string | null;
+  email?: string | null;
+  contact_email?: string | null;
+  telephone?: string | null;
+  active?: boolean;
+  statut?: string | null;
+  tarif_horaire?: number | null;
+  user_id?: string | null;
+  sites_formation?: unknown;
+  metadata?: Record<string, unknown>;
+}
+
+export interface DossierFormation {
+  codesPossibles?: string[];
+  siretFormation?: string | null;
+  villeFormation?: string | null;
+}
+
+export interface AutoEcoleMatch {
+  aeId: string | null;
+  method: string; // code_session | siret | ville | none
+}
+
 // Champs de profil modifiables d'un dossier (capture d'infos).
 export interface ProfileFields {
   first_name?: string | null;
@@ -192,6 +222,11 @@ export interface CrmStore {
   transmitQuote(quoteId: string): Promise<boolean>;
   setQuoteStatus(quoteId: string, status: string): Promise<void>;
   latestAcceptedQuote(beneficiaryId: string): Promise<AcceptedQuote | null>;
+
+  // Auto-écoles (appariement)
+  upsertAutoEcole(ae: AutoEcoleInput): Promise<string>;
+  setDossierFormation(beneficiaryId: string, info: DossierFormation): Promise<void>;
+  matchAutoEcole(beneficiaryId: string): Promise<AutoEcoleMatch>;
 
   // Facturation
   createInvoice(input: InvoiceInput): Promise<string>;
