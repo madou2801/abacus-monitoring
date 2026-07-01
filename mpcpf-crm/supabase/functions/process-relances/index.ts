@@ -145,10 +145,15 @@ Deno.serve(async (req) => {
     env.get("SUPABASE_SERVICE_ROLE_KEY"),
   );
 
+  // detect_stale = OFF par défaut : sur des données mirrorées (anciennes dates)
+  // il relancerait en masse les dossiers dormants — comportement qu'Harvey ne fait
+  // pas. À activer explicitement (CRM_DETECT_STALE=true) une fois sur dates réelles.
+  const detectStale = env.get("CRM_DETECT_STALE") === "true";
+
   const report = await processRelances({
     store: new SupabaseCrmStore(sb),
     dispatchers: { email: emailDispatcher, sms: smsDispatcher, call: callDispatcher },
-    detectStale: true,
+    detectStale,
     limit: 200,
   });
 
