@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { crm, dateFr, dateTimeFr } from "@/lib/supabase";
+import { crm, dateFr, dateTimeFr, benefTitle } from "@/lib/supabase";
 import { STAGES, STAGE_LABEL, STAGE_COLOR, FINANCEUR_LABEL, CONFIDENCE, LEAD_STATUS } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
@@ -87,10 +87,13 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
               <tr key={b.id} className="hover:bg-slate-50">
                 <td className="px-4 py-2">
                   <Link href={`/beneficiaires/${b.id}`} className="font-medium text-brand hover:underline">
-                    {[b.first_name, b.last_name].filter(Boolean).join(" ") || "—"}
+                    {benefTitle(b)}
                   </Link>
                   <div className="text-xs text-slate-400">
-                    {[b.email ?? b.phone, [b.code_postal, b.ville_formation].filter(Boolean).join(" ")].filter(Boolean).join(" · ")}
+                    {[
+                      [b.first_name, b.last_name].some(Boolean) ? (b.email ?? b.phone) : null,
+                      [b.code_postal, b.ville_formation].filter(Boolean).join(" "),
+                    ].filter(Boolean).join(" · ")}
                   </div>
                 </td>
                 <td className="px-4 py-2 text-slate-600">

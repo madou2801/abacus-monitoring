@@ -30,3 +30,16 @@ export function dateTimeFr(v?: string | null): string {
     day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
   });
 }
+
+// Titre d'affichage d'un bénéficiaire : nom si présent, sinon tél/email
+// (les appels entrants Retell n'ont souvent qu'un numéro).
+export function benefTitle(b: {
+  first_name?: string | null; last_name?: string | null;
+  phone?: string | null; email?: string | null;
+}): string {
+  const name = [b.first_name, b.last_name].filter(Boolean).join(" ").trim();
+  if (name) return name;
+  if (b.phone) return `📞 ${b.phone}`;
+  if (b.email) return b.email;
+  return "Sans nom";
+}
