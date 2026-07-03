@@ -6,7 +6,7 @@ export const STAGES: { code: string; label: string; color: string }[] = [
   { code: "qualifie", label: "Qualifié", color: "bg-indigo-100 text-indigo-700" },
   { code: "inscrit", label: "Inscrit", color: "bg-violet-100 text-violet-700" },
   { code: "en_formation", label: "En formation", color: "bg-amber-100 text-amber-700" },
-  { code: "certifie", label: "Certifié", color: "bg-emerald-100 text-emerald-700" },
+  { code: "certifie", label: "Service fait", color: "bg-emerald-100 text-emerald-700" },
   { code: "perdu", label: "Perdu", color: "bg-rose-100 text-rose-700" },
 ];
 

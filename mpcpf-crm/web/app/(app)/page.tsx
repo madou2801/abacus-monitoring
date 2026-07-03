@@ -60,7 +60,7 @@ export default async function Dashboard() {
 
       <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-5">
         <Kpi label="Bénéficiaires" value={total} />
-        <Kpi label="Certifiés" value={certifie} hint={`${wonRate}% du total`} />
+        <Kpi label="Service fait" value={certifie} hint={`${wonRate}% du total`} />
         <Kpi label="Entreprises" value={companies.count ?? 0} />
         <Kpi label="Auto-écoles" value={ae.count ?? 0} />
         <Kpi label="Matching à confirmer" value={review.count ?? 0} tone="amber" />
