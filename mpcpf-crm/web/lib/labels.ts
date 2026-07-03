@@ -40,3 +40,21 @@ export const FINANCEUR_LABEL: Record<string, string> = {
   entreprise: "Entreprise",
   autofinancement: "Autofinancement",
 };
+
+// Canaux d'acquisition (cf. crm.intake_channel). Ordre = affichage dashboard.
+export const CHANNELS: { code: string; label: string; icon: string; color: string }[] = [
+  { code: "retell", label: "Appels (Retell)", icon: "📞", color: "text-sky-600" },
+  { code: "formulaire", label: "Formulaires site", icon: "📝", color: "text-indigo-600" },
+  { code: "ft", label: "Emails France Travail", icon: "🏛️", color: "text-emerald-600" },
+  { code: "email", label: "Emails directs", icon: "✉️", color: "text-amber-600" },
+  { code: "edof", label: "EDOF direct", icon: "🎓", color: "text-violet-600" },
+  { code: "autre", label: "Autre", icon: "•", color: "text-slate-500" },
+];
+export const CHANNEL_LABEL: Record<string, string> = Object.fromEntries(CHANNELS.map((c) => [c.code, c.label]));
+
+export const LEAD_STATUS: Record<string, { label: string; color: string }> = {
+  nouveau: { label: "Nouveau", color: "bg-slate-100 text-slate-700" },
+  en_cours: { label: "En cours", color: "bg-sky-100 text-sky-700" },
+  client: { label: "Client", color: "bg-emerald-100 text-emerald-700" },
+  perdu: { label: "Perdu", color: "bg-rose-100 text-rose-700" },
+};

@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { crm, dateFr } from "@/lib/supabase";
-import { STAGES, STAGE_LABEL, STAGE_COLOR, FINANCEUR_LABEL, CONFIDENCE } from "@/lib/labels";
+import { crm, dateFr, dateTimeFr } from "@/lib/supabase";
+import { STAGES, STAGE_LABEL, STAGE_COLOR, FINANCEUR_LABEL, CONFIDENCE, LEAD_STATUS } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
@@ -14,9 +14,9 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
   const review = searchParams.review === "1";
 
   let query = db
-    .from("beneficiaries")
+    .from("vw_beneficiary_enriched")
     .select(
-      "id, first_name, last_name, email, phone, pipeline_stage, financeur, ae_match_confidence, ae_match_needs_review, auto_ecole_id, company_id, date_creation, date_inscription, intitule_formation, code_postal, ville_formation, owner_email",
+      "id, first_name, last_name, email, phone, pipeline_stage, financeur, ae_match_confidence, ae_match_needs_review, auto_ecole_id, date_creation, date_inscription, intitule_formation, code_postal, ville_formation, lead_status, last_activity_at",
     )
     .order("date_creation", { ascending: false, nullsFirst: false })
     .limit(300);
@@ -75,10 +75,11 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
               <th className="px-4 py-2">Bénéficiaire</th>
               <th className="px-4 py-2">Créé le</th>
               <th className="px-4 py-2">Formation</th>
+              <th className="px-4 py-2">Statut</th>
               <th className="px-4 py-2">Étape</th>
               <th className="px-4 py-2">Financeur</th>
+              <th className="px-4 py-2">Dernière act.</th>
               <th className="px-4 py-2">Auto-école</th>
-              <th className="px-4 py-2">Propriétaire</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -100,11 +101,17 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
                 </td>
                 <td className="px-4 py-2 text-slate-600">{b.intitule_formation ?? "—"}</td>
                 <td className="px-4 py-2">
+                  <span className={`rounded px-2 py-0.5 text-xs font-medium ${LEAD_STATUS[b.lead_status]?.color ?? "bg-slate-100"}`}>
+                    {LEAD_STATUS[b.lead_status]?.label ?? b.lead_status}
+                  </span>
+                </td>
+                <td className="px-4 py-2">
                   <span className={`rounded px-2 py-0.5 text-xs font-medium ${STAGE_COLOR[b.pipeline_stage] ?? "bg-slate-100"}`}>
                     {STAGE_LABEL[b.pipeline_stage] ?? b.pipeline_stage}
                   </span>
                 </td>
                 <td className="px-4 py-2 text-slate-600">{FINANCEUR_LABEL[b.financeur] ?? "—"}</td>
+                <td className="px-4 py-2 text-xs text-slate-500">{dateTimeFr(b.last_activity_at)}</td>
                 <td className="px-4 py-2 text-slate-600">
                   {b.auto_ecole_id ? (
                     <span>
@@ -117,11 +124,10 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
                     </span>
                   ) : "—"}
                 </td>
-                <td className="px-4 py-2 text-xs text-slate-500">{b.owner_email ?? "—"}</td>
               </tr>
             ))}
             {list.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">Aucun bénéficiaire.</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400">Aucun bénéficiaire.</td></tr>
             )}
           </tbody>
         </table>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { crm, euros, dateFr } from "@/lib/supabase";
-import { STAGE_LABEL, STAGE_COLOR, INVOICE_STATUS, CONFIDENCE, FINANCEUR_LABEL } from "@/lib/labels";
+import { crm, euros, dateFr, dateTimeFr } from "@/lib/supabase";
+import { STAGE_LABEL, STAGE_COLOR, INVOICE_STATUS, CONFIDENCE, FINANCEUR_LABEL, LEAD_STATUS, CHANNEL_LABEL } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,7 @@ export default async function Page({ params }: { params: { id: string } }) {
   const db = crm();
   const { id } = params;
 
-  const benefRes = await db.from("beneficiaries").select("*").eq("id", id).maybeSingle();
+  const benefRes = await db.from("vw_beneficiary_enriched").select("*").eq("id", id).maybeSingle();
   const b = benefRes.data as any;
   if (!b) notFound();
 
@@ -51,7 +51,21 @@ export default async function Page({ params }: { params: { id: string } }) {
             <Row k="Date de création" v={dateFr(b.date_creation)} />
             <Row k="Date d'inscription" v={dateFr(b.date_inscription)} />
             <Row k="Formation" v={b.intitule_formation} />
+            <Row k="Canal" v={CHANNEL_LABEL[b.canal] ?? b.canal} />
             <Row k="Propriétaire" v={b.owner_email} />
+          </Card>
+
+          <Card title="Activité & relances">
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span className="text-slate-500">Statut</span>
+              <span className={`rounded px-2 py-0.5 text-xs font-medium ${LEAD_STATUS[b.lead_status]?.color ?? "bg-slate-100"}`}>
+                {LEAD_STATUS[b.lead_status]?.label ?? b.lead_status}
+              </span>
+            </div>
+            <Row k="Dernière activité" v={dateTimeFr(b.last_activity_at)} />
+            <Row k="Prochaine relance" v={dateTimeFr(b.next_relance_at)} />
+            <Row k="Interactions" v={String(b.nb_interactions ?? 0)} />
+            <Row k="Montant devis" v={b.montant_devis_cents != null ? euros(b.montant_devis_cents) : null} />
           </Card>
 
           <Card title="Coordonnées">

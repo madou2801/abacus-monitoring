@@ -1,5 +1,5 @@
 import { crm, euros } from "@/lib/supabase";
-import { STAGES, INVOICE_STATUS } from "@/lib/labels";
+import { STAGES, INVOICE_STATUS, CHANNELS } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
@@ -14,13 +14,15 @@ function tally<T extends string>(rows: { [k: string]: any }[], key: string): Rec
 
 export default async function Dashboard() {
   const db = crm();
-  const [benef, inv, companies, ae, review] = await Promise.all([
+  const [benef, inv, companies, ae, review, todayRes] = await Promise.all([
     db.from("beneficiaries").select("pipeline_stage"),
     db.from("invoices").select("status, amount_cents"),
     db.from("companies").select("id", { count: "exact", head: true }),
     db.from("auto_ecoles").select("id", { count: "exact", head: true }),
     db.from("beneficiaries").select("id", { count: "exact", head: true }).eq("ae_match_needs_review", true),
+    db.from("vw_intake_today").select("*").maybeSingle(),
   ]);
+  const today = (todayRes.data ?? {}) as any;
 
   const rows = benef.data ?? [];
   const total = rows.length;
@@ -39,6 +41,22 @@ export default async function Dashboard() {
     <div className="p-6 lg:p-8">
       <h1 className="mb-1 text-2xl font-bold text-slate-900">Tableau de bord</h1>
       <p className="mb-6 text-sm text-slate-500">Vue d'ensemble du parcours bénéficiaire jusqu'à la facturation.</p>
+
+      {/* ---- Aujourd'hui (temps réel, dédupliqué par personne) ---- */}
+      <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-700">Aujourd'hui</h2>
+          <span className="text-[11px] text-slate-400">temps réel · dédupliqué · sync ≤ 10 min</span>
+        </div>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <IntakeBlock title="Demandes du jour" total={today.demandes_total ?? 0} prefix="demandes" data={today} tone="brand" />
+          <IntakeBlock title="Devis validés du jour" total={today.valides_total ?? 0} prefix="valides" data={today} tone="emerald" />
+        </div>
+        <p className="mt-3 text-[11px] text-slate-400">
+          Total = bénéficiaires uniques (un même contact FT + formulaire + email compté une seule fois).
+          Les compteurs par canal peuvent additionner plus que le total si un contact est multicanal.
+        </p>
+      </div>
 
       <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-5">
         <Kpi label="Bénéficiaires" value={total} />
@@ -91,6 +109,31 @@ export default async function Dashboard() {
             </div>
           )}
         </Card>
+      </div>
+    </div>
+  );
+}
+
+function IntakeBlock({
+  title, total, prefix, data, tone,
+}: { title: string; total: number; prefix: string; data: any; tone: "brand" | "emerald" }) {
+  const big = tone === "emerald" ? "text-emerald-700" : "text-brand";
+  return (
+    <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4">
+      <div className="flex items-baseline justify-between">
+        <span className="text-xs font-medium text-slate-500">{title}</span>
+        <span className={`text-3xl font-bold ${big}`}>{total}</span>
+      </div>
+      <div className="mt-3 space-y-1.5">
+        {CHANNELS.filter((c) => c.code !== "autre" || (data[`${prefix}_autre`] ?? 0) > 0).map((c) => {
+          const n = data[`${prefix}_${c.code}`] ?? 0;
+          return (
+            <div key={c.code} className="flex items-center justify-between text-sm">
+              <span className="text-slate-600"><span className="mr-1">{c.icon}</span>{c.label}</span>
+              <span className={`font-semibold ${n ? "text-slate-800" : "text-slate-300"}`}>{n}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
