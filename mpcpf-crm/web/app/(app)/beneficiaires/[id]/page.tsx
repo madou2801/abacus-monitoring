@@ -51,6 +51,7 @@ export default async function Page({ params }: { params: { id: string } }) {
             <Row k="Date de création" v={dateFr(b.date_creation)} />
             <Row k="Date d'inscription" v={dateFr(b.date_inscription)} />
             <Row k="Formation" v={b.intitule_formation} />
+            <Row k="Motif d'appel" v={b.motif} />
             <Row k="Canal" v={CHANNEL_LABEL[b.canal] ?? b.canal} />
             <Row k="Propriétaire" v={b.owner_email} />
           </Card>

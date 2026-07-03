@@ -11,7 +11,7 @@ export default async function Page({ searchParams }: { searchParams: { financeur
 
   let query = db
     .from("beneficiaries")
-    .select("id, first_name, last_name, phone, email, financeur, pipeline_stage, auto_ecole_id, ae_match_needs_review")
+    .select("id, first_name, last_name, phone, email, financeur, pipeline_stage, auto_ecole_id, ae_match_needs_review, motif")
     .order("stage_changed_at", { ascending: false })
     .limit(2000);
   if (financeur) query = query.eq("financeur", financeur);

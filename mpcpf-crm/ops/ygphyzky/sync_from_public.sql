@@ -37,7 +37,7 @@ begin
     insert into crm.beneficiaries
       (id, first_name, last_name, email, phone, wedof_folder_id, wedof_state, pipeline_stage,
        source, financeur, wedof_codes_possibles, siret_formation, ville_formation, stage_changed_at,
-       date_creation, date_inscription, intitule_formation, code_postal)
+       date_creation, date_inscription, intitule_formation, code_postal, motif)
     select
       d.id, d.beneficiaire_prenom, d.beneficiaire_nom, lower(nullif(d.beneficiaire_email,'')),
       d.beneficiaire_telephone, d.external_id, d.wedof_state,
@@ -66,7 +66,8 @@ begin
       coalesce(d.date_acceptation, d.date_entree_formation, d.date_demarrage_formation),
       coalesce(nullif(d.intitule_formation,''), nullif(d.training_title,''),
                nullif(d.formation_type,''), nullif(d.type_permis,'')),
-      nullif(d.beneficiaire_code_postal,'')
+      nullif(d.beneficiaire_code_postal,''),
+      nullif(d.commentaire,'')
     from public.dossiers_bpc d
     where d.updated_at >= v_since
       and coalesce(lower(d.beneficiaire_email),'') not like '%example.com%'
@@ -79,7 +80,7 @@ begin
       ville_formation=excluded.ville_formation,
       -- date_creation NON modifiée (immuable) ; les autres suivent la source.
       date_inscription=excluded.date_inscription, intitule_formation=excluded.intitule_formation,
-      code_postal=excluded.code_postal
+      code_postal=excluded.code_postal, motif=coalesce(excluded.motif, crm.beneficiaries.motif)
     returning 1)
   select count(*) into v_bdoss from up;
 
@@ -88,7 +89,7 @@ begin
     insert into crm.beneficiaries
       (id, first_name, last_name, email, phone, pipeline_stage, source, financeur,
        ville_formation, is_france_travail, stage_changed_at,
-       date_creation, date_inscription, intitule_formation, code_postal)
+       date_creation, date_inscription, intitule_formation, code_postal, motif)
     select
       l.id, l.prenom, l.nom, lower(nullif(l.email,'')), l.telephone,
       case lower(coalesce(l.statut,'nouveau'))
@@ -102,7 +103,9 @@ begin
       coalesce(l.created_at, now()),
       l.inscription_date,
       nullif(l.type_demande,''),
-      nullif(l.code_postal,'')
+      nullif(l.code_postal,''),
+      coalesce(nullif(l.data_brute->>'motivation',''), nullif(l.data_brute->>'call_summary',''),
+               nullif(l.data->>'motivation',''))
     from public.leads l
     where l.updated_at >= v_since
       and not exists (select 1 from public.dossiers_bpc d where d.lead_id = l.id)
@@ -114,7 +117,7 @@ begin
       financeur=excluded.financeur, ville_formation=excluded.ville_formation,
       is_france_travail=excluded.is_france_travail,
       date_inscription=excluded.date_inscription, intitule_formation=excluded.intitule_formation,
-      code_postal=excluded.code_postal
+      code_postal=excluded.code_postal, motif=coalesce(excluded.motif, crm.beneficiaries.motif)
     returning 1)
   select count(*) into v_bleads from up;
 
@@ -164,7 +167,8 @@ update crm.beneficiaries b set
   date_inscription   = coalesce(d.date_acceptation, d.date_entree_formation, d.date_demarrage_formation),
   intitule_formation = coalesce(nullif(d.intitule_formation,''), nullif(d.training_title,''),
                                 nullif(d.formation_type,''), nullif(d.type_permis,'')),
-  code_postal        = nullif(d.beneficiaire_code_postal,'')
+  code_postal        = nullif(d.beneficiaire_code_postal,''),
+  motif              = coalesce(b.motif, nullif(d.commentaire,''))
 from public.dossiers_bpc d
 where d.id = b.id;
 
@@ -172,6 +176,8 @@ update crm.beneficiaries b set
   date_creation      = coalesce(b.date_creation, l.created_at),
   date_inscription   = coalesce(b.date_inscription, l.inscription_date),
   intitule_formation = coalesce(b.intitule_formation, nullif(l.type_demande,'')),
-  code_postal        = coalesce(b.code_postal, nullif(l.code_postal,''))
+  code_postal        = coalesce(b.code_postal, nullif(l.code_postal,'')),
+  motif              = coalesce(b.motif, nullif(l.data_brute->>'motivation',''),
+                                nullif(l.data_brute->>'call_summary',''), nullif(l.data->>'motivation',''))
 from public.leads l
 where l.id = b.id;

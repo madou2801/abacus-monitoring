@@ -14,7 +14,12 @@ type Card = {
   financeur?: string | null;
   auto_ecole_id?: string | null;
   ae_match_needs_review?: boolean | null;
+  motif?: string | null;
 };
+
+function hasName(b: Card): boolean {
+  return [b.first_name, b.last_name].some(Boolean);
+}
 
 const PER_COLUMN = 40;
 
@@ -113,6 +118,11 @@ export function KanbanBoard({
                     </Link>
                     <span className="select-none text-slate-300 group-hover:text-slate-400">⠿</span>
                   </div>
+                  {!hasName(b) && b.motif && (
+                    <div className="mt-1 line-clamp-2 text-xs italic text-slate-500" title={b.motif}>
+                      « {b.motif} »
+                    </div>
+                  )}
                   <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
                     <span>{FINANCEUR_LABEL[b.financeur ?? ""] ?? "—"}</span>
                     {b.auto_ecole_id && (
