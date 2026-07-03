@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { crm } from "@/lib/supabase";
+import { crm, dateFr } from "@/lib/supabase";
 import { STAGES, STAGE_LABEL, STAGE_COLOR, FINANCEUR_LABEL, CONFIDENCE } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
@@ -16,22 +16,20 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
   let query = db
     .from("beneficiaries")
     .select(
-      "id, first_name, last_name, email, phone, pipeline_stage, financeur, ae_match_confidence, ae_match_needs_review, auto_ecole_id, company_id",
+      "id, first_name, last_name, email, phone, pipeline_stage, financeur, ae_match_confidence, ae_match_needs_review, auto_ecole_id, company_id, date_creation, date_inscription, intitule_formation, code_postal, ville_formation, owner_email",
     )
-    .order("stage_changed_at", { ascending: false })
+    .order("date_creation", { ascending: false, nullsFirst: false })
     .limit(300);
   if (q) query = query.or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`);
   if (stage) query = query.eq("pipeline_stage", stage);
   if (financeur) query = query.eq("financeur", financeur);
   if (review) query = query.eq("ae_match_needs_review", true);
 
-  const [rowsRes, aesRes, cosRes] = await Promise.all([
+  const [rowsRes, aesRes] = await Promise.all([
     query,
     db.from("auto_ecoles").select("id, raison_sociale, nom"),
-    db.from("companies").select("id, raison_sociale"),
   ]);
   const aeName = new Map((aesRes.data ?? []).map((a: any) => [a.id, a.raison_sociale ?? a.nom]));
-  const coName = new Map((cosRes.data ?? []).map((c: any) => [c.id, c.raison_sociale]));
   const list = rowsRes.data ?? [];
 
   return (
@@ -75,10 +73,12 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
           <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
             <tr>
               <th className="px-4 py-2">Bénéficiaire</th>
+              <th className="px-4 py-2">Créé le</th>
+              <th className="px-4 py-2">Formation</th>
               <th className="px-4 py-2">Étape</th>
               <th className="px-4 py-2">Financeur</th>
               <th className="px-4 py-2">Auto-école</th>
-              <th className="px-4 py-2">Entreprise</th>
+              <th className="px-4 py-2">Propriétaire</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -88,8 +88,17 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
                   <Link href={`/beneficiaires/${b.id}`} className="font-medium text-brand hover:underline">
                     {[b.first_name, b.last_name].filter(Boolean).join(" ") || "—"}
                   </Link>
-                  <div className="text-xs text-slate-400">{b.email ?? b.phone ?? ""}</div>
+                  <div className="text-xs text-slate-400">
+                    {[b.email ?? b.phone, [b.code_postal, b.ville_formation].filter(Boolean).join(" ")].filter(Boolean).join(" · ")}
+                  </div>
                 </td>
+                <td className="px-4 py-2 text-slate-600">
+                  <div>{dateFr(b.date_creation)}</div>
+                  {b.date_inscription && (
+                    <div className="text-[10px] text-emerald-600">inscrit {dateFr(b.date_inscription)}</div>
+                  )}
+                </td>
+                <td className="px-4 py-2 text-slate-600">{b.intitule_formation ?? "—"}</td>
                 <td className="px-4 py-2">
                   <span className={`rounded px-2 py-0.5 text-xs font-medium ${STAGE_COLOR[b.pipeline_stage] ?? "bg-slate-100"}`}>
                     {STAGE_LABEL[b.pipeline_stage] ?? b.pipeline_stage}
@@ -108,11 +117,11 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
                     </span>
                   ) : "—"}
                 </td>
-                <td className="px-4 py-2 text-slate-600">{b.company_id ? coName.get(b.company_id) ?? "—" : "—"}</td>
+                <td className="px-4 py-2 text-xs text-slate-500">{b.owner_email ?? "—"}</td>
               </tr>
             ))}
             {list.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">Aucun bénéficiaire.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">Aucun bénéficiaire.</td></tr>
             )}
           </tbody>
         </table>

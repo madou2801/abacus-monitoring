@@ -47,10 +47,17 @@ export default async function Page({ params }: { params: { id: string } }) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Colonne infos */}
         <div className="space-y-4">
+          <Card title="Dates clés">
+            <Row k="Date de création" v={dateFr(b.date_creation)} />
+            <Row k="Date d'inscription" v={dateFr(b.date_inscription)} />
+            <Row k="Formation" v={b.intitule_formation} />
+            <Row k="Propriétaire" v={b.owner_email} />
+          </Card>
+
           <Card title="Coordonnées">
             <Row k="Email" v={b.email} />
             <Row k="Téléphone" v={b.phone} />
-            <Row k="Ville" v={b.ville_formation} />
+            <Row k="Ville" v={[b.code_postal, b.ville_formation].filter(Boolean).join(" ")} />
             <Row k="Financeur" v={FINANCEUR_LABEL[b.financeur] ?? b.financeur} />
             <Row k="France Travail" v={b.is_france_travail ? "Oui" : "—"} />
             <Row k="Source" v={b.source} />

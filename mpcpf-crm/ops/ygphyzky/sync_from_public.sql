@@ -36,7 +36,8 @@ begin
   with up as (
     insert into crm.beneficiaries
       (id, first_name, last_name, email, phone, wedof_folder_id, wedof_state, pipeline_stage,
-       source, financeur, wedof_codes_possibles, siret_formation, ville_formation, stage_changed_at)
+       source, financeur, wedof_codes_possibles, siret_formation, ville_formation, stage_changed_at,
+       date_creation, date_inscription, intitule_formation, code_postal)
     select
       d.id, d.beneficiaire_prenom, d.beneficiaire_nom, lower(nullif(d.beneficiaire_email,'')),
       d.beneficiaire_telephone, d.external_id, d.wedof_state,
@@ -60,7 +61,12 @@ begin
            then array(select jsonb_array_elements_text(d.codes_possibles)) else '{}'::text[] end,
       nullif(d.of_partenaire_siret,''),
       coalesce(nullif(d.of_partenaire_ville,''), nullif(d.beneficiaire_ville,'')),
-      coalesce(d.created_at, now())
+      coalesce(d.created_at, now()),
+      coalesce(d.created_at, now()),
+      coalesce(d.date_acceptation, d.date_entree_formation, d.date_demarrage_formation),
+      coalesce(nullif(d.intitule_formation,''), nullif(d.training_title,''),
+               nullif(d.formation_type,''), nullif(d.type_permis,'')),
+      nullif(d.beneficiaire_code_postal,'')
     from public.dossiers_bpc d
     where d.updated_at >= v_since
       and coalesce(lower(d.beneficiaire_email),'') not like '%example.com%'
@@ -70,7 +76,10 @@ begin
       phone=excluded.phone, wedof_folder_id=excluded.wedof_folder_id, wedof_state=excluded.wedof_state,
       pipeline_stage=excluded.pipeline_stage, financeur=excluded.financeur,
       wedof_codes_possibles=excluded.wedof_codes_possibles, siret_formation=excluded.siret_formation,
-      ville_formation=excluded.ville_formation
+      ville_formation=excluded.ville_formation,
+      -- date_creation NON modifiée (immuable) ; les autres suivent la source.
+      date_inscription=excluded.date_inscription, intitule_formation=excluded.intitule_formation,
+      code_postal=excluded.code_postal
     returning 1)
   select count(*) into v_bdoss from up;
 
@@ -78,7 +87,8 @@ begin
   with up as (
     insert into crm.beneficiaries
       (id, first_name, last_name, email, phone, pipeline_stage, source, financeur,
-       ville_formation, is_france_travail, stage_changed_at)
+       ville_formation, is_france_travail, stage_changed_at,
+       date_creation, date_inscription, intitule_formation, code_postal)
     select
       l.id, l.prenom, l.nom, lower(nullif(l.email,'')), l.telephone,
       case lower(coalesce(l.statut,'nouveau'))
@@ -88,7 +98,11 @@ begin
       case when coalesce(l.source,'')='france_travail' then 'kairos' else null end,
       nullif(l.ville,''),
       (coalesce(l.source,'')='france_travail'),
-      coalesce(l.created_at, now())
+      coalesce(l.created_at, now()),
+      coalesce(l.created_at, now()),
+      l.inscription_date,
+      nullif(l.type_demande,''),
+      nullif(l.code_postal,'')
     from public.leads l
     where l.updated_at >= v_since
       and not exists (select 1 from public.dossiers_bpc d where d.lead_id = l.id)
@@ -98,7 +112,9 @@ begin
       first_name=excluded.first_name, last_name=excluded.last_name, email=excluded.email,
       phone=excluded.phone, pipeline_stage=excluded.pipeline_stage, source=excluded.source,
       financeur=excluded.financeur, ville_formation=excluded.ville_formation,
-      is_france_travail=excluded.is_france_travail
+      is_france_travail=excluded.is_france_travail,
+      date_inscription=excluded.date_inscription, intitule_formation=excluded.intitule_formation,
+      code_postal=excluded.code_postal
     returning 1)
   select count(*) into v_bleads from up;
 
@@ -137,3 +153,25 @@ begin
   return v_stats;
 end;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- Backfill des champs HubSpot (0017) pour les lignes DÉJÀ mirrorées.
+-- Idempotent : date_creation protégée par coalesce (jamais écrasée) ; les
+-- autres champs suivent la source. Rejouable sans effet de bord.
+-- ---------------------------------------------------------------------------
+update crm.beneficiaries b set
+  date_creation      = coalesce(b.date_creation, d.created_at),
+  date_inscription   = coalesce(d.date_acceptation, d.date_entree_formation, d.date_demarrage_formation),
+  intitule_formation = coalesce(nullif(d.intitule_formation,''), nullif(d.training_title,''),
+                                nullif(d.formation_type,''), nullif(d.type_permis,'')),
+  code_postal        = nullif(d.beneficiaire_code_postal,'')
+from public.dossiers_bpc d
+where d.id = b.id;
+
+update crm.beneficiaries b set
+  date_creation      = coalesce(b.date_creation, l.created_at),
+  date_inscription   = coalesce(b.date_inscription, l.inscription_date),
+  intitule_formation = coalesce(b.intitule_formation, nullif(l.type_demande,'')),
+  code_postal        = coalesce(b.code_postal, nullif(l.code_postal,''))
+from public.leads l
+where l.id = b.id;
