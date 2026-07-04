@@ -8,7 +8,9 @@ type SP = { q?: string; stage?: string; financeur?: string; review?: string };
 
 export default async function Page({ searchParams }: { searchParams: SP }) {
   const db = crm();
-  const q = (searchParams.q ?? "").trim();
+  // On retire les caractères significatifs pour PostgREST ( , ( ) * ) : sinon un `q`
+  // forgé pourrait injecter des clauses `.or()` arbitraires (filtre injection).
+  const q = (searchParams.q ?? "").trim().replace(/[,()*]/g, "");
   const stage = searchParams.stage ?? "";
   const financeur = searchParams.financeur ?? "";
   const review = searchParams.review === "1";

@@ -54,7 +54,9 @@ Deno.serve(async (req) => {
   // Auth par secret partagé.
   const secret = env.get("INTAKE_API_SECRET");
   const provided = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (secret && provided !== secret) return json({ error: "non autorisé" }, 401);
+  // Fail-closed : pas de secret configuré ⇒ on refuse (jamais d'accès libre).
+  if (!secret) return json({ error: "config: INTAKE_API_SECRET manquant" }, 503);
+  if (provided !== secret) return json({ error: "non autorisé" }, 401);
 
   let body: unknown;
   try {

@@ -24,9 +24,16 @@ export async function handleWedofWebhook(
   providedSecret: string | null | undefined,
   deps: WedofHandlerDeps,
 ): Promise<HandlerResponse> {
-  const mustVerify = deps.verifySignature !== false && !!deps.secret;
-  if (mustVerify && providedSecret !== deps.secret) {
-    return { status: 401, body: { error: "secret Wedof invalide" } };
+  // Fail-closed : sauf désactivation EXPLICITE (verifySignature=false), un secret
+  // manquant refuse la requête au lieu de la laisser passer.
+  const mustVerify = deps.verifySignature !== false;
+  if (mustVerify) {
+    if (!deps.secret) {
+      return { status: 503, body: { error: "config: secret Wedof manquant" } };
+    }
+    if (providedSecret !== deps.secret) {
+      return { status: 401, body: { error: "secret Wedof invalide" } };
+    }
   }
 
   let payload: WedofWebhookPayload;

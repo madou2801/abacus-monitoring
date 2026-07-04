@@ -16,6 +16,11 @@ create table if not exists crm.sync_state (
 );
 insert into crm.sync_state (id) values (1) on conflict (id) do nothing;
 
+-- Rang d'une étape pipeline (pour n'avancer QUE vers l'avant lors du sync, afin de
+-- ne pas écraser un déplacement manuel Kanban — cf. set_stage anti-régression).
+create or replace function crm.stage_rank(p_code text) returns int
+  language sql stable as $$ select rank from crm.pipeline_stages where code = p_code $$;
+
 create or replace function crm.sync_from_public()
 returns jsonb
 language plpgsql
@@ -52,7 +57,7 @@ begin
         when 'refused' then 'perdu' when 'refusedbyattendee' then 'perdu' when 'refusedbyorganism' then 'perdu'
         when 'rejected' then 'perdu' when 'rejectedwithouttitulairesuite' then 'perdu' when 'aborted' then 'perdu'
         else 'inscrit' end,
-      'wedof',
+      coalesce(nullif(d.source_acquisition,''), 'wedof'),  -- vraie origine (sinon EDOF direct)
       case lower(coalesce(d.type_financement,''))
         when 'cpf' then 'edof' when 'opco' then 'opco' when 'france_travail' then 'kairos'
         when 'ft' then 'kairos' when 'entreprise' then 'entreprise' when 'autofinancement' then 'autofinancement'
@@ -75,9 +80,14 @@ begin
     on conflict (id) do update set
       first_name=excluded.first_name, last_name=excluded.last_name, email=excluded.email,
       phone=excluded.phone, wedof_folder_id=excluded.wedof_folder_id, wedof_state=excluded.wedof_state,
-      pipeline_stage=excluded.pipeline_stage, financeur=excluded.financeur,
+      source=excluded.source, financeur=excluded.financeur,
       wedof_codes_possibles=excluded.wedof_codes_possibles, siret_formation=excluded.siret_formation,
       ville_formation=excluded.ville_formation,
+      -- Étape : n'avance QUE vers l'avant (préserve un déplacement manuel Kanban).
+      pipeline_stage = case when crm.stage_rank(excluded.pipeline_stage) > crm.stage_rank(crm.beneficiaries.pipeline_stage)
+                            then excluded.pipeline_stage else crm.beneficiaries.pipeline_stage end,
+      stage_changed_at = case when crm.stage_rank(excluded.pipeline_stage) > crm.stage_rank(crm.beneficiaries.pipeline_stage)
+                              then now() else crm.beneficiaries.stage_changed_at end,
       -- date_creation NON modifiée (immuable) ; les autres suivent la source.
       date_inscription=excluded.date_inscription, intitule_formation=excluded.intitule_formation,
       code_postal=excluded.code_postal, motif=coalesce(excluded.motif, crm.beneficiaries.motif)
@@ -113,9 +123,14 @@ begin
       and coalesce(lower(l.email),'') not like '%example.com%'
     on conflict (id) do update set
       first_name=excluded.first_name, last_name=excluded.last_name, email=excluded.email,
-      phone=excluded.phone, pipeline_stage=excluded.pipeline_stage, source=excluded.source,
+      phone=excluded.phone, source=excluded.source,
       financeur=excluded.financeur, ville_formation=excluded.ville_formation,
       is_france_travail=excluded.is_france_travail,
+      -- Étape : n'avance QUE vers l'avant (préserve un déplacement manuel Kanban).
+      pipeline_stage = case when crm.stage_rank(excluded.pipeline_stage) > crm.stage_rank(crm.beneficiaries.pipeline_stage)
+                            then excluded.pipeline_stage else crm.beneficiaries.pipeline_stage end,
+      stage_changed_at = case when crm.stage_rank(excluded.pipeline_stage) > crm.stage_rank(crm.beneficiaries.pipeline_stage)
+                              then now() else crm.beneficiaries.stage_changed_at end,
       date_inscription=excluded.date_inscription, intitule_formation=excluded.intitule_formation,
       code_postal=excluded.code_postal, motif=coalesce(excluded.motif, crm.beneficiaries.motif)
     returning 1)
@@ -168,7 +183,8 @@ update crm.beneficiaries b set
   intitule_formation = coalesce(nullif(d.intitule_formation,''), nullif(d.training_title,''),
                                 nullif(d.formation_type,''), nullif(d.type_permis,'')),
   code_postal        = nullif(d.beneficiaire_code_postal,''),
-  motif              = coalesce(b.motif, nullif(d.commentaire,''))
+  motif              = coalesce(b.motif, nullif(d.commentaire,'')),
+  source             = coalesce(nullif(d.source_acquisition,''), 'wedof')  -- E3 : vraie origine
 from public.dossiers_bpc d
 where d.id = b.id;
 
