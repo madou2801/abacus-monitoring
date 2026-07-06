@@ -224,7 +224,9 @@ export interface CrmStore {
   // Devis
   createQuote(q: QuoteInput): Promise<string>;
   transmitQuote(quoteId: string): Promise<boolean>;
-  setQuoteStatus(quoteId: string, status: string): Promise<void>;
+  // beneficiaryId optionnel : s'il est fourni, l'update est refusé si le devis
+  // n'appartient pas à ce bénéficiaire (contrôle d'appartenance depuis l'API).
+  setQuoteStatus(quoteId: string, status: string, beneficiaryId?: string): Promise<void>;
   latestAcceptedQuote(beneficiaryId: string): Promise<AcceptedQuote | null>;
 
   // Auto-écoles (appariement)
@@ -238,6 +240,7 @@ export interface CrmStore {
     invoiceId: string,
     status: string,
     externalRef?: string | null,
+    beneficiaryId?: string | null,
   ): Promise<boolean>;
   detectOverdueInvoices(): Promise<number>;
 

@@ -56,7 +56,7 @@ test("API : create_invoice puis set_invoice_status", async () => {
   assert.ok(invoiceId);
 
   const upd = await handleIntakeRequest({
-    action: "set_invoice_status", invoice_id: invoiceId, status: "emise", external_ref: "AIF-123",
+    action: "set_invoice_status", beneficiary_id: b.id, invoice_id: invoiceId, status: "emise", external_ref: "AIF-123",
   }, deps);
   assert.equal(upd.status, 200);
   assert.equal(upd.body.changed, true);

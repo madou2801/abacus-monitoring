@@ -113,7 +113,7 @@ export async function decideQuote(
   store: CrmStore,
   args: { beneficiaryId: string; quoteId: string; status: "accepted" | "refused" | "expired" },
 ): Promise<JourneyResult> {
-  await store.setQuoteStatus(args.quoteId, args.status);
+  await store.setQuoteStatus(args.quoteId, args.status, args.beneficiaryId);
   const nextStep = await store.advanceJourney(args.beneficiaryId, "devis");
   return { nextStep, notified: false };
 }

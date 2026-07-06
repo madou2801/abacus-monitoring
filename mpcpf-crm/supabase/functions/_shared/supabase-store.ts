@@ -361,13 +361,18 @@ export class SupabaseCrmStore implements CrmStore {
     return data === true;
   }
 
-  async setQuoteStatus(quoteId: string, status: string): Promise<void> {
+  async setQuoteStatus(quoteId: string, status: string, beneficiaryId?: string): Promise<void> {
     const decided = ["accepted", "refused", "expired"].includes(status);
-    const { error } = await this.db()
+    let qb = this.db()
       .from("quotes")
       .update({ status, decided_at: decided ? new Date().toISOString() : undefined })
       .eq("id", quoteId);
+    if (beneficiaryId) qb = qb.eq("beneficiary_id", beneficiaryId);
+    const { data, error } = await qb.select("id");
     if (error) throw error;
+    if (beneficiaryId && (!data || data.length === 0)) {
+      throw new Error("devis introuvable pour ce bénéficiaire");
+    }
   }
 
   async latestAcceptedQuote(beneficiaryId: string): Promise<AcceptedQuote | null> {
@@ -453,11 +458,13 @@ export class SupabaseCrmStore implements CrmStore {
     invoiceId: string,
     status: string,
     externalRef?: string | null,
+    beneficiaryId?: string | null,
   ): Promise<boolean> {
     const { data, error } = await this.db().rpc("set_invoice_status", {
       p_invoice: invoiceId,
       p_status: status,
       p_external_ref: externalRef ?? null,
+      p_beneficiary: beneficiaryId ?? null,
     });
     if (error) throw error;
     return data === true;

@@ -344,11 +344,13 @@ export class PgliteCrmStore implements CrmStore {
     return r?.ok === true;
   }
 
-  async setQuoteStatus(quoteId: string, status: string): Promise<void> {
-    await this.db.query(
-      `update crm.quotes set status=$2, decided_at = case when $2 in ('accepted','refused','expired') then now() else decided_at end where id=$1`,
-      [quoteId, status],
+  async setQuoteStatus(quoteId: string, status: string, beneficiaryId?: string): Promise<void> {
+    const r = await this.one<{ id: string }>(
+      `update crm.quotes set status=$2, decided_at = case when $2 in ('accepted','refused','expired') then now() else decided_at end
+         where id=$1 and ($3::uuid is null or beneficiary_id=$3) returning id`,
+      [quoteId, status, beneficiaryId ?? null],
     );
+    if (beneficiaryId && !r) throw new Error("devis introuvable pour ce bénéficiaire");
   }
 
   async latestAcceptedQuote(beneficiaryId: string): Promise<AcceptedQuote | null> {
@@ -437,10 +439,11 @@ export class PgliteCrmStore implements CrmStore {
     invoiceId: string,
     status: string,
     externalRef?: string | null,
+    beneficiaryId?: string | null,
   ): Promise<boolean> {
     const r = await this.one<{ ok: boolean }>(
-      `select crm.set_invoice_status($1,$2,$3) as ok`,
-      [invoiceId, status, externalRef ?? null],
+      `select crm.set_invoice_status($1,$2,$3,$4) as ok`,
+      [invoiceId, status, externalRef ?? null, beneficiaryId ?? null],
     );
     return r?.ok === true;
   }

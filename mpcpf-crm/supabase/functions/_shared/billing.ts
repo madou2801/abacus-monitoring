@@ -47,6 +47,7 @@ export function advanceInvoice(
   invoiceId: string,
   status: string,
   externalRef?: string | null,
+  beneficiaryId?: string | null,
 ): Promise<boolean> {
-  return store.setInvoiceStatus(invoiceId, status, externalRef ?? null);
+  return store.setInvoiceStatus(invoiceId, status, externalRef ?? null, beneficiaryId ?? null);
 }

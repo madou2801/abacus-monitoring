@@ -6,6 +6,13 @@
 import type { CrmStore, NotificationLog } from "./crm-store.ts";
 import type { FetchLike } from "./recording.ts";
 
+// Échappe le HTML avant injection dans un email (anti-XSS sortant).
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 export interface OutgoingMessage {
   channel: "sms" | "email";
   to: string;
@@ -57,7 +64,7 @@ export class BrevoNotifier implements Notifier {
           sender: this.opts.emailSender,
           to: [{ email: m.to }],
           subject: m.subject ?? "MonPermisCPF",
-          htmlContent: `<p>${m.body}</p>`,
+          htmlContent: `<p>${escapeHtml(m.body).replace(/\n/g, "<br>")}</p>`,
         });
         return res;
       }

@@ -56,6 +56,7 @@ type IntakeRequest =
   }
   | {
     action: "set_invoice_status";
+    beneficiary_id: string;
     invoice_id: string;
     status: string;
     external_ref?: string;
@@ -170,6 +171,7 @@ export async function handleIntakeRequest(
           req.invoice_id,
           req.status,
           req.external_ref,
+          req.beneficiary_id,
         );
         return { status: 200, body: { ok: true, changed } };
       }
