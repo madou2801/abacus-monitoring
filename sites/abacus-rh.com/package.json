@@ -1,0 +1,11 @@
+{
+  "name": "abacus-rh-site",
+  "version": "1.0.0",
+  "description": "Site vitrine ABACUS-RH.com - e-learning SCORM, bilan de competences en ligne (BOVC), VAE, outplacement",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}

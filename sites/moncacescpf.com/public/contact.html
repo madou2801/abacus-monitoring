@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact &amp; devis gratuit | MonCACESCPF</title>
+  <meta name="description" content="Demandez un devis gratuit pour votre formation CACES, sécurité ou prévention. Réponse d'un conseiller sous 24h ouvrées.">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="container">
+      <span>🎓 Organisme de formation — CACES®, Sécurité &amp; Prévention</span>
+      <span>✉️ <a href="mailto:contact@moncacescpf.com">contact@moncacescpf.com</a></span>
+    </div>
+  </div>
+
+  <header class="site">
+    <div class="container">
+      <a class="logo" href="/"><span class="l1">MonCACES</span><span class="l2">CPF</span></a>
+      <button class="burger" aria-label="Menu">☰</button>
+      <nav class="main">
+        <a href="/formations-presentiel">Formations présentiel</a>
+        <a href="/e-learning">E-learning</a>
+        <a href="/financements">Financements</a>
+        <a href="/contact" class="cta">Demander un devis</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero" style="padding:52px 0">
+    <div class="container" style="grid-template-columns:1fr">
+      <div>
+        <h1>Demandez votre <em>devis gratuit</em></h1>
+        <p class="lead">Décrivez votre projet : un conseiller vous rappelle sous 24h ouvrées avec un devis et les prochaines dates disponibles près de chez vous.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="container" style="max-width:820px">
+      <form class="lead" novalidate>
+        <div class="row">
+          <div>
+            <label for="nom">Nom et prénom *</label>
+            <input type="text" id="nom" name="nom" required placeholder="Jean Dupont">
+          </div>
+          <div>
+            <label for="telephone">Téléphone *</label>
+            <input type="tel" id="telephone" name="telephone" required placeholder="06 12 34 56 78">
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="jean.dupont@email.fr">
+          </div>
+          <div>
+            <label for="formation">Formation souhaitée *</label>
+            <select id="formation" name="formation" required>
+              <option value="">— Choisir —</option>
+              <optgroup label="CACES®">
+                <option>CACES® R489 — Chariots élévateurs</option>
+                <option>CACES® R486 — Nacelles PEMP</option>
+                <option>CACES® R482 — Engins de chantier</option>
+                <option>CACES® R485 — Gerbeurs</option>
+                <option>CACES® R484 — Ponts roulants</option>
+                <option>CACES® R490 — Grues auxiliaires</option>
+              </optgroup>
+              <optgroup label="Sécurité &amp; prévention">
+                <option>SST — Sauveteur Secouriste du Travail</option>
+                <option>Habilitation électrique</option>
+                <option>Incendie / évacuation</option>
+                <option>Gestes et postures / PRAP</option>
+                <option>Travail en hauteur</option>
+                <option>AIPR</option>
+                <option>Pontier-élingueur</option>
+              </optgroup>
+              <optgroup label="À distance">
+                <option>E-learning (catalogue E Forma Pro)</option>
+              </optgroup>
+              <option>Autre / je ne sais pas encore</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="modalite">Modalité</label>
+            <select id="modalite" name="modalite">
+              <option>Présentiel</option>
+              <option>E-learning</option>
+              <option>Mixte (théorie en ligne + pratique en centre)</option>
+            </select>
+          </div>
+          <div>
+            <label for="financement">Financement envisagé</label>
+            <select id="financement" name="financement">
+              <option>CPF</option>
+              <option>OPCO / entreprise</option>
+              <option>Personnel</option>
+              <option>Je ne sais pas</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label for="message">Votre projet (ville, nombre de personnes, échéance…)</label>
+          <textarea id="message" name="message" rows="4" placeholder="Ex. : CACES R489 cat. 3 pour 2 salariés à Lyon, avant fin du mois prochain."></textarea>
+        </div>
+        <button type="submit" class="btn btn-accent">Envoyer ma demande</button>
+        <p id="form-status" role="status"></p>
+        <p class="notice">* Champs obligatoires. Vos données sont utilisées uniquement pour traiter votre demande de formation et ne sont jamais cédées à des tiers. Voir nos <a href="/mentions-legales">mentions légales</a>.</p>
+      </form>
+    </div>
+  </section>
+
+  <footer class="site">
+    <div class="container">
+      <div class="cols">
+        <div>
+          <h4>MonCACESCPF</h4>
+          <p>Formations CACES®, sécurité et prévention en présentiel et en e-learning (catalogue E Forma Pro), éligibles CPF et OPCO.</p>
+        </div>
+        <div>
+          <h4>Formations</h4>
+          <ul>
+            <li><a href="/formations-presentiel">CACES® en présentiel</a></li>
+            <li><a href="/formations-presentiel#securite">Sécurité &amp; prévention</a></li>
+            <li><a href="/e-learning">Catalogue e-learning</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Informations</h4>
+          <ul>
+            <li><a href="/financements">Financements (CPF, OPCO…)</a></li>
+            <li><a href="/contact">Contact &amp; devis</a></li>
+            <li><a href="/mentions-legales">Mentions légales</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Groupe</h4>
+          <ul>
+            <li><a href="https://www.monpermiscpf.com" rel="noopener">MonPermisCPF</a></li>
+            <li><a href="https://abacus-rh.com" rel="noopener">ABACUS RH</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="legal">© 2026 MonCACESCPF — CACES® est une marque déposée de l'INRS. <a href="/mentions-legales">Mentions légales</a></div>
+    </div>
+  </footer>
+
+  <script src="/assets/site.js"></script>
+</body>
+</html>
