@@ -10,7 +10,7 @@
       { "name": "PilotCPF Site", "port": 3790, "path": "/", "critical": true },
       { "name": "BDR Alexandra", "port": 3402, "path": "/health", "critical": true },
       { "name": "PilotCPF CRM", "port": 3700, "path": "/health", "critical": false },
-      { "name": "MonCACESCPF Site", "port": 3810, "path": "/health", "critical": true },
+      { "name": "MonCACES Site", "port": 3810, "path": "/health", "critical": true },
       { "name": "ABACUS RH Site", "port": 3820, "path": "/health", "critical": true }
     ]
   },
@@ -22,7 +22,7 @@
     { "name": "ABACUS Formations", "url": "https://formations.abacus-rh.com", "check_ssl": true },
     { "name": "ABACUS Academy", "url": "https://academy.abacus-rh.com", "check_ssl": true },
     { "name": "Annuaire MonPermisCPF", "url": "https://annuaire.monpermiscpf.com", "check_ssl": true },
-    { "name": "MonCACESCPF", "url": "https://moncacescpf.com", "check_ssl": true }
+    { "name": "MonCACES", "url": "https://moncaces.com", "check_ssl": true }
   ],
   "notifications": {
     "email": "md@abacus-rh.com"

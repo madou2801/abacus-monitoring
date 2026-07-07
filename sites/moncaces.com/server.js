@@ -1,10 +1,10 @@
 /**
- * MonCACESCPF.com - Serveur du site vitrine
+ * MonCACES.com - Serveur du site vitrine
  * Formations CACES, securite et prevention (presentiel + e-learning E Forma Pro)
  *
  * Meme architecture que les autres services du VPS ABACUS :
  * - Node.js natif (aucune dependance), ecoute sur 127.0.0.1
- * - Servi par Nginx (reverse proxy) sur moncacescpf.com
+ * - Servi par Nginx (reverse proxy) sur moncaces.com
  * - Endpoint /health pour le monitoring (abacus-monitoring)
  * - Leads du formulaire stockes en JSONL local (POST /api/lead)
  */
@@ -72,7 +72,7 @@ function handleLead(req, res) {
       return sendJson(res, 400, { ok: false, error: 'Nom et email ou telephone requis' });
     }
     const lead = {
-      site: 'moncacescpf.com',
+      site: 'moncaces.com',
       date: new Date().toISOString(),
       nom: String(payload.nom).slice(0, 200),
       email: String(payload.email || '').slice(0, 200),
@@ -100,7 +100,7 @@ const server = http.createServer((req, res) => {
   if (pathname === '/health') {
     return sendJson(res, 200, {
       status: 'ok',
-      service: 'moncacescpf-site',
+      service: 'moncaces-site',
       uptime_s: Math.round((Date.now() - START_TIME) / 1000),
       timestamp: new Date().toISOString()
     });
@@ -125,5 +125,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`MonCACESCPF site en ecoute sur ${HOST}:${PORT}`);
+  console.log(`MonCACES site en ecoute sur ${HOST}:${PORT}`);
 });

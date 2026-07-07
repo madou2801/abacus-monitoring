@@ -1,0 +1,11 @@
+{
+  "name": "moncaces-site",
+  "version": "1.0.0",
+  "description": "Site vitrine MonCACES.com - formations CACES, securite et prevention (presentiel + e-learning E Forma Pro)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}

@@ -13,7 +13,7 @@ const SERVICES = [
   { name: 'PilotCPF Site', port: 3790, path: '/', critical: true },
   { name: 'BDR Alexandra', port: 3402, path: '/health', critical: true },
   { name: 'PilotCPF CRM', port: 3700, path: '/health', critical: false },
-  { name: 'MonCACESCPF Site', port: 3810, path: '/health', critical: true },
+  { name: 'MonCACES Site', port: 3810, path: '/health', critical: true },
   { name: 'ABACUS RH Site', port: 3820, path: '/health', critical: true }
 ];
 
@@ -25,7 +25,7 @@ const DOMAINS = [
   'formations.abacus-rh.com',
   'academy.abacus-rh.com',
   'annuaire.monpermiscpf.com',
-  'moncacescpf.com'
+  'moncaces.com'
 ];
 
 // Rate limiting: max 10 requests per hour

@@ -1,4 +1,4 @@
-// MonCACESCPF.com — interactions communes (menu mobile + formulaire de lead)
+// MonCACES.com — interactions communes (menu mobile + formulaire de lead)
 document.addEventListener('DOMContentLoaded', () => {
   const burger = document.querySelector('.burger');
   const nav = document.querySelector('nav.main');
