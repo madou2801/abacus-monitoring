@@ -3,14 +3,13 @@
 //
 // Auth : header Authorization: Bearer <INTAKE_API_SECRET>.
 // Secrets : INTAKE_API_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
-//   PROD (préféré) : N8N_EMAIL_WEBHOOK + CLICKSEND_USERNAME + CLICKSEND_API_KEY.
-//   Repli optionnel : BREVO_API_KEY. Sinon notifications mises en file (QueueNotifier).
+//   Envoi réel (stack prod) : N8N_EMAIL_WEBHOOK + CLICKSEND_USERNAME + CLICKSEND_API_KEY.
+//   Sinon notifications mises en file (QueueNotifier), aucun envoi externe.
 
 import { corsHeaders, json } from "../_shared/cors.ts";
 import { handleIntakeRequest } from "../_shared/intake-handler.ts";
 import { createServiceClient, SupabaseCrmStore } from "../_shared/supabase-store.ts";
 import {
-  BrevoNotifier,
   MpcpfNotifier,
   QueueNotifier,
   type Notifier,
@@ -33,18 +32,8 @@ function buildNotifier(): Notifier {
       smsSender: env.get("CLICKSEND_SENDER") ?? "MonPermis",
     });
   }
-  // Repli Brevo si configuré, sinon file traçable (aucun envoi externe).
-  const apiKey = env.get("BREVO_API_KEY");
-  if (!apiKey) return new QueueNotifier();
-  return new BrevoNotifier({
-    apiKey,
-    fetchFn: fetch as never,
-    emailSender: {
-      name: env.get("BREVO_SENDER_NAME") ?? "MonPermisCPF",
-      email: env.get("BREVO_SENDER_EMAIL") ?? "contact@monpermiscpf.com",
-    },
-    smsSender: env.get("BREVO_SMS_SENDER") ?? "MonPermis",
-  });
+  // Stack prod non configurée : file traçable, aucun envoi externe.
+  return new QueueNotifier();
 }
 
 Deno.serve(async (req) => {

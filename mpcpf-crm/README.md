@@ -93,8 +93,9 @@ entreprise, autofinancement. `send_quote` crée + transmet le devis, notifie le
 bénéficiaire et planifie la relance d'acceptation ; `decide_quote` enregistre la
 décision du financeur et fait avancer le pipeline.
 
-**Notifications** : port `Notifier` agnostique. Adaptateur `BrevoNotifier`
-(SMS + email) en prod si `BREVO_API_KEY` est défini, sinon `QueueNotifier`
+**Notifications** : port `Notifier` agnostique. Adaptateur `MpcpfNotifier`
+en prod — email via webhook n8n (Gmail OAuth2, `N8N_EMAIL_WEBHOOK`) + SMS via
+ClickSend (`CLICKSEND_USERNAME`/`CLICKSEND_API_KEY`) — sinon `QueueNotifier`
 (mise en file traçable dans `crm.notifications`). Branchable sur un autre
 fournisseur sans toucher la logique métier.
 

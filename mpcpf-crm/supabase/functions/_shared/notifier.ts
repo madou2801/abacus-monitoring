@@ -1,17 +1,11 @@
 // notifier.ts — port d'envoi de notifications SMS/email + adaptateurs.
 // Provider-agnostic : le parcours et les relances dépendent de l'interface
-// Notifier, pas d'un fournisseur précis. On branche l'adaptateur voulu (Brevo,
-// file d'attente, etc.) à la périphérie (edge function).
+// Notifier, pas d'un fournisseur précis. On branche l'adaptateur voulu
+// (MpcpfNotifier = stack prod n8n Gmail + ClickSend, file d'attente, etc.)
+// à la périphérie (edge function).
 
 import type { CrmStore, NotificationLog } from "./crm-store.ts";
 import type { FetchLike } from "./recording.ts";
-
-// Échappe le HTML avant injection dans un email (anti-XSS sortant).
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
 
 export interface OutgoingMessage {
   channel: "sms" | "email";
@@ -41,59 +35,6 @@ export interface Notifier {
 export class QueueNotifier implements Notifier {
   send(_m: OutgoingMessage): Promise<SendResult> {
     return Promise.resolve({ status: "queued", provider: "queue" });
-  }
-}
-
-/**
- * Adaptateur Brevo (ex-Sendinblue) : SMS + email transactionnel via API REST.
- */
-export class BrevoNotifier implements Notifier {
-  constructor(
-    private readonly opts: {
-      apiKey: string;
-      fetchFn: FetchLike;
-      emailSender: { name: string; email: string };
-      smsSender: string; // nom expéditeur SMS (<= 11 caractères)
-    },
-  ) {}
-
-  async send(m: OutgoingMessage): Promise<SendResult> {
-    try {
-      if (m.channel === "email") {
-        const res = await this.post("https://api.brevo.com/v3/smtp/email", {
-          sender: this.opts.emailSender,
-          to: [{ email: m.to }],
-          subject: m.subject ?? "MonPermisCPF",
-          htmlContent: `<p>${escapeHtml(m.body).replace(/\n/g, "<br>")}</p>`,
-        });
-        return res;
-      }
-      return await this.post("https://api.brevo.com/v3/transactionalSMS/sms", {
-        sender: this.opts.smsSender,
-        recipient: m.to.replace(/^\+/, ""),
-        content: m.body,
-        type: "transactional",
-      });
-    } catch (err) {
-      return { status: "failed", provider: "brevo", error: (err as Error).message };
-    }
-  }
-
-  private async post(url: string, body: unknown): Promise<SendResult> {
-    const res = await this.opts.fetchFn(url, {
-      method: "POST",
-      headers: { "api-key": this.opts.apiKey, "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      return { status: "failed", provider: "brevo", error: `HTTP ${res.status}` };
-    }
-    let id: string | undefined;
-    try {
-      const data = JSON.parse(new TextDecoder().decode(await res.arrayBuffer()));
-      id = data.messageId ?? data.reference ?? (data.messageIds && data.messageIds[0]);
-    } catch { /* corps non-JSON : on ignore */ }
-    return { status: "sent", provider: "brevo", providerMessageId: id };
   }
 }
 

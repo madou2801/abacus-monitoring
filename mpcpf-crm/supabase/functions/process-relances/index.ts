@@ -4,9 +4,9 @@
 //   select net.http_post('https://<project>.supabase.co/functions/v1/process-relances', ...);
 //
 // Secrets : SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (injectés).
-//   Envoi réel (préféré) : N8N_EMAIL_WEBHOOK + CLICKSEND_USERNAME + CLICKSEND_API_KEY
-//   (MpcpfNotifier : email via n8n Gmail, SMS via ClickSend). Sinon BREVO_API_KEY,
-//   sinon QueueNotifier (mise en file traçable, aucun envoi externe).
+//   Envoi réel (stack prod) : N8N_EMAIL_WEBHOOK + CLICKSEND_USERNAME + CLICKSEND_API_KEY
+//   (MpcpfNotifier : email via n8n Gmail, SMS via ClickSend).
+//   Sinon QueueNotifier (mise en file traçable, aucun envoi externe).
 //   Rappels téléphoniques (canal 'call') : Retell outbound — à brancher.
 
 import { json } from "../_shared/cors.ts";
@@ -16,7 +16,6 @@ import {
   processRelances,
 } from "../_shared/relances-handler.ts";
 import {
-  BrevoNotifier,
   MpcpfNotifier,
   notify,
   type Notifier,
@@ -39,17 +38,8 @@ function buildNotifier(): Notifier {
       smsSender: env.get("CLICKSEND_SENDER") ?? "MonPermis",
     });
   }
-  const apiKey = env.get("BREVO_API_KEY");
-  if (!apiKey) return new QueueNotifier();
-  return new BrevoNotifier({
-    apiKey,
-    fetchFn: fetch as never,
-    emailSender: {
-      name: env.get("BREVO_SENDER_NAME") ?? "MonPermisCPF",
-      email: env.get("BREVO_SENDER_EMAIL") ?? "contact@monpermiscpf.com",
-    },
-    smsSender: env.get("BREVO_SMS_SENDER") ?? "MonPermis",
-  });
+  // Stack prod non configurée : file traçable, aucun envoi externe.
+  return new QueueNotifier();
 }
 
 // Contenu des relances par règle (sujet email + corps). Repli générique.
@@ -97,7 +87,7 @@ function templateFor(ruleCode: string): { subject: string; body: string } {
 
 const notifier = buildNotifier();
 
-// Dispatcher email : envoie réellement (MpcpfNotifier/Brevo) et journalise.
+// Dispatcher email : envoie réellement (MpcpfNotifier) et journalise.
 const emailDispatcher: ChannelDispatcher = async (task, store) => {
   const contact = await store.getBeneficiaryContact(task.beneficiary_id);
   if (!contact?.email) throw new Error("email bénéficiaire manquant");

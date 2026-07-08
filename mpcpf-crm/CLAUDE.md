@@ -44,8 +44,9 @@ npm run typecheck # tsc --noEmit, doit passer
   SQL des migrations). Ne jamais coupler un handler à Supabase directement.
 - **Web Crypto** pour la signature HMAC Retell (marche sous Node + Deno).
 - **Notifications** : port `Notifier`. Défaut `QueueNotifier` (trace sans envoi) ;
-  adaptateur `BrevoNotifier` (SMS+email) si `BREVO_API_KEY`. Provider à confirmer
-  (cf. décisions en attente) — swappable en 1 fichier.
+  en prod `MpcpfNotifier` = **stack réelle** : email via webhook n8n (Gmail OAuth2,
+  `N8N_EMAIL_WEBHOOK`) + SMS via ClickSend (`CLICKSEND_USERNAME`/`CLICKSEND_API_KEY`).
+  **Pas de Brevo** (décision client 08/07) — swappable en 1 fichier.
 - **Parcours séquentiel** (`crm.journey_steps`) : intake → eligibilite (`qualifie`)
   → pieces → devis accepté (`inscrit`). `crm.advance_journey` n'avance que sur le
   plus long préfixe d'étapes satisfaites.
@@ -90,15 +91,15 @@ cycle via `crm.set_invoice_status`) ; labels FR pour statuts Wedof/devis.
 
 1. **Nom/URL exact du dépôt du portail auto-école** (à ajouter au périmètre / cloner)
    pour brancher les formulaires sur `intake-api` et préparer la bascule.
-2. **Fournisseur SMS/email réellement en prod** (défaut posé : Brevo).
-3. Accès **Supabase staging** + clés **Retell / Wedof(EDOF) / Brevo** + **SSH VPS**
+2. ~~Fournisseur SMS/email~~ **Tranché (08/07)** : n8n Gmail + ClickSend (pas de Brevo).
+3. Accès **Supabase staging** + clés **Retell / Wedof(EDOF) / n8n / ClickSend** + **SSH VPS**
    (`76.13.59.88`, services 3700/3402/...) pour audit et tests réels.
 
 ## Prochaines étapes prévues
 
 1. Audit **lecture seule** de l'existant (portail + services VPS) → cartographie.
 2. Brancher le portail → `intake-api` (formulaires : intake, France Travail, pièces).
-3. Connecter **Wedof/EDOF + Brevo réels**, rejouer les tests contre Supabase staging.
+3. Connecter **Wedof/EDOF + n8n Gmail + ClickSend réels**, rejouer les tests contre Supabase staging.
 4. Proposer le **plan de bascule** (remplacement de l'existant) — exécuté après GO.
 
 Détails d'install/reprise terminal : voir `GETTING_STARTED_TERMINAL.md`.

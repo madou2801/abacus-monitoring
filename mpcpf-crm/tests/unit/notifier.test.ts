@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { applyMigrations } from "../helpers/migrate.ts";
 import { PgliteCrmStore } from "../helpers/pglite-store.ts";
 import {
-  BrevoNotifier,
+  MpcpfNotifier,
   notify,
   QueueNotifier,
 } from "../../supabase/functions/_shared/notifier.ts";
@@ -17,47 +17,57 @@ test("QueueNotifier met en file sans envoi externe", async () => {
   assert.equal(r.provider, "queue");
 });
 
-test("BrevoNotifier envoie un email et remonte le messageId", async () => {
+test("MpcpfNotifier envoie l'email au webhook n8n (Gmail) et remonte l'id", async () => {
   const seen: { url: string; body: string }[] = [];
   const fetchFn: FetchLike = (url, init) => {
-    seen.push({ url, body: init?.body ?? "" });
+    seen.push({ url, body: (init?.body as string) ?? "" });
     return Promise.resolve({
       ok: true,
-      status: 201,
+      status: 200,
       headers: { get: () => "application/json" },
       arrayBuffer: () =>
-        Promise.resolve(new TextEncoder().encode(JSON.stringify({ messageId: "msg-123" })).buffer),
+        Promise.resolve(new TextEncoder().encode(JSON.stringify({ id: "gm-123" })).buffer),
     });
   };
-  const brevo = new BrevoNotifier({
-    apiKey: "key",
+  const notifier = new MpcpfNotifier({
     fetchFn,
-    emailSender: { name: "MPCPF", email: "c@monpermiscpf.com" },
-    smsSender: "MonPermis",
+    emailWebhookUrl: "https://n8n.example.com/webhook/email",
+    clickSendUser: "user",
+    clickSendKey: "key",
   });
-  const r = await brevo.send({ channel: "email", to: "a@b.com", subject: "Hi", body: "corps" });
+  const r = await notifier.send({ channel: "email", to: "a@b.com", subject: "Hi", body: "corps" });
   assert.equal(r.status, "sent");
-  assert.equal(r.providerMessageId, "msg-123");
-  assert.ok(seen[0].url.includes("/v3/smtp/email"));
+  assert.equal(r.provider, "n8n-gmail");
+  assert.equal(r.providerMessageId, "gm-123");
+  assert.equal(seen[0].url, "https://n8n.example.com/webhook/email");
+  assert.match(seen[0].body, /"to":"a@b\.com"/);
 });
 
-test("BrevoNotifier route les SMS sur l'endpoint transactionalSMS", async () => {
+test("MpcpfNotifier route les SMS sur ClickSend avec l'expéditeur MonPermis", async () => {
   let calledUrl = "";
-  const fetchFn: FetchLike = (url) => {
+  let sentBody = "";
+  const fetchFn: FetchLike = (url, init) => {
     calledUrl = url;
+    sentBody = (init?.body as string) ?? "";
     return Promise.resolve({
-      ok: true, status: 201,
+      ok: true, status: 200,
       headers: { get: () => "application/json" },
-      arrayBuffer: () => Promise.resolve(new TextEncoder().encode("{}").buffer),
+      arrayBuffer: () => Promise.resolve(new TextEncoder().encode(
+        JSON.stringify({ data: { messages: [{ message_id: "cs-42" }] } })).buffer),
     });
   };
-  const brevo = new BrevoNotifier({
-    apiKey: "key", fetchFn,
-    emailSender: { name: "MPCPF", email: "c@monpermiscpf.com" }, smsSender: "MonPermis",
+  const notifier = new MpcpfNotifier({
+    fetchFn,
+    emailWebhookUrl: "https://n8n.example.com/webhook/email",
+    clickSendUser: "user",
+    clickSendKey: "key",
   });
-  const r = await brevo.send({ channel: "sms", to: "+33612345678", body: "code 1234" });
+  const r = await notifier.send({ channel: "sms", to: "+33612345678", body: "code 1234" });
   assert.equal(r.status, "sent");
-  assert.ok(calledUrl.includes("/v3/transactionalSMS/sms"));
+  assert.equal(r.provider, "clicksend");
+  assert.equal(r.providerMessageId, "cs-42");
+  assert.ok(calledUrl.includes("rest.clicksend.com/v3/sms/send"));
+  assert.match(sentBody, /"from":"MonPermis"/);
 });
 
 test("notify journalise même en cas d'échec d'envoi", async () => {

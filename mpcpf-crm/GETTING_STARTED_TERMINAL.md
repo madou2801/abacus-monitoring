@@ -2,7 +2,7 @@
 
 Ce guide sert à passer de l'environnement web (verrouillé sur un seul dépôt)
 au **Terminal en local**, où Claude Code voit **tous tes dépôts** et peut
-utiliser tes **vrais identifiants** (Supabase, Retell, Wedof, Brevo, SSH VPS)
+utiliser tes **vrais identifiants** (Supabase, Retell, Wedof, n8n, ClickSend, SSH VPS)
 pour auditer l'existant et tester les flux de bout en bout.
 
 > Règle qui ne change pas : **on ne remplace rien de l'existant avant ton GO**.
@@ -99,13 +99,13 @@ Pré-autoriser les commandes sûres sans être interrompu (optionnel),
 - [ ] `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (projet de **staging** de préférence)
 - [ ] `RETELL_API_KEY` (signature des webhooks de l'agent Lucie)
 - [ ] `WEDOF_WEBHOOK_SECRET` + clé API Wedof/EDOF (création de dossiers, devis)
-- [ ] `BREVO_API_KEY` (+ `BREVO_SENDER_EMAIL`, `BREVO_SMS_SENDER`) — ou le fournisseur réellement en place
+- [ ] `N8N_EMAIL_WEBHOOK` (webhook n8n → Gmail OAuth2) + `CLICKSEND_USERNAME`/`CLICKSEND_API_KEY` (SMS)
 - [ ] `INTAKE_API_SECRET` (auth de l'API parcours appelée par le portail)
 - [ ] Accès **SSH VPS** `76.13.59.88` si on doit inspecter les services existants (3700, 3402, …)
 
 À me communiquer aussi :
 - [ ] Le **nom/URL exact du dépôt du portail auto-école**.
-- [ ] Le fournisseur **SMS/email** réellement branché en prod (pour aligner l'adaptateur).
+- [x] Fournisseur **SMS/email** : n8n Gmail + ClickSend (adaptateur `MpcpfNotifier` aligné).
 
 ---
 
@@ -113,5 +113,5 @@ Pré-autoriser les commandes sûres sans être interrompu (optionnel),
 
 1. **Audit en lecture seule** de l'existant (portail + services VPS) → cartographie.
 2. **Brancher le portail** sur l'API `intake-api` du CRM (formulaires → parcours).
-3. **Connecter Wedof/EDOF + Brevo réels**, rejouer les 49 tests contre un Supabase de staging.
+3. **Connecter Wedof/EDOF + n8n Gmail + ClickSend réels**, rejouer les tests contre un Supabase de staging.
 4. Te proposer le **plan de bascule** — exécuté uniquement après ton GO.
