@@ -9,6 +9,7 @@ import { EditableCard, StaticRow } from "./EditableCard";
 import { NotesCard } from "./NotesCard";
 import { TasksCard } from "./TasksCard";
 import { QuoteForm } from "./QuoteForm";
+import { QuoteActions } from "./QuoteActions";
 import { OwnerSelect } from "./OwnerSelect";
 
 export const dynamic = "force-dynamic";
@@ -176,6 +177,11 @@ export default async function Page({ params }: { params: { id: string } }) {
                         </span>
                       </td>
                       <td className="py-1.5 text-xs text-slate-400">{dateFr(q.sent_at ?? q.created_at)}</td>
+                      <td className="py-1.5">
+                        {(q.status === "draft" || q.status === "sent") && (
+                          <QuoteActions beneficiaryId={id} quoteId={q.id} />
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

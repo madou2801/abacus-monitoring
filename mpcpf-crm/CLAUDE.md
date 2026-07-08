@@ -87,6 +87,23 @@ propriétaire + **pagination** ; pipeline avec **€ par colonne** ; pages
 **Entreprises** et **Facturation** réelles (funnel cliquable + avancement du
 cycle via `crm.set_invoice_status`) ; labels FR pour statuts Wedof/devis.
 
+**Dashboard cliquable + devis validables (ajout 08/07 soir)** — chaque donnée
+du tableau de bord mène à la liste filtrée correspondante (filtres `canal` et
+`jour=demandes|valides` ajoutés à /beneficiaires, minuit Europe/Paris) ;
+création manuelle d'**entreprise** (/entreprises) et de **facture**
+(/facturation, via `crm.create_invoice`). **Devis validables en un clic**
+sur la fiche (✓ Valider / ✗ Refuser sur les devis draft/sent) : même logique
+que l'action `decide_quote` de l'intake-api (statut + `advance_journey` →
+devis accepté = passage à Inscrit). Rattrapage des devis historiques en
+'attente_validation' : `ops/ygphyzky/rattrapage_devis.sql` (idempotent).
+
+**📌 Note pour la session « portail / site public »** : pour connecter la page
+devis du site au CRM, appeler l'edge function `intake-api` (Bearer
+`INTAKE_API_SECRET`) avec `{action:"decide_quote", beneficiary_id, quote_id,
+status:"accepted"|"refused"}` — c'est le même chemin que la validation par
+clic dans le CRM ; `{action:"send_quote", ...}` crée/transmet un devis.
+L'id CRM d'un dossier = l'id de `public.dossiers_bpc` (miroir 1:1 du sync).
+
 ## Décisions / infos EN ATTENTE du client
 
 1. **Nom/URL exact du dépôt du portail auto-école** (à ajouter au périmètre / cloner)

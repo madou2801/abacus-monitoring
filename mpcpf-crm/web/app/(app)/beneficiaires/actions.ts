@@ -134,6 +134,41 @@ export async function createQuote(
   return { ok: true, id: data as string };
 }
 
+// Décision sur un devis (validation / refus en un clic depuis la fiche).
+// Même logique métier que l'action decide_quote de l'intake-api : statut +
+// horodatage de décision, puis avancée du parcours (advance_journey → un devis
+// accepté fait passer le dossier à « Inscrit » si le reste est satisfait).
+export async function decideQuote(
+  beneficiaryId: string,
+  quoteId: string,
+  status: "accepted" | "refused",
+): Promise<Result> {
+  const staff = await getStaffUser();
+  if (!staff) return { ok: false, error: "Non autorisé" };
+
+  const db = crm();
+  const { data, error } = await db
+    .from("quotes")
+    .update({ status, decided_at: new Date().toISOString() })
+    .eq("id", quoteId)
+    .eq("beneficiary_id", beneficiaryId)
+    .in("status", ["draft", "sent"])
+    .select("id");
+  if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) {
+    return { ok: false, error: "Devis introuvable ou déjà décidé." };
+  }
+
+  const { error: advErr } = await db.rpc("advance_journey", {
+    p_benef: beneficiaryId,
+    p_actor: staff.email,
+  });
+  if (advErr) return { ok: false, error: advErr.message };
+
+  revalidateBenef(beneficiaryId);
+  return { ok: true };
+}
+
 // Création manuelle d'un dossier (prospect appelé en direct, salon, etc.).
 export async function createBeneficiary(input: {
   first_name?: string;
