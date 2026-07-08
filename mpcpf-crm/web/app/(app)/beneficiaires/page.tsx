@@ -1,12 +1,29 @@
 import Link from "next/link";
 import { crm, dateFr, dateTimeFr, benefTitle } from "@/lib/supabase";
-import { STAGES, STAGE_LABEL, STAGE_COLOR, FINANCEUR_LABEL, CONFIDENCE, LEAD_STATUS } from "@/lib/labels";
+import { STAGES, STAGE_LABEL, STAGE_COLOR, FINANCEUR_LABEL, CONFIDENCE, LEAD_STATUS, CHANNELS } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
-type SP = { q?: string; stage?: string; financeur?: string; review?: string; owner?: string; page?: string };
+type SP = {
+  q?: string; stage?: string; financeur?: string; review?: string;
+  owner?: string; page?: string; canal?: string; jour?: string;
+};
 
 const PAGE_SIZE = 50;
+
+// Minuit aujourd'hui à Paris, en ISO avec offset — pour aligner les filtres
+// « du jour » sur les compteurs du dashboard (vw_intake_today, Europe/Paris).
+function startOfTodayParisISO(): string {
+  const now = new Date();
+  const ymd = now.toLocaleDateString("fr-CA", { timeZone: "Europe/Paris" }); // YYYY-MM-DD
+  // Offset mesuré à midi (stable, loin du changement d'heure).
+  const parisHourAtNoonUtc = Number(
+    new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", hour12: false })
+      .format(new Date(`${ymd}T12:00:00Z`)),
+  );
+  const offset = parisHourAtNoonUtc - 12;
+  return `${ymd}T00:00:00${offset >= 0 ? "+" : "-"}${String(Math.abs(offset)).padStart(2, "0")}:00`;
+}
 
 export default async function Page({ searchParams }: { searchParams: SP }) {
   const db = crm();
@@ -17,6 +34,8 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
   const financeur = searchParams.financeur ?? "";
   const review = searchParams.review === "1";
   const owner = (searchParams.owner ?? "").trim().replace(/[,()*]/g, "");
+  const canal = (searchParams.canal ?? "").trim().replace(/[,()*]/g, "");
+  const jour = searchParams.jour === "demandes" || searchParams.jour === "valides" ? searchParams.jour : "";
   const page = Math.max(1, parseInt(searchParams.page ?? "1", 10) || 1);
 
   let query = db
@@ -32,6 +51,9 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
   if (financeur) query = query.eq("financeur", financeur);
   if (review) query = query.eq("ae_match_needs_review", true);
   if (owner) query = query.ilike("owner_email", owner);
+  if (canal) query = query.eq("canal", canal);
+  if (jour === "demandes") query = query.gte("date_creation", startOfTodayParisISO());
+  if (jour === "valides") query = query.gte("date_inscription", startOfTodayParisISO());
 
   const [rowsRes, aesRes, staffRes] = await Promise.all([
     query,
@@ -51,6 +73,8 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
     if (financeur) sp.set("financeur", financeur);
     if (review) sp.set("review", "1");
     if (owner) sp.set("owner", owner);
+    if (canal) sp.set("canal", canal);
+    if (jour) sp.set("jour", jour);
     if (p > 1) sp.set("page", String(p));
     const s = sp.toString();
     return `/beneficiaires${s ? `?${s}` : ""}`;
@@ -98,6 +122,21 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
           <select name="owner" defaultValue={owner} className="mt-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm">
             <option value="">Tous</option>
             {staffEmails.map((e) => <option key={e} value={e}>{e}</option>)}
+          </select>
+        </label>
+        <label className="flex flex-col text-xs text-slate-500">
+          Canal
+          <select name="canal" defaultValue={canal} className="mt-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+            <option value="">Tous</option>
+            {CHANNELS.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
+          </select>
+        </label>
+        <label className="flex flex-col text-xs text-slate-500">
+          Période
+          <select name="jour" defaultValue={jour} className="mt-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+            <option value="">Tout l'historique</option>
+            <option value="demandes">Demandes du jour</option>
+            <option value="valides">Validés du jour</option>
           </select>
         </label>
         <label className="flex items-center gap-2 pb-1.5 text-xs text-slate-600">

@@ -1,4 +1,5 @@
 import { crm, dateFr } from "@/lib/supabase";
+import { NewCompanyForm } from "./NewCompanyForm";
 
 export const dynamic = "force-dynamic";
 
@@ -17,11 +18,14 @@ export default async function Page() {
 
   return (
     <div className="p-6 lg:p-8">
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold text-slate-900">Entreprises</h1>
-        <p className="text-sm text-slate-500">
-          {companies.length} entreprise(s) — financement OPCO / employeur, devis et factures au nom de l'entreprise.
-        </p>
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Entreprises</h1>
+          <p className="text-sm text-slate-500">
+            {companies.length} entreprise(s) — financement OPCO / employeur, devis et factures au nom de l'entreprise.
+          </p>
+        </div>
+        <NewCompanyForm />
       </div>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">

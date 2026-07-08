@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { crm, euros } from "@/lib/supabase";
 import { STAGES, INVOICE_STATUS, CHANNELS } from "@/lib/labels";
 
@@ -61,11 +62,11 @@ export default async function Dashboard() {
       </div>
 
       <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-6">
-        <Kpi label="Bénéficiaires" value={total} />
-        <Kpi label="Service fait" value={certifie} hint={`${wonRate}% du total`} />
-        <Kpi label="Entreprises" value={companies.count ?? 0} />
+        <Kpi label="Bénéficiaires" value={total} href="/beneficiaires" />
+        <Kpi label="Service fait" value={certifie} hint={`${wonRate}% du total`} href="/beneficiaires?stage=certifie" />
+        <Kpi label="Entreprises" value={companies.count ?? 0} href="/entreprises" />
         <Kpi label="Auto-écoles" value={ae.count ?? 0} />
-        <Kpi label="Matching à confirmer" value={review.count ?? 0} tone="amber" />
+        <Kpi label="Matching à confirmer" value={review.count ?? 0} tone="amber" href="/beneficiaires?review=1" />
         <Kpi label="Tâches en retard" value={lateTasks.count ?? 0} tone="amber" />
       </div>
 
@@ -75,7 +76,9 @@ export default async function Dashboard() {
             {STAGES.map((s) => {
               const n = byStage[s.code] ?? 0;
               return (
-                <div key={s.code} className="flex items-center gap-3">
+                <Link key={s.code} href={`/beneficiaires?stage=${s.code}`}
+                  className="flex items-center gap-3 rounded px-1 py-0.5 transition hover:bg-slate-50"
+                  title={`Voir les bénéficiaires « ${s.label} »`}>
                   <div className="w-32 shrink-0 text-sm text-slate-600">{s.label}</div>
                   <div className="flex-1">
                     <div className="h-6 rounded bg-slate-100">
@@ -86,28 +89,29 @@ export default async function Dashboard() {
                     </div>
                   </div>
                   <div className="w-10 text-right text-sm font-semibold text-slate-800">{n}</div>
-                </div>
+                </Link>
               );
             })}
           </div>
         </Card>
 
         <Card title="Facturation">
-          <div className="mb-4 rounded-lg bg-emerald-50 p-4">
+          <Link href="/facturation?status=encaissee" className="mb-4 block rounded-lg bg-emerald-50 p-4 transition hover:bg-emerald-100">
             <div className="text-xs font-medium text-emerald-700">Encaissé</div>
             <div className="text-2xl font-bold text-emerald-800">{euros(encaisse)}</div>
-          </div>
+          </Link>
           {invoices.length === 0 ? (
             <p className="text-sm text-slate-400">Aucune facture pour l'instant.</p>
           ) : (
             <div className="space-y-2">
               {Object.entries(invByStatus).map(([st, n]) => (
-                <div key={st} className="flex items-center justify-between text-sm">
+                <Link key={st} href={`/facturation?status=${st}`}
+                  className="flex items-center justify-between rounded px-1 py-0.5 text-sm transition hover:bg-slate-50">
                   <span className={`rounded px-2 py-0.5 text-xs font-medium ${INVOICE_STATUS[st]?.color ?? "bg-slate-100"}`}>
                     {INVOICE_STATUS[st]?.label ?? st}
                   </span>
                   <span className="font-semibold">{n}</span>
-                </div>
+                </Link>
               ))}
             </div>
           )}
@@ -121,20 +125,23 @@ function IntakeBlock({
   title, total, prefix, data, tone,
 }: { title: string; total: number; prefix: string; data: any; tone: "brand" | "emerald" }) {
   const big = tone === "emerald" ? "text-emerald-700" : "text-brand";
+  const jour = prefix; // "demandes" | "valides" — filtre correspondant côté liste
   return (
     <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4">
-      <div className="flex items-baseline justify-between">
+      <Link href={`/beneficiaires?jour=${jour}`} className="flex items-baseline justify-between rounded px-1 transition hover:bg-white/70"
+        title="Voir les dossiers correspondants">
         <span className="text-xs font-medium text-slate-500">{title}</span>
         <span className={`text-3xl font-bold ${big}`}>{total}</span>
-      </div>
+      </Link>
       <div className="mt-3 space-y-1.5">
         {CHANNELS.filter((c) => c.code !== "autre" || (data[`${prefix}_autre`] ?? 0) > 0).map((c) => {
           const n = data[`${prefix}_${c.code}`] ?? 0;
           return (
-            <div key={c.code} className="flex items-center justify-between text-sm">
+            <Link key={c.code} href={`/beneficiaires?jour=${jour}&canal=${c.code}`}
+              className="flex items-center justify-between rounded px-1 py-0.5 text-sm transition hover:bg-white/70">
               <span className="text-slate-600"><span className="mr-1">{c.icon}</span>{c.label}</span>
               <span className={`font-semibold ${n ? "text-slate-800" : "text-slate-300"}`}>{n}</span>
-            </div>
+            </Link>
           );
         })}
       </div>
@@ -142,14 +149,20 @@ function IntakeBlock({
   );
 }
 
-function Kpi({ label, value, hint, tone }: { label: string; value: number; hint?: string; tone?: "amber" }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+function Kpi({ label, value, hint, tone, href }: {
+  label: string; value: number; hint?: string; tone?: "amber"; href?: string;
+}) {
+  const inner = (
+    <>
       <div className="text-xs font-medium text-slate-500">{label}</div>
       <div className={`mt-1 text-2xl font-bold ${tone === "amber" ? "text-amber-600" : "text-slate-900"}`}>{value}</div>
       {hint && <div className="mt-0.5 text-xs text-slate-400">{hint}</div>}
-    </div>
+    </>
   );
+  const cls = "rounded-xl border border-slate-200 bg-white p-4";
+  return href
+    ? <Link href={href} className={`${cls} block transition hover:border-brand hover:shadow-sm`}>{inner}</Link>
+    : <div className={cls}>{inner}</div>;
 }
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {

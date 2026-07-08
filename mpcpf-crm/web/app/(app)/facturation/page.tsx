@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { crm, euros, dateFr } from "@/lib/supabase";
+import { crm, euros, dateFr, benefTitle } from "@/lib/supabase";
 import { INVOICE_STATUS, FINANCEUR_LABEL } from "@/lib/labels";
 import { InvoiceActions } from "./InvoiceActions";
+import { NewInvoiceForm, type BenefOption } from "./NewInvoiceForm";
 
 export const dynamic = "force-dynamic";
 
@@ -24,20 +25,34 @@ export default async function Page({ searchParams }: { searchParams: { status?: 
     .limit(500);
   if (status) query = query.eq("status", status);
 
-  const [invRes, funnelRes] = await Promise.all([
+  const [invRes, funnelRes, benefRes] = await Promise.all([
     query,
     db.from("vw_facturation_funnel").select("*"),
+    db.from("beneficiaries")
+      .select("id, first_name, last_name, email, phone")
+      .order("last_name", { ascending: true, nullsFirst: false })
+      .limit(2000),
   ]);
   const invoices = invRes.data ?? [];
   const funnel = funnelRes.data ?? [];
+  // Libellé de recherche : titre + email + téléphone (sans doublon), pour
+  // retrouver un dossier par n'importe quelle coordonnée.
+  const benefOptions: BenefOption[] = (benefRes.data ?? []).map((b: any) => {
+    const title = benefTitle(b);
+    const extras = [b.email, b.phone].filter((p: string | null) => p && !title.includes(p));
+    return { id: b.id, label: [title, ...extras].join(" · ") };
+  });
 
   return (
     <div className="p-6 lg:p-8">
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold text-slate-900">Facturation</h1>
-        <p className="text-sm text-slate-500">
-          Cycle de vie des factures tous financeurs (le CPF reste facturé par Wedof, suivi ici via les références externes).
-        </p>
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Facturation</h1>
+          <p className="text-sm text-slate-500">
+            Cycle de vie des factures tous financeurs (le CPF reste facturé par Wedof, suivi ici via les références externes).
+          </p>
+        </div>
+        <NewInvoiceForm beneficiaries={benefOptions} />
       </div>
 
       {/* Entonnoir par statut (cliquable = filtre) */}
