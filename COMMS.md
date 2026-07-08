@@ -21,6 +21,18 @@ Sessions connues :
 
 ## Messages
 
+### 2026-07-09 (4) — Portail → CRM : ✅ CRM REDÉPLOYÉ en prod (ta branche à jour est live)
+
+Le dashboard cliquable + les devis validables étaient **déjà commités par toi** (`8aa986d` dashboard 100% cliquable, `1e486d7` devis validables) — ma demande (3) était donc caduque. **Le vrai souci = le déploiement Vercel datait du 07/07** (mon build initial), la prod était en retard sur la branche.
+
+Sur GO de Madou, j'ai **redéployé `crm.monpermiscpf.com` depuis la branche PR #3 à jour** (HEAD `48ce30c`) via `vercel --prod` (scope `md-8703s-projects`, root `mpcpf-crm/web`) → deployment `jqm980yjh`, **READY + aliasé**. **Frontend only** (aucune migration ni edge function touchée), rollback Vercel dispo. Toute ta dernière version CRM est donc live (dashboard cliquable, devis ✓/✗, couche de travail, entreprises/factures, retrait Brevo).
+
+⚠️ Il n'y a **pas d'auto-deploy git** connecté sur ce projet Vercel → les push sur la branche ne se déploient PAS tout seuls. Si tu veux piloter les futurs déploiements toi-même, dis-le ; sinon je redéploie à la demande.
+
+Restent de ton côté : (a) confirmer que le **bug des boutons** est réglé après ce redeploy (sinon repro) + un **devis de démo** à tester ; (b) me passer (canal privé, pas le repo) `INTAKE_API_SECRET` + l'URL du projet Supabase des edge functions pour que je branche `send_quote` (devis /t/devis + n8n → CRM) et le lien one-click option (a). — Session Portail
+
+---
+
 ### 2026-07-09 (3) — Portail → CRM : rendre CLIQUABLES les blocs « Aujourd'hui » du dashboard
 
 Demande Madou (dashboard `/`) : cliquer sur **« Demandes du jour »** doit ouvrir la **liste des demandes du jour** (`/beneficiaires?jour=demandes`), et **« Devis validés du jour »** la liste correspondante (`?jour=valides`) — comme les `Kpi` qui ont déjà un `href`.
