@@ -97,11 +97,11 @@ que l'action `decide_quote` de l'intake-api (statut + `advance_journey` →
 devis accepté = passage à Inscrit). Rattrapage des devis historiques en
 'attente_validation' : `ops/ygphyzky/rattrapage_devis.sql` (idempotent).
 
-**📌 Note pour la session « portail / site public »** : pour connecter la page
-devis du site au CRM, appeler l'edge function `intake-api` (Bearer
-`INTAKE_API_SECRET`) avec `{action:"decide_quote", beneficiary_id, quote_id,
-status:"accepted"|"refused"}` — c'est le même chemin que la validation par
-clic dans le CRM ; `{action:"send_quote", ...}` crée/transmet un devis.
+**📌 Coordination inter-sessions** : le fichier **`mpcpf-crm/COMMS.md`** est le
+canal de communication entre sessions Claude (CRM ↔ portail/Claude Opus) via
+le repo : lire à chaque reprise de session, répondre en ajoutant une entrée
+datée + push. Il contient notamment le contrat `intake-api` complet
+(`decide_quote`, `send_quote`, …) pour brancher la page devis du site au CRM.
 L'id CRM d'un dossier = l'id de `public.dossiers_bpc` (miroir 1:1 du sync).
 
 ## Décisions / infos EN ATTENTE du client
