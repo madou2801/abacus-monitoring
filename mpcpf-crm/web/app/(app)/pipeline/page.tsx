@@ -10,8 +10,8 @@ export default async function Page({ searchParams }: { searchParams: { financeur
   const financeur = searchParams.financeur ?? "";
 
   let query = db
-    .from("beneficiaries")
-    .select("id, first_name, last_name, phone, email, financeur, pipeline_stage, auto_ecole_id, ae_match_needs_review, motif")
+    .from("vw_beneficiary_enriched")
+    .select("id, first_name, last_name, phone, email, financeur, pipeline_stage, auto_ecole_id, ae_match_needs_review, motif, montant_devis_cents")
     .order("stage_changed_at", { ascending: false })
     .limit(2000);
   if (financeur) query = query.eq("financeur", financeur);
@@ -25,8 +25,12 @@ export default async function Page({ searchParams }: { searchParams: { financeur
   const rows = rowsRes.data ?? [];
 
   const byStage: Record<string, any[]> = {};
-  for (const s of STAGES) byStage[s.code] = [];
-  for (const b of rows) (byStage[b.pipeline_stage] ??= []).push(b);
+  const centsByStage: Record<string, number> = {};
+  for (const s of STAGES) { byStage[s.code] = []; centsByStage[s.code] = 0; }
+  for (const b of rows) {
+    (byStage[b.pipeline_stage] ??= []).push(b);
+    centsByStage[b.pipeline_stage] = (centsByStage[b.pipeline_stage] ?? 0) + (b.montant_devis_cents ?? 0);
+  }
 
   return (
     <div className="flex h-screen flex-col p-6 lg:p-8">
@@ -50,7 +54,7 @@ export default async function Page({ searchParams }: { searchParams: { financeur
         </form>
       </div>
 
-      <KanbanBoard initial={byStage} aeName={aeName} />
+      <KanbanBoard initial={byStage} aeName={aeName} centsByStage={centsByStage} />
     </div>
   );
 }

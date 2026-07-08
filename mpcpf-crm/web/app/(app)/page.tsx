@@ -14,13 +14,15 @@ function tally<T extends string>(rows: { [k: string]: any }[], key: string): Rec
 
 export default async function Dashboard() {
   const db = crm();
-  const [benef, inv, companies, ae, review, todayRes] = await Promise.all([
+  const [benef, inv, companies, ae, review, todayRes, lateTasks] = await Promise.all([
     db.from("beneficiaries").select("pipeline_stage"),
     db.from("invoices").select("status, amount_cents"),
     db.from("companies").select("id", { count: "exact", head: true }),
     db.from("auto_ecoles").select("id", { count: "exact", head: true }),
     db.from("beneficiaries").select("id", { count: "exact", head: true }).eq("ae_match_needs_review", true),
     db.from("vw_intake_today").select("*").maybeSingle(),
+    db.from("tasks").select("id", { count: "exact", head: true })
+      .eq("status", "open").lte("due_at", new Date().toISOString()),
   ]);
   const today = (todayRes.data ?? {}) as any;
 
@@ -58,12 +60,13 @@ export default async function Dashboard() {
         </p>
       </div>
 
-      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-6">
         <Kpi label="Bénéficiaires" value={total} />
         <Kpi label="Service fait" value={certifie} hint={`${wonRate}% du total`} />
         <Kpi label="Entreprises" value={companies.count ?? 0} />
         <Kpi label="Auto-écoles" value={ae.count ?? 0} />
         <Kpi label="Matching à confirmer" value={review.count ?? 0} tone="amber" />
+        <Kpi label="Tâches en retard" value={lateTasks.count ?? 0} tone="amber" />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

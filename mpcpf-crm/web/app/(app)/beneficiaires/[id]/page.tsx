@@ -1,14 +1,25 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { crm, euros, dateFr, dateTimeFr } from "@/lib/supabase";
-import { STAGE_LABEL, STAGE_COLOR, INVOICE_STATUS, CONFIDENCE, FINANCEUR_LABEL, LEAD_STATUS, CHANNEL_LABEL } from "@/lib/labels";
+import {
+  STAGE_LABEL, STAGE_COLOR, INVOICE_STATUS, CONFIDENCE, FINANCEUR_LABEL,
+  LEAD_STATUS, CHANNEL_LABEL, QUOTE_STATUS, MATCH_METHOD_LABEL, wedofStateFr,
+} from "@/lib/labels";
+import { EditableCard, StaticRow } from "./EditableCard";
+import { NotesCard } from "./NotesCard";
+import { TasksCard } from "./TasksCard";
+import { QuoteForm } from "./QuoteForm";
+import { OwnerSelect } from "./OwnerSelect";
 
 export const dynamic = "force-dynamic";
 
 const EVENT_ICON: Record<string, string> = {
   call: "📞", email: "✉️", notification: "🔔", wedof: "🎓",
   stage: "➡️", form: "📝", document: "📎", quote: "💶",
+  note: "🗒️", task: "✅", edit: "✏️",
 };
+
+const FINANCEUR_OPTIONS = Object.entries(FINANCEUR_LABEL).map(([value, label]) => ({ value, label }));
 
 export default async function Page({ params }: { params: { id: string } }) {
   const db = crm();
@@ -18,18 +29,24 @@ export default async function Page({ params }: { params: { id: string } }) {
   const b = benefRes.data as any;
   if (!b) notFound();
 
-  const [coRes, aeRes, tlRes, qRes, iRes] = await Promise.all([
+  const [coRes, aeRes, tlRes, qRes, iRes, notesRes, tasksRes, staffRes] = await Promise.all([
     b.company_id ? db.from("companies").select("*").eq("id", b.company_id).maybeSingle() : Promise.resolve({ data: null }),
     b.auto_ecole_id ? db.from("auto_ecoles").select("raison_sociale, nom, email, telephone, ville").eq("id", b.auto_ecole_id).maybeSingle() : Promise.resolve({ data: null }),
     db.from("vw_beneficiary_timeline").select("*").eq("beneficiary_id", id).order("occurred_at", { ascending: false }).limit(60),
     db.from("quotes").select("*").eq("beneficiary_id", id).order("created_at", { ascending: false }),
     db.from("invoices").select("*").eq("beneficiary_id", id).order("created_at", { ascending: false }),
+    db.from("notes").select("id, author_email, content, created_at").eq("beneficiary_id", id).order("created_at", { ascending: false }).limit(50),
+    db.from("tasks").select("id, title, status, due_at, assignee_email, created_at").eq("beneficiary_id", id).order("created_at", { ascending: false }).limit(50),
+    db.from("app_users").select("email").eq("active", true).order("email"),
   ]);
   const co = coRes.data as any;
   const ae = aeRes.data as any;
   const timeline = tlRes.data ?? [];
   const quotes = qRes.data ?? [];
   const invoices = iRes.data ?? [];
+  const notes = (notesRes.data ?? []) as any[];
+  const tasks = (tasksRes.data ?? []) as any[];
+  const staffEmails = (staffRes.data ?? []).map((u: any) => u.email as string);
   const fullName = [b.first_name, b.last_name].filter(Boolean).join(" ") || "Bénéficiaire";
 
   return (
@@ -42,55 +59,78 @@ export default async function Page({ params }: { params: { id: string } }) {
           {STAGE_LABEL[b.pipeline_stage] ?? b.pipeline_stage}
         </span>
         {co && <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">🏢 {co.raison_sociale}</span>}
+        <OwnerSelect beneficiaryId={id} current={b.owner_email ?? null} staffEmails={staffEmails} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Colonne infos */}
         <div className="space-y-4">
-          <Card title="Dates clés">
-            <Row k="Date de création" v={dateFr(b.date_creation)} />
-            <Row k="Date d'inscription" v={dateFr(b.date_inscription)} />
-            <Row k="Formation" v={b.intitule_formation} />
-            <Row k="Motif d'appel" v={b.motif} />
-            <Row k="Canal" v={CHANNEL_LABEL[b.canal] ?? b.canal} />
-            <Row k="Propriétaire" v={b.owner_email} />
-          </Card>
+          <EditableCard
+            title="Identité & coordonnées"
+            beneficiaryId={id}
+            fields={[
+              { key: "first_name", label: "Prénom", value: b.first_name },
+              { key: "last_name", label: "Nom", value: b.last_name },
+              { key: "email", label: "Email", value: b.email },
+              { key: "phone", label: "Téléphone", value: b.phone },
+              { key: "code_postal", label: "Code postal", value: b.code_postal },
+              { key: "ville_formation", label: "Ville", value: b.ville_formation },
+            ]}
+            extra={
+              <>
+                <StaticRow k="France Travail" v={b.is_france_travail ? "Oui" : "—"} />
+                <StaticRow k="Canal" v={CHANNEL_LABEL[b.canal] ?? b.canal} />
+              </>
+            }
+          />
 
-          <Card title="Activité & relances">
+          <EditableCard
+            title="Dossier"
+            beneficiaryId={id}
+            fields={[
+              { key: "intitule_formation", label: "Formation", value: b.intitule_formation },
+              { key: "financeur", label: "Financeur", value: b.financeur, type: "select", options: FINANCEUR_OPTIONS },
+              { key: "motif", label: "Motif / contexte", value: b.motif, type: "textarea" },
+            ]}
+            extra={
+              <>
+                <StaticRow k="Date de création" v={dateFr(b.date_creation)} />
+                <StaticRow k="Date d'inscription" v={dateFr(b.date_inscription)} />
+              </>
+            }
+          />
+
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <h2 className="mb-3 text-sm font-semibold text-slate-700">Activité & relances</h2>
             <div className="mb-2 flex items-center justify-between text-sm">
               <span className="text-slate-500">Statut</span>
               <span className={`rounded px-2 py-0.5 text-xs font-medium ${LEAD_STATUS[b.lead_status]?.color ?? "bg-slate-100"}`}>
                 {LEAD_STATUS[b.lead_status]?.label ?? b.lead_status}
               </span>
             </div>
-            <Row k="Dernière activité" v={dateTimeFr(b.last_activity_at)} />
-            <Row k="Prochaine relance" v={dateTimeFr(b.next_relance_at)} />
-            <Row k="Interactions" v={String(b.nb_interactions ?? 0)} />
-            <Row k="Montant devis" v={b.montant_devis_cents != null ? euros(b.montant_devis_cents) : null} />
-          </Card>
+            <StaticRow k="Dernière activité" v={dateTimeFr(b.last_activity_at)} />
+            <StaticRow k="Prochaine relance" v={dateTimeFr(b.next_relance_at)} />
+            <StaticRow k="Interactions" v={String(b.nb_interactions ?? 0)} />
+            <StaticRow k="Montant devis" v={b.montant_devis_cents != null ? euros(b.montant_devis_cents) : null} />
+          </div>
 
-          <Card title="Coordonnées">
-            <Row k="Email" v={b.email} />
-            <Row k="Téléphone" v={b.phone} />
-            <Row k="Ville" v={[b.code_postal, b.ville_formation].filter(Boolean).join(" ")} />
-            <Row k="Financeur" v={FINANCEUR_LABEL[b.financeur] ?? b.financeur} />
-            <Row k="France Travail" v={b.is_france_travail ? "Oui" : "—"} />
-            <Row k="Source" v={b.source} />
-          </Card>
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <h2 className="mb-3 text-sm font-semibold text-slate-700">Wedof / dossier</h2>
+            <StaticRow k="Statut Wedof" v={wedofStateFr(b.wedof_state)} />
+            <StaticRow k="Dossier (folder)" v={b.wedof_folder_id} />
+            <StaticRow k="SIRET formation" v={b.siret_formation} />
+          </div>
 
-          <Card title="Wedof / dossier">
-            <Row k="Statut Wedof" v={b.wedof_state} />
-            <Row k="Dossier (folder)" v={b.wedof_folder_id} />
-            <Row k="SIRET formation" v={b.siret_formation} />
-          </Card>
-
-          <Card title="Auto-école">
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <h2 className="mb-3 text-sm font-semibold text-slate-700">Auto-école</h2>
             {ae ? (
               <>
                 <div className="mb-1 font-medium text-slate-800">{ae.raison_sociale ?? ae.nom}</div>
                 <div className="text-xs text-slate-500">{[ae.ville, ae.email, ae.telephone].filter(Boolean).join(" · ")}</div>
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="text-xs text-slate-500">Appariement : {b.ae_match_method}</span>
+                  <span className="text-xs text-slate-500">
+                    Appariement : {MATCH_METHOD_LABEL[b.ae_match_method] ?? b.ae_match_method}
+                  </span>
                   <span className={`rounded px-1.5 py-0.5 text-[10px] ${CONFIDENCE[b.ae_match_confidence]?.color ?? ""}`}>
                     {CONFIDENCE[b.ae_match_confidence]?.label ?? b.ae_match_confidence}
                   </span>
@@ -98,22 +138,30 @@ export default async function Page({ params }: { params: { id: string } }) {
                 </div>
               </>
             ) : <p className="text-sm text-slate-400">Non attribuée.</p>}
-          </Card>
+          </div>
 
           {co && (
-            <Card title="Entreprise">
-              <Row k="Raison sociale" v={co.raison_sociale} />
-              <Row k="SIRET" v={co.siret} />
-              <Row k="OPCO" v={co.opco} />
-              <Row k="Contact" v={[co.contact_prenom, co.contact_nom].filter(Boolean).join(" ")} />
-              <Row k="Ville" v={co.ville} />
-            </Card>
+            <div className="rounded-xl border border-slate-200 bg-white p-5">
+              <h2 className="mb-3 text-sm font-semibold text-slate-700">Entreprise</h2>
+              <StaticRow k="Raison sociale" v={co.raison_sociale} />
+              <StaticRow k="SIRET" v={co.siret} />
+              <StaticRow k="OPCO" v={co.opco} />
+              <StaticRow k="Contact" v={[co.contact_prenom, co.contact_nom].filter(Boolean).join(" ")} />
+              <StaticRow k="Ville" v={co.ville} />
+            </div>
           )}
         </div>
 
         {/* Colonne principale */}
         <div className="space-y-4 lg:col-span-2">
-          <Card title={`Devis (${quotes.length})`}>
+          <TasksCard beneficiaryId={id} tasks={tasks} staffEmails={staffEmails} />
+          <NotesCard beneficiaryId={id} notes={notes} />
+
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-slate-700">Devis ({quotes.length})</h2>
+              <QuoteForm beneficiaryId={id} />
+            </div>
             {quotes.length ? (
               <table className="w-full text-sm">
                 <tbody className="divide-y divide-slate-100">
@@ -122,16 +170,21 @@ export default async function Page({ params }: { params: { id: string } }) {
                       <td className="py-1.5">{FINANCEUR_LABEL[q.financeur] ?? q.financeur}</td>
                       <td className="py-1.5 text-slate-600">{q.formation_label ?? "—"}</td>
                       <td className="py-1.5 font-medium">{euros(q.amount_cents)}</td>
-                      <td className="py-1.5 text-xs text-slate-500">{q.status}</td>
+                      <td className="py-1.5">
+                        <span className={`rounded px-2 py-0.5 text-xs ${QUOTE_STATUS[q.status]?.color ?? "bg-slate-100"}`}>
+                          {QUOTE_STATUS[q.status]?.label ?? q.status}
+                        </span>
+                      </td>
                       <td className="py-1.5 text-xs text-slate-400">{dateFr(q.sent_at ?? q.created_at)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             ) : <p className="text-sm text-slate-400">Aucun devis.</p>}
-          </Card>
+          </div>
 
-          <Card title={`Factures (${invoices.length})`}>
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <h2 className="mb-3 text-sm font-semibold text-slate-700">Factures ({invoices.length})</h2>
             {invoices.length ? (
               <table className="w-full text-sm">
                 <tbody className="divide-y divide-slate-100">
@@ -150,9 +203,10 @@ export default async function Page({ params }: { params: { id: string } }) {
                 </tbody>
               </table>
             ) : <p className="text-sm text-slate-400">Aucune facture.</p>}
-          </Card>
+          </div>
 
-          <Card title="Historique (timeline)">
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <h2 className="mb-3 text-sm font-semibold text-slate-700">Historique (timeline)</h2>
             {timeline.length ? (
               <ul className="space-y-3">
                 {timeline.map((e: any, idx: number) => (
@@ -169,27 +223,9 @@ export default async function Page({ params }: { params: { id: string } }) {
                 ))}
               </ul>
             ) : <p className="text-sm text-slate-400">Aucun évènement.</p>}
-          </Card>
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5">
-      <h2 className="mb-3 text-sm font-semibold text-slate-700">{title}</h2>
-      {children}
-    </div>
-  );
-}
-
-function Row({ k, v }: { k: string; v?: string | null }) {
-  return (
-    <div className="flex justify-between gap-4 py-1 text-sm">
-      <span className="text-slate-500">{k}</span>
-      <span className="text-right font-medium text-slate-800">{v || "—"}</span>
     </div>
   );
 }

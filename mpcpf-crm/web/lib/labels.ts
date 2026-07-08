@@ -58,3 +58,65 @@ export const LEAD_STATUS: Record<string, { label: string; color: string }> = {
   client: { label: "Client", color: "bg-emerald-100 text-emerald-700" },
   perdu: { label: "Perdu", color: "bg-rose-100 text-rose-700" },
 };
+
+// Statuts Wedof (bruts côté source) → libellés FR lisibles.
+export const WEDOF_STATE_LABEL: Record<string, string> = {
+  accepted: "Accepté",
+  validated: "Validé",
+  registered: "Inscrit",
+  notprocessed: "Non traité",
+  tocheck: "À vérifier",
+  tovalidate: "À valider",
+  intraining: "En formation",
+  inprogress: "En formation",
+  terminated: "Terminé",
+  completed: "Terminé",
+  serviceisdone: "Service fait",
+  servicedonevalidated: "Service fait validé",
+  canceled: "Annulé",
+  cancelled: "Annulé",
+  canceledbyattendee: "Annulé (bénéficiaire)",
+  canceledbyattendeenotrealized: "Annulé (non réalisé)",
+  canceledbyfinancer: "Annulé (financeur)",
+  refused: "Refusé",
+  refusedbyattendee: "Refusé (bénéficiaire)",
+  refusedbyorganism: "Refusé (organisme)",
+  rejected: "Rejeté",
+  aborted: "Abandonné",
+};
+export function wedofStateFr(state?: string | null): string | null {
+  if (!state) return null;
+  return WEDOF_STATE_LABEL[state.toLowerCase()] ?? state;
+}
+
+export const QUOTE_STATUS: Record<string, { label: string; color: string }> = {
+  draft: { label: "Brouillon", color: "bg-slate-100 text-slate-700" },
+  sent: { label: "Envoyé", color: "bg-sky-100 text-sky-700" },
+  accepted: { label: "Accepté", color: "bg-emerald-100 text-emerald-700" },
+  refused: { label: "Refusé", color: "bg-rose-100 text-rose-700" },
+  expired: { label: "Expiré", color: "bg-amber-100 text-amber-700" },
+  canceled: { label: "Annulé", color: "bg-slate-100 text-slate-500" },
+};
+
+export const MATCH_METHOD_LABEL: Record<string, string> = {
+  code_exact: "code établissement",
+  code_ville: "code + ville",
+  siret: "SIRET",
+  siret_siege: "SIRET (siège)",
+  ville: "ville",
+  none: "—",
+};
+
+export const TASK_STATUS: Record<string, { label: string; color: string }> = {
+  open: { label: "À faire", color: "bg-amber-100 text-amber-700" },
+  done: { label: "Terminée", color: "bg-emerald-100 text-emerald-700" },
+  canceled: { label: "Annulée", color: "bg-slate-100 text-slate-500" },
+};
+
+// Cycle nominal d'une facture (pour proposer la transition suivante dans l'UI).
+export const INVOICE_NEXT: Record<string, string> = {
+  a_emettre: "emise",
+  emise: "transmise",
+  transmise: "payee",
+  payee: "encaissee",
+};

@@ -21,6 +21,13 @@ insert into crm.sync_state (id) values (1) on conflict (id) do nothing;
 create or replace function crm.stage_rank(p_code text) returns int
   language sql stable as $$ select rank from crm.pipeline_stages where code = p_code $$;
 
+-- Valeur à retenir pour un champ lors du sync : si le champ a été corrigé
+-- manuellement dans le CRM (crm.beneficiaries.locked_fields — cf. migration
+-- 0022_work_layer), la valeur CRM gagne ; sinon la source gagne.
+create or replace function crm.sync_keep(p_locked text[], p_field text, p_current text, p_incoming text)
+returns text language sql immutable as
+$$ select case when p_field = any (coalesce(p_locked, '{}'::text[])) then p_current else p_incoming end $$;
+
 create or replace function crm.sync_from_public()
 returns jsonb
 language plpgsql
@@ -78,19 +85,26 @@ begin
       and coalesce(lower(d.beneficiaire_email),'') not like '%example.com%'
       and coalesce(lower(d.beneficiaire_email),'') not like '%edof-test%'
     on conflict (id) do update set
-      first_name=excluded.first_name, last_name=excluded.last_name, email=excluded.email,
-      phone=excluded.phone, wedof_folder_id=excluded.wedof_folder_id, wedof_state=excluded.wedof_state,
-      source=excluded.source, financeur=excluded.financeur,
+      -- Champs éditables dans le CRM : une correction manuelle (locked_fields) gagne sur la source.
+      first_name = crm.sync_keep(crm.beneficiaries.locked_fields, 'first_name', crm.beneficiaries.first_name, excluded.first_name),
+      last_name  = crm.sync_keep(crm.beneficiaries.locked_fields, 'last_name',  crm.beneficiaries.last_name,  excluded.last_name),
+      email      = crm.sync_keep(crm.beneficiaries.locked_fields, 'email',      crm.beneficiaries.email,      excluded.email),
+      phone      = crm.sync_keep(crm.beneficiaries.locked_fields, 'phone',      crm.beneficiaries.phone,      excluded.phone),
+      financeur  = crm.sync_keep(crm.beneficiaries.locked_fields, 'financeur',  crm.beneficiaries.financeur,  excluded.financeur),
+      ville_formation = crm.sync_keep(crm.beneficiaries.locked_fields, 'ville_formation', crm.beneficiaries.ville_formation, excluded.ville_formation),
+      wedof_folder_id=excluded.wedof_folder_id, wedof_state=excluded.wedof_state,
+      source=excluded.source,
       wedof_codes_possibles=excluded.wedof_codes_possibles, siret_formation=excluded.siret_formation,
-      ville_formation=excluded.ville_formation,
       -- Étape : n'avance QUE vers l'avant (préserve un déplacement manuel Kanban).
       pipeline_stage = case when crm.stage_rank(excluded.pipeline_stage) > crm.stage_rank(crm.beneficiaries.pipeline_stage)
                             then excluded.pipeline_stage else crm.beneficiaries.pipeline_stage end,
       stage_changed_at = case when crm.stage_rank(excluded.pipeline_stage) > crm.stage_rank(crm.beneficiaries.pipeline_stage)
                               then now() else crm.beneficiaries.stage_changed_at end,
       -- date_creation NON modifiée (immuable) ; les autres suivent la source.
-      date_inscription=excluded.date_inscription, intitule_formation=excluded.intitule_formation,
-      code_postal=excluded.code_postal, motif=coalesce(excluded.motif, crm.beneficiaries.motif)
+      date_inscription=excluded.date_inscription,
+      intitule_formation = crm.sync_keep(crm.beneficiaries.locked_fields, 'intitule_formation', crm.beneficiaries.intitule_formation, excluded.intitule_formation),
+      code_postal = crm.sync_keep(crm.beneficiaries.locked_fields, 'code_postal', crm.beneficiaries.code_postal, excluded.code_postal),
+      motif = crm.sync_keep(crm.beneficiaries.locked_fields, 'motif', crm.beneficiaries.motif, coalesce(excluded.motif, crm.beneficiaries.motif))
     returning 1)
   select count(*) into v_bdoss from up;
 
@@ -122,17 +136,24 @@ begin
       and coalesce(l.source,'') not in ('test_workflow','test-e2e-stripe-robot')
       and coalesce(lower(l.email),'') not like '%example.com%'
     on conflict (id) do update set
-      first_name=excluded.first_name, last_name=excluded.last_name, email=excluded.email,
-      phone=excluded.phone, source=excluded.source,
-      financeur=excluded.financeur, ville_formation=excluded.ville_formation,
+      -- Champs éditables dans le CRM : une correction manuelle (locked_fields) gagne sur la source.
+      first_name = crm.sync_keep(crm.beneficiaries.locked_fields, 'first_name', crm.beneficiaries.first_name, excluded.first_name),
+      last_name  = crm.sync_keep(crm.beneficiaries.locked_fields, 'last_name',  crm.beneficiaries.last_name,  excluded.last_name),
+      email      = crm.sync_keep(crm.beneficiaries.locked_fields, 'email',      crm.beneficiaries.email,      excluded.email),
+      phone      = crm.sync_keep(crm.beneficiaries.locked_fields, 'phone',      crm.beneficiaries.phone,      excluded.phone),
+      source=excluded.source,
+      financeur  = crm.sync_keep(crm.beneficiaries.locked_fields, 'financeur',  crm.beneficiaries.financeur,  excluded.financeur),
+      ville_formation = crm.sync_keep(crm.beneficiaries.locked_fields, 'ville_formation', crm.beneficiaries.ville_formation, excluded.ville_formation),
       is_france_travail=excluded.is_france_travail,
       -- Étape : n'avance QUE vers l'avant (préserve un déplacement manuel Kanban).
       pipeline_stage = case when crm.stage_rank(excluded.pipeline_stage) > crm.stage_rank(crm.beneficiaries.pipeline_stage)
                             then excluded.pipeline_stage else crm.beneficiaries.pipeline_stage end,
       stage_changed_at = case when crm.stage_rank(excluded.pipeline_stage) > crm.stage_rank(crm.beneficiaries.pipeline_stage)
                               then now() else crm.beneficiaries.stage_changed_at end,
-      date_inscription=excluded.date_inscription, intitule_formation=excluded.intitule_formation,
-      code_postal=excluded.code_postal, motif=coalesce(excluded.motif, crm.beneficiaries.motif)
+      date_inscription=excluded.date_inscription,
+      intitule_formation = crm.sync_keep(crm.beneficiaries.locked_fields, 'intitule_formation', crm.beneficiaries.intitule_formation, excluded.intitule_formation),
+      code_postal = crm.sync_keep(crm.beneficiaries.locked_fields, 'code_postal', crm.beneficiaries.code_postal, excluded.code_postal),
+      motif = crm.sync_keep(crm.beneficiaries.locked_fields, 'motif', crm.beneficiaries.motif, coalesce(excluded.motif, crm.beneficiaries.motif))
     returning 1)
   select count(*) into v_bleads from up;
 
@@ -180,10 +201,13 @@ $$;
 update crm.beneficiaries b set
   date_creation      = coalesce(b.date_creation, d.created_at),
   date_inscription   = coalesce(d.date_acceptation, d.date_entree_formation, d.date_demarrage_formation),
-  intitule_formation = coalesce(nullif(d.intitule_formation,''), nullif(d.training_title,''),
-                                nullif(d.formation_type,''), nullif(d.type_permis,'')),
-  code_postal        = nullif(d.beneficiaire_code_postal,''),
-  motif              = coalesce(b.motif, nullif(d.commentaire,'')),
+  intitule_formation = crm.sync_keep(b.locked_fields, 'intitule_formation', b.intitule_formation,
+                         coalesce(nullif(d.intitule_formation,''), nullif(d.training_title,''),
+                                  nullif(d.formation_type,''), nullif(d.type_permis,''))),
+  code_postal        = crm.sync_keep(b.locked_fields, 'code_postal', b.code_postal,
+                         nullif(d.beneficiaire_code_postal,'')),
+  motif              = crm.sync_keep(b.locked_fields, 'motif', b.motif,
+                         coalesce(b.motif, nullif(d.commentaire,''))),
   source             = coalesce(nullif(d.source_acquisition,''), 'wedof')  -- E3 : vraie origine
 from public.dossiers_bpc d
 where d.id = b.id;

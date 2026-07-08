@@ -37,9 +37,16 @@ function title(b: Card): string {
   return "Sans nom";
 }
 
+// Somme des devis d'une colonne, en € compacts (ex. « 12 350 € »).
+function eurosCompact(cents: number): string {
+  return (cents / 100).toLocaleString("fr-FR", {
+    style: "currency", currency: "EUR", maximumFractionDigits: 0,
+  });
+}
+
 export function KanbanBoard({
-  initial, aeName,
-}: { initial: Record<string, Card[]>; aeName: Record<string, string> }) {
+  initial, aeName, centsByStage,
+}: { initial: Record<string, Card[]>; aeName: Record<string, string>; centsByStage?: Record<string, number> }) {
   const [cols, setCols] = useState<Record<string, Card[]>>(initial);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<string | null>(null);
@@ -101,7 +108,12 @@ export function KanbanBoard({
           >
             <div className={`mb-2 flex items-center justify-between border-b-2 ${HEAD[s.code] ?? "border-slate-300"} px-1 pb-2`}>
               <span className="text-sm font-semibold text-slate-700">{s.label}</span>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{items.length}</span>
+              <span className="flex items-center gap-1.5">
+                {(centsByStage?.[s.code] ?? 0) > 0 && (
+                  <span className="text-[11px] font-medium text-slate-500">{eurosCompact(centsByStage![s.code])}</span>
+                )}
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{items.length}</span>
+              </span>
             </div>
             <div className="flex-1 space-y-2 overflow-y-auto px-1 pr-1">
               {items.slice(0, PER_COLUMN).map((b) => (

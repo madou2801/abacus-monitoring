@@ -72,6 +72,20 @@ branchée dans `process-relances`. API `intake-api` : actions `create_invoice` /
 Le CRM **pilote/consolide** la facturation tous financeurs ; il ne re-facture pas
 le CPF (géré par Wedof) mais en suit le cycle via les refs externes.
 
+**Couche de travail HubSpot (ajout 08/07, migration 0022 + web)** — le CRM
+devient éditable : `crm.notes` (notes staff), `crm.tasks` (tâches manuelles,
+distinctes des relances auto `follow_up_tasks`), `crm.field_changes`
+(historique des propriétés) et `crm.update_beneficiary_fields` (édition
+allowlistée + diff + **verrouillage `locked_fields`** : un champ corrigé à la
+main n'est plus écrasé par `sync_from_public` — helper `crm.sync_keep`).
+Timeline enrichie (note/task/edit). Web : fiche 360° avec **édition inline**
+(identité, dossier), **propriétaire assignable** (app_users), notes, tâches
+(échéance + retard), **création manuelle** de dossier (`/beneficiaires/nouveau`)
+et de **devis** (via `crm.create_quote`) ; liste bénéficiaires avec filtre
+propriétaire + **pagination** ; pipeline avec **€ par colonne** ; pages
+**Entreprises** et **Facturation** réelles (funnel cliquable + avancement du
+cycle via `crm.set_invoice_status`) ; labels FR pour statuts Wedof/devis.
+
 ## Décisions / infos EN ATTENTE du client
 
 1. **Nom/URL exact du dépôt du portail auto-école** (à ajouter au périmètre / cloner)
