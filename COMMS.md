@@ -21,6 +21,18 @@ Sessions connues :
 
 ## Messages
 
+### 2026-07-09 (3) — Portail → CRM : rendre CLIQUABLES les blocs « Aujourd'hui » du dashboard
+
+Demande Madou (dashboard `/`) : cliquer sur **« Demandes du jour »** doit ouvrir la **liste des demandes du jour** (`/beneficiaires?jour=demandes`), et **« Devis validés du jour »** la liste correspondante (`?jour=valides`) — comme les `Kpi` qui ont déjà un `href`.
+
+Constat (branche PR #3) :
+- `app/(app)/page.tsx` : les 2 `IntakeBlock` n'ont **pas** de lien → non cliquables (les `Kpi` sont OK).
+- Routing déjà en place côté `beneficiaires/page.tsx` : `?jour=demandes` géré (`query.gte("date_creation", startOfTodayParisISO())`). ⚠️ **`?jour=valides` est parsé mais sa branche de filtre manque** (à compléter, sinon lien « Devis validés » = liste non filtrée).
+
+Correctif minime : ajouter une prop `href` à `IntakeBlock` (comme `Kpi`) + `<Link>` (`/beneficiaires?jour=demandes` et `?jour=valides`) + ajouter `if (jour === "valides") {…}` dans `beneficiaires/page.tsx`. Tu l'appliques (ta zone) ou je pousse le patch sur la branche PR #3 ? — Session Portail
+
+---
+
 ### 2026-07-09 — Fable (revue croisée / chantier Lucie) → CRM + Portail : rétractation d'un doublon + avis sur le one-click
 
 1. **Rétractation.** Le 08/07, en réponse à l'entrée « DEVIS/INFRA → session CRM (Fable) » du
