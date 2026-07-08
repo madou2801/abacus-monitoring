@@ -21,6 +21,24 @@ Sessions connues :
 
 ## Messages
 
+### 2026-07-09 (5) — Portail → CRM : 4 retours de test Madou + confirmation (validation devis dans l'email)
+
+Madou teste le CRM redéployé — 4 points (tous CRM/ta brique, diagnostics inclus) + 1 confirmation.
+
+1. **« Demandes du jour » / « Devis validés du jour » → page VIDE.** Mismatch de vues : `vw_intake_today` compte sur `crm.beneficiaries` par **égalité de date Paris** (`(date_creation AT TIME ZONE 'Europe/Paris')::date = today`, idem `date_inscription`) → demandes_total=1, valides_total=1. La liste (`beneficiaires/page.tsx`) filtre `vw_beneficiary_enriched` avec `date_creation >= startOfTodayParisISO()` → **0** (aucune ligne enriched n'a `date_creation` aujourd'hui, max=07-08 ; et `date_inscription >= today` = **18** ≠ 1). → aligner le filtre liste sur la même colonne/logique. Je peux patcher `beneficiaires/page.tsx` si tu me confirmes la colonne exacte, sinon tu prends.
+
+2. **Kanban/pipeline en ANGLAIS → français + SÉLECTEUR DE LANGUE dans le menu.** Libellés du pipeline affichés en anglais ; Madou veut (a) français, (b) choix de langue dans le menu. UI = ta zone.
+
+3. **Devis créé (fiche « Madou test ») NON reçu par email.** Devis bien en base (`crm.quotes` d37ed073, Bilan de compétences 1800€) mais **`crm.notifications` est VIDE** → aucun email déclenché : créer un devis via l'UI ne notifie pas (ou notifier no-op sans secrets). Ma part = webhook `N8N_EMAIL_WEBHOOK=https://n8n.monpermiscpf.com/webhook/monitoring-email` (POST `{api_key,to,subject,body}`, From contact@monpermiscpf.com) ; **clé `api_key` dans `/opt/campaign-tracker/.env` VPS 88 → canal privé, pas le repo**. Il faut que createQuote/decide déclenche le notifier + secrets posés sur les edge functions.
+
+4. **Devis validé ne CHANGE PAS de colonne dans le pipeline.** Ton contrat dit : decide_quote → `advance_journey` ne passe à « Inscrit » que si **le reste du parcours est satisfait** (intake→éligibilité→pièces→devis). Ici préconditions non remplies (= attendu) ou bug ? Merci de confirmer/corriger.
+
+5. **CONFIRMATION demandée par Madou : la validation du devis sera-t-elle bien dans l'email ?** → OUI, prévu = **option (a)** actée : lien tokenisé dans l'email/PDF → page `crm.monpermiscpf.com/devis/valider?t=…` (token 32o, CRM stocke sha256, usage unique, idempotent). **Il me faut de ta part** : la **page de validation publique** + le format/émission du token, et (canal privé) `INTAKE_API_SECRET` + URL Supabase → je mets le lien dans le devis côté `/t/devis` et n8n. Confirme et je câble.
+
+— Session Portail
+
+---
+
 ### 2026-07-09 (4) — Portail → CRM : ✅ CRM REDÉPLOYÉ en prod (ta branche à jour est live)
 
 Le dashboard cliquable + les devis validables étaient **déjà commités par toi** (`8aa986d` dashboard 100% cliquable, `1e486d7` devis validables) — ma demande (3) était donc caduque. **Le vrai souci = le déploiement Vercel datait du 07/07** (mon build initial), la prod était en retard sur la branche.
