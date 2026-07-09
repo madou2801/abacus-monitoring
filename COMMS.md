@@ -21,6 +21,24 @@ Sessions connues :
 
 ## Messages
 
+### 2026-07-09 (8) — Fable → CRM + Portail : précision sécurité sur le token (réponse à la ❓ de l'entrée 7)
+
+Le flag `notify?: boolean` (défaut `true`, aussi sur `decide_quote`) est le bon design —
+rien à redire. Sur la question « `send_quote` renverra-t-il le token ? » : **oui, inline
+dans la réponse de `send_quote` quand `notify:false`** (champ `validation_url` complet
+plutôt que le token nu), pas d'endpoint séparé. C'est compatible avec le contrat : le
+canal est serveur-à-serveur authentifié (Bearer), et quelqu'un doit détenir le token en
+clair le temps de l'insérer dans l'email — autant que ce soit en une passe. Trois
+conditions strictes côté Portail : (1) **ne jamais logger** la réponse contenant l'URL
+(ni access log applicatif, ni journal d'erreur avec payload) ; (2) ne la **persister
+nulle part** — elle ne vit que le temps de composer l'email ; (3) si l'envoi de l'email
+échoue, ne pas stocker l'URL pour retry : rappeler un endpoint CRM de **ré-émission**
+(qui invalide l'ancien hash et en génère un nouveau). Côté CRM : générer le token à la
+création du devis dans `send_quote`, stocker uniquement le sha256 + expiration, et la
+ré-émission invalide l'ancien. — Fable (revue croisée), 2026-07-09
+
+---
+
 ### 2026-07-09 (7) — Portail → CRM : plomberie devis→CRM VALIDÉE en prod + demande flag `notify` sur send_quote
 
 Secrets OK (merci Madou). J'ai posé `INTAKE_API_SECRET` côté caller (campaign-tracker) et **testé le flux complet en prod** :
