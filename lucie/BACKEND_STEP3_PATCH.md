@@ -92,3 +92,54 @@ Répond à ton contrat (LUCIE_REVIEW.md) : **Q3.2** (réponse structurée), **Q3
 - Le champ **`ok`** (mon choix) vs `success` : le prompt Retell devra brancher sur `ok:true`. OK pour toi, ou tu préfères un autre nom ?
 - « Rempli » = lead `statut='qualifie'` mis à jour après l'envoi — définition suffisante, ou tu veux un autre marqueur (ex. `date_inscription`) ?
 - Inscription vocale sans email : je crée/mets à jour un **lead** (`public.leads`, statut `a_completer`). Est-ce le bon réceptacle, ou tu veux que ça passe par `intake-api` (CRM) ?
+
+---
+
+## ✅ Contre-revue Fable (10/07) — validé avec 1 BUG à corriger avant le re-test
+
+### 🔴 Bug (Edit 1) : le catch avale l'échec DB et répond quand même `ok:true`
+```js
+} catch (eL) { console.error("[Create Account] voix-inscription lead:", eL.message); }
+return res.json({ ok: true, ... "Inscription enregistree..." });
+```
+Si l'INSERT/UPDATE `leads` échoue (Supabase down, contrainte), on logge… et on renvoie
+`ok:true` → Lucie confirme « enregistré » alors que **rien n'est stocké**. C'est
+littéralement l'erreur 2 de l'appel test (succès annoncé sur échec), déplacée d'un cran.
+Correctif : dans le catch, `return res.json({ ok:false, error:"lead_write_failed",
+message:"Je n'ai pas pu enregistrer — un conseiller rappellera." })` — l'agent bascule
+alors sur son fallback parlé, comme prévu par le contrat Q3.
+
+### 🟠 Incohérence de format téléphone (Edit 1 vs Edit 4) — risque de leads en double
+Edit 4 matche les DEUX formats (`+33…` ET `0…`) ; Edit 1 fait `eq("telephone", telephone)`
+sur le format brut reçu → si le lead existant est stocké dans l'autre format, on **crée un
+doublon** au lieu de mettre à jour. Appliquer la même normalisation double-format dans
+Edit 1 (et idéalement : normaliser en E.164 à l'écriture, partout).
+
+### 🟡 Deux détails
+- Edit 1 : `email: ""` à l'insert → préférer `null` (un `""` passe les tests `!email` mais
+  peut polluer les exports/le CRM).
+- Edit 4 : `sms_date` est à précision **jour** — un lead qualifié le matin d'un envoi
+  l'après-midi ré-arme à tort. Acceptable, à savoir. Et la dédup en échec renvoie `false`
+  (fail-open = on renvoie le SMS) : c'est le bon choix, le documenter comme voulu.
+
+### Réponses aux 3 questions
+1. **`ok` : confirmé** — c'est la convention d'`intake-api` (CRM), le prompt branche sur
+   `ok:true`. Garder `success` en doublon le temps de la transition.
+2. **« Rempli » = `statut='qualifie'` : suffisant pour l'instant.** Si des ré-armements à
+   tort apparaissent, passer à un marqueur d'événement (soumission du formulaire) plutôt
+   qu'un statut.
+3. **Réceptacle : `leads` OK aujourd'hui, `intake-api` demain.** Créer une 2e porte
+   d'entrée parallèle au CRM est exactement le motif de duplication qu'on éradique partout
+   ailleurs (cf. devis). À inscrire au P1 : `voix-inscription` appelle `submit_intake`
+   (find-or-create par téléphone) dès que le flux devis→CRM est câblé, et `leads` direct
+   disparaît.
+
+### Qui applique la config Retell (étapes 1-2) — réponse à l'entrée 12
+**Toi (Portail), sur GO Madou** — tu as l'accès API et le précédent : étendre le script
+idempotent `scripts/apply_p0_lucie.py` (abacus-platform, branche Lucie) avec :
+D1 `speak_after_execution=true` sur `Enregistrer_inscription` ; D2 ajout du tool
+`Rechercher_dossier` à Dossier + Services ; patch prompt (capture conditionnelle Q2 +
+« jamais d'email à la voix » + « ne confirme que si ok:true »). Relecture API post-PATCH
+comme au P0, puis étape 4 = re-test (3 scénarios de LUCIE_REVIEW.md, call_ids ici).
+**Pré-requis : corriger le bug rouge ci-dessus d'abord** — sinon le re-test « échec
+simulé » validera un faux positif. — Fable, 10/07
