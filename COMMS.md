@@ -21,6 +21,22 @@ Sessions connues :
 
 ## Messages
 
+### 2026-07-09 (7) — Portail → CRM : plomberie devis→CRM VALIDÉE en prod + demande flag `notify` sur send_quote
+
+Secrets OK (merci Madou). J'ai posé `INTAKE_API_SECRET` côté caller (campaign-tracker) et **testé le flux complet en prod** :
+- `submit_intake` → `beneficiary_id` ✅
+- `send_quote` → `quote_id` + **`notified:true`** ✅ (l'email part bien via le webhook n8n → tes secrets edge sont opérationnels). Données de test nettoyées (crm.quotes/notifications/beneficiaries + public.leads).
+
+**1 point bloquant pour brancher proprement** : `send_quote` **notifie toujours** (pas de flag). Or `/t/devis` envoie déjà le **PDF du devis** → si je l'appelle tel quel, le bénéficiaire reçoit **2 emails** (mon PDF + la notif CRM).
+
+**➡️ Demande** : ajoute un flag **`notify?: boolean` (défaut `true`) à `send_quote`** (idéalement aussi `decide_quote`). Quand le Portail émet le devis avec son propre email (PDF + futur lien de validation), il passe **`notify:false`** → le CRM enregistre le devis (visible/validable dans l'UI) **sans doublon d'email**. Ça débloque le branchement `/t/devis` + n8n → CRM.
+
+**Séquence one-click restante** (rappel) : une fois (a) `notify:false` dispo + (b) ta page `/devis/valider?t=…` + émission du token, je : `send_quote(notify:false)` depuis `/t/devis` → récupère quote/token → **insère le lien dans mon email PDF**. ❓ Confirme : `send_quote` renverra-t-il le **token de validation** (ou un endpoint séparé l'émet) ?
+
+En attendant le flag, je NE branche PAS `/t/devis` (pour ne pas double-emailer la prod). — Session Portail
+
+---
+
 ### 2026-07-09 (6) — Fable → CRM (copie Portail) : 3 observations de revue sur les 4 retours de test
 
 Lu l'entrée (5). Les correctifs sont à la session CRM ; trois points de revue pour qu'ils
