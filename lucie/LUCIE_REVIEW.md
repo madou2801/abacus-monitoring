@@ -46,3 +46,64 @@ Résumé Retell appel 2 : *« encountered an error due to an email requirement �
 4. Idempotence de `Envoyer_formulaire_SMS` : où la mettre (agent vs backend `/t/send-form-sms`) ?
 
 *(Config complète dans les 6 `.json` de ce dossier.)*
+
+---
+
+## ✅ Réponses Fable (09/07) — + 2 découvertes dans les JSON
+
+**Lecture des 6 JSON faite. Le fil conducteur des erreurs 1/2/3 est le même : le système
+re-capture par la voix des données qu'il possède déjà.** C'est la règle P1 du plan Lucie
+(« zéro capture vocale d'expression exacte ») qui n'est pas encore appliquée à l'agent
+Dossier. Deux découvertes préalables qui changent les réponses :
+
+- **D1 — `Enregistrer_inscription` a `speak_after_execution=false`** (`lucie_dossier_llm.json`).
+  C'est le bug EXACT du tool SMS au jour 1 : l'agent ne voit jamais le résultat du tool,
+  donc il « suppose » le succès. L'erreur 2 (succès annoncé sur échec) est d'abord ÇA.
+- **D2 — l'agent Dossier n'a PAS le tool `Rechercher_dossier`** (Suivi seul l'a). Après un
+  swap, Dossier ne PEUT PAS retrouver l'appelant : re-capturer est son seul chemin possible.
+  L'erreur 1 n'est pas seulement un problème d'héritage — c'est un agent sans accès au lookup.
+
+### Q1 — Dynamic variables au swap : à corriger, MAIS ne pas s'appuyer dessus seul
+Activer ce que Retell permet au `agent_swap` (héritage de conversation/variables selon la
+version de l'API). Cependant, la correction **robuste** ne dépend pas du swap :
+**donner `Rechercher_dossier` à l'agent Dossier** (D2) + règle de prompt en tête :
+« Au démarrage : si `{{beneficiaire_prenom}}` est vide, appelle `Rechercher_dossier` avec
+`{{caller_number}}`. » Ceinture et bretelles : peu importe ce que le swap transmet,
+Dossier retrouve l'identité en 1 tool call. (Même correctif pour Services.)
+
+### Q2 — Réutiliser le KnownCaller côté Dossier : OUI, capture conditionnelle
+Le bloc « CAPTURE D'IDENTITÉ » actuel est inconditionnel — c'est lui qui re-collecte.
+Le rendre conditionnel :
+« **SI l'identité est connue** (variables présentes ou `Rechercher_dossier` OK) →
+**confirme-la** (« C'est bien pour vous, {{beneficiaire_prenom}} ? ») et ne redemande
+RIEN. La capture complète n'est autorisée QUE si le lookup ne rend rien. »
+Ça règle aussi « Diaby »→« Giabi » : un appelant connu n'a jamais à redonner son nom.
+
+### Q3 — Contrat d'erreur `Enregistrer_inscription` : 4 couches
+1. **Config (immédiat)** : `speak_after_execution=true` (D1) — sans ça, tout le reste est inopérant.
+2. **Backend** (`/t/create-account-welcome`, côté Portail) : réponse structurée
+   `{ok:false, error:"email_required", message:"…"}` — jamais un 4xx nu.
+3. **Prompt** : « Ne confirme JAMAIS un enregistrement si le tool n'a pas renvoyé `ok:true`.
+   En cas d'échec : “Je n'ai pas pu finaliser votre inscription à l'instant — je vous envoie
+   le formulaire par SMS et un conseiller confirme rapidement.” » (même patron que le
+   fallback SMS validé au P0).
+4. **Design (la vraie racine)** : l'échec vient d'un **email requis** → l'agent a tenté la
+   capture vocale d'email (interdite par le prompt, d'où l'épellation laborieuse — le
+   prompt et le tool se contredisent). Correctif : `Enregistrer_inscription` doit accepter
+   une inscription **sans email** (statut « à compléter »), l'email arrivant par le
+   formulaire SMS. L'email ne se capture JAMAIS à la voix — c'est la règle P1.
+
+### Q4 — Idempotence SMS : au BACKEND, pas dans l'agent
+Dans `/t/send-form-sms` (un seul point, couvre les 4+ agents ; une règle de prompt n'est
+pas une garantie) : par téléphone/lead, **skip si déjà envoyé < 7 j et non rempli**, avec
+réponse `{ok:true, skipped:"already_sent"}` pour que Lucie dise « vous l'avez déjà reçu,
+il est toujours valable » au lieu de renvoyer. Le formulaire rempli réarme l'envoi.
+
+### Ordre d'exécution proposé (Portail = backend, config Retell = script ×4)
+1. D1 `speak_after_execution=true` sur `Enregistrer_inscription` (1 champ) ;
+2. `Rechercher_dossier` ajouté à Dossier + Services (D2) + capture conditionnelle (Q2) ;
+3. Backend : contrat d'erreur structuré (Q3.2) + inscription sans email (Q3.4) +
+   idempotence SMS (Q4) ;
+4. Re-test : 1 appel connu (zéro re-capture, confirmation d'identité) + 1 appel avec échec
+   simulé d'inscription (Lucie annonce l'échec + SMS) + 2e appel même numéro (SMS non renvoyé).
+Consigner call_ids + verdicts ici. — Fable, 09/07
