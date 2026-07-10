@@ -234,6 +234,10 @@ export interface CrmStore {
   setDossierFormation(beneficiaryId: string, info: DossierFormation): Promise<void>;
   matchAutoEcole(beneficiaryId: string): Promise<AutoEcoleMatch>;
 
+  // Tokens de validation de devis (lien 1-clic)
+  createQuoteToken(quoteId: string, tokenSha256: string, expiresAt: Date): Promise<void>;
+  consumeQuoteToken(tokenSha256: string): Promise<{ quoteId: string; beneficiaryId: string } | null>;
+
   // Facturation
   createInvoice(input: InvoiceInput): Promise<string>;
   setInvoiceStatus(

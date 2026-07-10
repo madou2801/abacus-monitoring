@@ -440,6 +440,24 @@ export class SupabaseCrmStore implements CrmStore {
     };
   }
 
+  async createQuoteToken(quoteId: string, tokenSha256: string, expiresAt: Date): Promise<void> {
+    const { error } = await this.db()
+      .from("quote_tokens")
+      .insert({ quote_id: quoteId, token_sha256: tokenSha256, expires_at: expiresAt.toISOString() });
+    if (error) throw error;
+  }
+
+  async consumeQuoteToken(
+    tokenSha256: string,
+  ): Promise<{ quoteId: string; beneficiaryId: string } | null> {
+    const { data, error } = await this.db().rpc("consume_quote_token", { p_sha256: tokenSha256 });
+    if (error) throw error;
+    const rows = data as Array<{ quote_id: string; beneficiary_id: string }> | null;
+    if (!rows || rows.length === 0) return null;
+    const row = rows[0];
+    return { quoteId: row.quote_id, beneficiaryId: row.beneficiary_id };
+  }
+
   async createInvoice(input: InvoiceInput): Promise<string> {
     const { data, error } = await this.db().rpc("create_invoice", {
       p_benef: input.beneficiary_id,

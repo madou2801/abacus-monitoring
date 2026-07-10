@@ -14,6 +14,28 @@ export const FINANCEUR_LABELS: Record<string, string> = {
 };
 
 const BASE_PORTAL_URL = "https://portail.monpermiscpf.com";
+const CRM_BASE_URL = (typeof Deno !== "undefined" ? Deno.env.get("CRM_BASE_URL") : undefined) ??
+  "https://crm.monpermiscpf.com";
+
+// Convertit un tableau de bytes en chaîne hexadécimale.
+export function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Décode une chaîne hexadécimale en Uint8Array.
+export function hexToBytes(hex: string): Uint8Array {
+  const result = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < result.length; i++) {
+    result[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return result;
+}
+
+// Calcule le SHA-256 d'un Uint8Array et renvoie le résultat en hex.
+export async function sha256Hex(data: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return bytesToHex(new Uint8Array(digest));
+}
 
 function intakeLink(beneficiaryId: string): string {
   return `${BASE_PORTAL_URL}/dossier/${beneficiaryId}`;
@@ -66,44 +88,62 @@ export async function submitDocument(
 /**
  * Crée et transmet un devis (EDOF / Kairos / OPCO / entreprise), planifie la
  * relance d'acceptation et notifie le bénéficiaire si un canal est fourni.
+ *
+ * Quand `notify` est `false`, aucune notification n'est envoyée : un token
+ * usage-unique (validité 30 j) est généré et l'URL de validation est retournée
+ * dans `validationUrl`.
  */
 export async function sendQuote(
   store: CrmStore,
   notifier: Notifier,
   quote: QuoteInput,
   contact?: { email?: string | null; phone?: string | null },
-): Promise<{ quoteId: string; nextStep: string | null; notified: boolean }> {
+  notify_: boolean = true,
+): Promise<{ quoteId: string; nextStep: string | null; notified: boolean; validationUrl?: string }> {
   const quoteId = await store.createQuote(quote);
   await store.transmitQuote(quoteId);
 
   let notified = false;
+  let validationUrl: string | undefined;
   const label = FINANCEUR_LABELS[quote.financeur] ?? quote.financeur;
   const amount = quote.amount_cents != null
     ? ` (${(quote.amount_cents / 100).toFixed(2)} €)`
     : "";
-  if (contact?.email) {
-    await notify(store, notifier, quote.beneficiary_id, {
-      channel: "email",
-      to: contact.email,
-      subject: "Votre devis de formation au permis",
-      body:
-        `Bonjour, votre devis financé par ${label}${amount} est disponible. ` +
-        `Consultez et validez-le ici : ${intakeLink(quote.beneficiary_id)}`,
-      templateCode: "tpl_quote_sent",
-    });
-    notified = true;
-  } else if (contact?.phone) {
-    await notify(store, notifier, quote.beneficiary_id, {
-      channel: "sms",
-      to: contact.phone,
-      body: `MonPermisCPF : votre devis ${label} est prêt. Validez-le : ${intakeLink(quote.beneficiary_id)}`,
-      templateCode: "tpl_quote_sent",
-    });
-    notified = true;
+
+  if (notify_) {
+    if (contact?.email) {
+      await notify(store, notifier, quote.beneficiary_id, {
+        channel: "email",
+        to: contact.email,
+        subject: "Votre devis de formation au permis",
+        body:
+          `Bonjour, votre devis financé par ${label}${amount} est disponible. ` +
+          `Consultez et validez-le ici : ${intakeLink(quote.beneficiary_id)}`,
+        templateCode: "tpl_quote_sent",
+      });
+      notified = true;
+    } else if (contact?.phone) {
+      await notify(store, notifier, quote.beneficiary_id, {
+        channel: "sms",
+        to: contact.phone,
+        body: `MonPermisCPF : votre devis ${label} est prêt. Validez-le : ${intakeLink(quote.beneficiary_id)}`,
+        templateCode: "tpl_quote_sent",
+      });
+      notified = true;
+    }
+  } else {
+    // Génère un token usage-unique (30 jours) et retourne l'URL de validation.
+    const tokenBytes = new Uint8Array(32);
+    crypto.getRandomValues(tokenBytes);
+    const tokenHex = bytesToHex(tokenBytes);
+    const sha256 = await sha256Hex(tokenBytes);
+    const expiresAt = new Date(Date.now() + 30 * 24 * 3600 * 1000);
+    await store.createQuoteToken(quoteId, sha256, expiresAt);
+    validationUrl = `${CRM_BASE_URL}/devis/valider?t=${tokenHex}`;
   }
 
   const nextStep = await store.nextStep(quote.beneficiary_id);
-  return { quoteId, nextStep, notified };
+  return { quoteId, nextStep, notified, validationUrl };
 }
 
 /**

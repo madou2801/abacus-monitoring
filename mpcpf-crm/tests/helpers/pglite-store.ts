@@ -423,6 +423,25 @@ export class PgliteCrmStore implements CrmStore {
     };
   }
 
+  async createQuoteToken(quoteId: string, tokenSha256: string, expiresAt: Date): Promise<void> {
+    await this.db.query(
+      `insert into crm.quote_tokens (quote_id, token_sha256, expires_at)
+       values ($1,$2,$3::timestamptz)`,
+      [quoteId, tokenSha256, expiresAt.toISOString()],
+    );
+  }
+
+  async consumeQuoteToken(
+    tokenSha256: string,
+  ): Promise<{ quoteId: string; beneficiaryId: string } | null> {
+    const r = await this.db.query<{ quote_id: string; beneficiary_id: string }>(
+      `select * from crm.consume_quote_token($1)`,
+      [tokenSha256],
+    );
+    if (!r.rows.length) return null;
+    return { quoteId: r.rows[0].quote_id, beneficiaryId: r.rows[0].beneficiary_id };
+  }
+
   async createInvoice(input: InvoiceInput): Promise<string> {
     const r = await this.one<{ id: string }>(
       `select crm.create_invoice($1,$2,$3,$4,$5,$6,$7) as id`,

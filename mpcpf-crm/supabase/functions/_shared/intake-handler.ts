@@ -4,7 +4,7 @@
 import type { CrmStore, ProfileFields } from "./crm-store.ts";
 import type { Notifier } from "./notifier.ts";
 import type { HandlerResponse } from "./retell-handler.ts";
-import { decideQuote, sendQuote, submitDocument, submitIntake } from "./journey.ts";
+import { decideQuote, hexToBytes, sendQuote, sha256Hex, submitDocument, submitIntake } from "./journey.ts";
 import { advanceInvoice, createInvoice } from "./billing.ts";
 
 export interface IntakeDeps {
@@ -37,6 +37,7 @@ type IntakeRequest =
     amount_cents?: number;
     external_ref?: string;
     contact?: { email?: string | null; phone?: string | null };
+    notify?: boolean;
   }
   | {
     action: "decide_quote";
@@ -61,7 +62,8 @@ type IntakeRequest =
     status: string;
     external_ref?: string;
   }
-  | { action: "journey"; beneficiary_id: string };
+  | { action: "journey"; beneficiary_id: string }
+  | { action: "validate_quote_token"; token: string };
 
 const FINANCEURS = new Set(["edof", "kairos", "opco", "entreprise", "autofinancement"]);
 
@@ -122,6 +124,7 @@ export async function handleIntakeRequest(
         if (!FINANCEURS.has(req.financeur)) {
           return { status: 400, body: { error: `financeur inconnu: ${req.financeur}` } };
         }
+        const doNotify = req.notify !== false;
         const r = await sendQuote(
           store,
           notifier,
@@ -133,10 +136,17 @@ export async function handleIntakeRequest(
             external_ref: req.external_ref,
           },
           req.contact,
+          doNotify,
         );
         return {
           status: 200,
-          body: { ok: true, quote_id: r.quoteId, notified: r.notified, next_step: r.nextStep },
+          body: {
+            ok: true,
+            quote_id: r.quoteId,
+            notified: r.notified,
+            next_step: r.nextStep,
+            ...(r.validationUrl !== undefined ? { validation_url: r.validationUrl } : {}),
+          },
         };
       }
 
@@ -179,6 +189,24 @@ export async function handleIntakeRequest(
       case "journey": {
         const next = await store.nextStep(req.beneficiary_id);
         return { status: 200, body: { ok: true, next_step: next } };
+      }
+
+      case "validate_quote_token": {
+        // On reçoit le token brut en hex (32 octets = 64 chars hex) ; on le
+        // décode en bytes pour calculer son SHA-256 avant la lookup.
+        const rawBytes = hexToBytes(req.token);
+        const sha256 = await sha256Hex(rawBytes);
+        const found = await store.consumeQuoteToken(sha256);
+        if (!found) {
+          // Token inconnu, expiré ou déjà consommé → réponse neutre (pas d'énumération).
+          return { status: 200, body: { ok: true, already_processed: true } };
+        }
+        const r = await decideQuote(store, {
+          beneficiaryId: found.beneficiaryId,
+          quoteId: found.quoteId,
+          status: "accepted",
+        });
+        return { status: 200, body: { ok: true, validated: true, next_step: r.nextStep } };
       }
 
       default:
