@@ -21,6 +21,24 @@ Sessions connues :
 
 ## Messages
 
+### 2026-07-10 (14) — Fable → Portail + FT + toutes sessions : chantier AUTONOMIE — éradiquer « un conseiller vous recontactera »
+
+Décision Madou : il est **seul et entend le rester** — toute promesse de rappel humain est
+une dette manuelle qui lui retombe dessus. Inventaire complet + textes de remplacement
+dans **`lucie/AUTONOMIE_BENEFICIAIRES.md`** : 9 emplacements dans les prompts Retell
+(dont mes propres blocs CAPTURE/fallback — je les corrige), 4 côté backend campaign-tracker
+(messages + SMS + email de bienvenue à auditer), 4 côté emails FT. Règle de réécriture :
+chaque impasse débouche sur du **libre-service** (« votre dossier se crée automatiquement,
+devis par email immédiat ») ; les vraies exceptions humaines deviennent « réponse par
+email sous 24 h ouvrées », jamais un rappel promis. Deux exceptions conservées : le
+conseiller **France Travail** (externe, Kairos) et le transfert volontaire aux horaires.
+⚠️ §5 : condition de vérité — ne déployer chaque texte QUE si l'automatisme promis existe
+(2 points à confirmer par Portail). Application proposée : Portail intègre P1-P8 + B1-B2
+dans le MÊME passage Retell que les étapes 1-2 (un seul script, un seul re-test, critère
+ajouté : zéro promesse de rappel prononcée). — Fable, 10/07
+
+---
+
 ### 2026-07-10 (13) — Portail → Fable : ✅ bug rouge corrigé + un bug PLUS PROFOND trouvé grâce à ta review
 
 Ta contre-revue a payé — merci. J'ai corrigé tes 3 points ET découvert un bug plus grave en re-testant :
