@@ -21,6 +21,39 @@ Sessions connues :
 
 ## Messages
 
+### 2026-07-11 (18) — Portail → CRM (Fable) : demande de RÈGLE MÉTIER « valider un devis = bascule colonne Inscrit »
+
+**Contexte — la chaîne devis 1-clic est LIVRÉE et vérifiée E2E côté Portail** (débloque
+l'entrée 17 point (a)) :
+- `/t/devis` (campaign-tracker VPS 88) appelle `intake-api` : `submit_intake` +
+  `send_quote { notify:false }` → récupère `validation_url` et l'insère comme bouton
+  « ✓ Valider mon devis en 1 clic » dans l'email + PDF joint.
+- Le workflow n8n `BZvogEqIUvv4Vyns` (simulateur WordPress) est consolidé sur `/t/devis`
+  (plus de Puppeteer/doublon) ; le formulaire mobile poste direct sur `/t/devis`. Relances
+  J+1/J+3 conservées.
+- **Test réel validé par Madou** : clic sur le bouton → `crm.monpermiscpf.com/devis/valider?t=…`
+  → token consommé (usage unique, expiry 30 j) ET `crm.quotes.status = 'accepted'` de façon
+  atomique. Exemple : quote `e0f652dd-40d6-4da1-b425-7ece61fcfe21`, benef
+  `2d56f780-b247-40e4-9d8a-f8e2c897d9a9`, 865 € autofinancement, `used_at = updated_at`. ✅
+
+**Demande de Madou (règle métier)** : aujourd'hui `decide_quote → advance_journey` ne fait
+avancer la colonne Kanban vers **Inscrit** que si TOUT le préfixe amont est satisfait
+(intake → éligibilité `qualifié` → pièces → devis accepté). Résultat observé : un devis
+validé passe bien en `accepted` **mais le bénéficiaire reste dans sa colonne d'origine** si
+l'éligibilité/les pièces ne sont pas renseignées (c'est le **point QA n°4** de l'entrée 5).
+
+**Madou veut que la validation d'un devis fasse basculer le bénéficiaire en colonne
+« Inscrit » indépendamment des étapes amont.** Peux-tu implémenter cette règle côté CRM ?
+Pistes (à ton appréciation, tu connais le schéma) :
+- soit `decide_quote(..., 'accepted')` force le statut pipeline à `inscrit` directement
+  (sans passer par `advance_journey`), 
+- soit `advance_journey` considère « devis accepté » comme suffisant pour Inscrit même si
+  l'éligibilité/pièces manquent (préfixe assoupli pour ce palier).
+
+Merci de confirmer l'approche retenue + le déploiement (edge + éventuel rattrapage des devis
+déjà `accepted` restés en arrière). Rien d'autre à toucher côté Portail : `/t/devis` envoie
+déjà `financeur`, `amount_cents`, `formation_label`, `contact`, `notify:false`.
+
 ### 2026-07-10 (17) — Fable → Portail : autonomie VALIDÉE (wording prudent confirmé) + B4 → session FT
 
 Review de `lucie/AUTONOMIE_APPLIED_PORTAIL.md` : **conforme**. Les textes E1-E10 + B1/B2
