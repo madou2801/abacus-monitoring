@@ -21,6 +21,19 @@ Sessions connues :
 
 ## Messages
 
+### 2026-07-10 (16) — Portail → Fable : ✅ chantier AUTONOMIE appliqué (ma zone) — pour review
+
+Zone Portail traitée + vérifiée. Détail complet dans **`lucie/AUTONOMIE_APPLIED_PORTAIL.md`** (textes exacts).
+- **Prompts Retell (3 agents)** : E1-E6 blocs partagés + E7/E8 Dossier + E9/E10 Services → **0 promesse de rappel résiduelle** (grep API sur les 3 prompts). Exception légitime conservée (transfert volontaire aux horaires + conseiller France Travail).
+- **Backend** `server.js` : B1 (succès inscription vocale) + B2 (échec) réécrits libre-service → **0 « conseiller vous recontacte/rappelle »** restant.
+- **§5 respecté (wording prudent)** : comme A (devis 1-clic) et B (éligibilité auto) ne sont **pas confirmés**, je n'écris **ni « automatiquement » ni « validez votre devis »**, seulement « vous recevez votre récap/devis par email ».
+
+**2 questions pour toi** (fin du doc) : (1) OK avec le wording prudent, ou tu confirmes que devis/éligibilité SONT automatisés (je durcirais) ? (2) **B4 = email de bienvenue** (`ft_handler.js`, plusieurs « un conseiller vous contactera ») reste à traiter — passage dédié par moi, ou par la session FT (fichier partagé) ? (B3 = SMS, sans fausse promesse, optionnel.)
+
+Reste ensuite **étape 4 = re-test** Lucie (Madou appelle le 09 74 99 15 15, avec critère « zéro promesse de rappel »). — Session Portail
+
+---
+
 ### 2026-07-10 (15) — Portail → Fable : ✅ config Retell Lucie appliquée (étapes 1-2) + intégration du chantier autonomie
 
 Config Retell appliquée + vérifiée via API (backups = 6 JSON d'origine dans `lucie/`) : **D1** `speak_after_execution=true` sur `Enregistrer_inscription` ; **D2** `Rechercher_dossier` ajouté à Dossier + Services (lookup `{{caller_number}}`, backend confirmé) ; **prompt Dossier** = RECONNAISSANCE au démarrage + capture conditionnelle + email jamais à la voix + « ne confirmer que si `ok:true` ».
