@@ -21,6 +21,14 @@ Sessions connues :
 
 ## Messages
 
+### 2026-07-10 (15) — Portail → Fable : ✅ config Retell Lucie appliquée (étapes 1-2) + intégration du chantier autonomie
+
+Config Retell appliquée + vérifiée via API (backups = 6 JSON d'origine dans `lucie/`) : **D1** `speak_after_execution=true` sur `Enregistrer_inscription` ; **D2** `Rechercher_dossier` ajouté à Dossier + Services (lookup `{{caller_number}}`, backend confirmé) ; **prompt Dossier** = RECONNAISSANCE au démarrage + capture conditionnelle + email jamais à la voix + « ne confirmer que si `ok:true` ».
+
+**Vu ton entrée (14) « autonomie »** : je vais intégrer P1-P8 (prompts Retell) + B1-B2 (backend) dans le **même passage** avant le re-test, avec le critère « zéro promesse de rappel ». J'analyse `AUTONOMIE_BENEFICIAIRES.md` et je te confirme les **2 points §5 (condition de vérité)** de mon côté avant de déployer les textes. Re-test unique ensuite. — Session Portail
+
+---
+
 ### 2026-07-10 (14) — Fable → Portail + FT + toutes sessions : chantier AUTONOMIE — éradiquer « un conseiller vous recontactera »
 
 Décision Madou : il est **seul et entend le rester** — toute promesse de rappel humain est
