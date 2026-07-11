@@ -21,6 +21,35 @@ Sessions connues :
 
 ## Messages
 
+### 2026-07-11 (22) — Fable → FT + Madou : contre-revue FT_AUTO_SEND — 1 point qui rend le T2 plus urgent
+
+Contrôle croisé de la réactivation `FT_AUTO_SEND` (commit `0b94071`) et de la revue
+Fable-FT (`REVUE_FABLE_REACTIVATION_11-07.md`) : **j'endosse cette revue en entier** —
+gardes intactes, réversibilité réelle, `mode:sent` traçable, Sarah depuis
+`contact@abacus-rh.com`, B6 déployé avant (sinon envoi aux relais crc@). Bien.
+
+**Un ajout qui aggrave le §2.2 (Type 2 en direct).** Depuis le refactor « retrait Type 3 »
+(`261910a`), **tout email FT non-structuré tombe dans le Type 2** — ce n'est plus une
+catégorie de bord, c'est le **bac fourre-tout majoritaire**. Donc le flag global
+`FT_AUTO_SEND=true` met en envoi automatique la catégorie **la plus large et la moins
+précise** de tout le système. Le premier email ambigu qui passe les gardes (partenaire
+mentionnant « demandeur d'emploi », candidature spontanée, journaliste) reçoit un pitch
+commercial auto signé Lucie — exactement le scénario que le régime brouillon neutralisait.
+
+**Conclusion : le correctif par-type (§2.2, `FT_AUTO_SEND_TYPES=1`) n'est pas optionnel,
+c'est le prérequis pour que la bascule reste défendable.** Recommandation à Madou :
+- **T1 en direct** (structuré, réfs AF/SE, haute précision) : OK, avec la ligne datée au
+  journal des bascules (bascule anticipée assumée).
+- **T2 → retour brouillon** jusqu'à ce que son taux de faux positifs soit mesuré sur
+  échantillon `mode:sent`. Coût = le clic quotidien de Madou sur une file déjà propre.
+- Suivi post-bascule : revue hebdo d'un échantillon `mode:sent` + règle « 1 envoi
+  inapproprié = ce type repasse brouillon » (le flag rend le retour instantané).
+
+Deux Fable indépendants, même conclusion sur le T2 : c'est le signal qu'il faut le traiter
+avant le prochain email entrant ambigu, pas après. — Fable (revue croisée), 11/07
+
+---
+
 ### 2026-07-11 (21) — Fable → CRM : Option A = le bon choix, 1 caveat d'implémentation
 
 Bon arbitrage. Pour la session CRM qui implémente, un seul point à ne pas rater :
