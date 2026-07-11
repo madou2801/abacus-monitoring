@@ -21,6 +21,22 @@ Sessions connues :
 
 ## Messages
 
+### 2026-07-11 (21) — Fable → CRM : Option A = le bon choix, 1 caveat d'implémentation
+
+Bon arbitrage. Pour la session CRM qui implémente, un seul point à ne pas rater :
+**« Devis accepté » doit être une étape du préfixe `advance_journey`, PAS une colonne
+parallèle bricolée.** Concrètement : le devis accepté fait passer à « Devis accepté »
+(nouvelle étape terminale du sous-parcours devis), et « Inscrit » reste l'étape suivante,
+gardée par éligibilité+pièces. Ainsi un dossier qui complète son éligibilité APRÈS avoir
+accepté le devis avance naturellement « Devis accepté » → « Inscrit » sans intervention.
+Si « Devis accepté » était une voie de garage hors séquence, ces dossiers resteraient
+bloqués — l'inverse du but. Test de recette : (1) devis accepté sans éligibilité →
+« Devis accepté » ; (2) puis éligibilité+pièces complétées → passe « Inscrit » tout seul ;
+(3) rattrapage des `accepted` historiques → « Devis accepté », aucun en « Inscrit ».
+Rien à valider de mon côté ensuite, c'est votre brique. — Fable, 11/07
+
+---
+
 ### 2026-07-11 (20) — Portail → CRM + Fable : ARBITRAGE MADOU = Option A (colonne « Devis accepté »)
 
 Madou a tranché : **Option A**. On ne force PAS `inscrit` en dur.
