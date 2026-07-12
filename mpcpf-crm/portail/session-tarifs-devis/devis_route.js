@@ -7,8 +7,29 @@ app.post("/t/devis", async (req, res) => {
     const email = (d.email || "").trim(), tel = (d.telephone || "").trim();
     const formation = d.formation || "", detail = d.formation_detail || d.formation || "";
     const situation = d.situation || "", cp = d.code_postal || "";
-    const prix = Math.round(Number(d.prix_cpf) || Number(d.prix_perso) || 0);
-    const cpfElig = (d.cpf_eligible !== false && d.cpf_eligible !== "false");
+    const code = (d.code || "").trim();
+    let prix = Math.round(Number(d.prix_cpf) || Number(d.prix_perso) || 0);
+    let prixSource = prix > 0 ? "client" : "absent";
+    const cpfElig = (d.cpf_eligible !== false && d.cpf_eligible !== "false"); // situation -> tarif CPF vs perso du catalogue
+    // SECURITE (finding Fable 12/07) : le prix autoritaire vient du CATALOGUE Supabase, keye par
+    // code formation, cote serveur — jamais du navigateur (falsifiable). Repli sur le prix client
+    // si code absent (transition frontends) ou introuvable.
+    if (code && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+      try {
+        const _h = { apikey: process.env.SUPABASE_SERVICE_KEY, Authorization: "Bearer " + process.env.SUPABASE_SERVICE_KEY };
+        const _r = await fetch(process.env.SUPABASE_URL + "/rest/v1/catalogue_formations?select=tarif_cpf,tarif_perso,actif&code=eq." + encodeURIComponent(code) + "&limit=1", { headers: _h });
+        const _row = (await _r.json().catch(() => []))[0];
+        if (_row && _row.actif !== false) {
+          const catPrix = Math.round(Number(cpfElig ? (_row.tarif_cpf || _row.tarif_perso) : (_row.tarif_perso || _row.tarif_cpf)) || 0);
+          if (catPrix > 0) {
+            if (prix && prix !== catPrix) console.warn("[/t/devis] prix client " + prix + " != catalogue " + catPrix + " (code " + code + ") -> catalogue autoritaire");
+            prix = catPrix; prixSource = "catalogue:" + code;
+          }
+        } else {
+          console.warn("[/t/devis] code " + code + " introuvable/inactif au catalogue -> repli prix client " + prix);
+        }
+      } catch (e) { console.error("[/t/devis] lookup catalogue:", e && e.message); }
+    }
     if (!email) return res.status(400).json({ ok: false, error: "email manquant" });
 
     const bounds = { caces: [400, 3500], "poids-lourd": [1000, 3500], ssiap: [1000, 5500], securite: [80, 1500], aipr: [150, 450] };
@@ -113,7 +134,7 @@ app.post("/t/devis", async (req, res) => {
       (prixValide ? "" : "[A VERIFIER] ") + "Devis " + (detail || formation) + " — " + prenom + " " + nom + " (" + (cp || "?") + ")",
       '<h3>' + (prixValide ? "Devis chiffré émis" : "Demande de devis (à chiffrer sous 24 h)") + '</h3><p>' + prenom + ' ' + nom + ' — ' + email + ' — ' + (tel || "-") +
       '<br>Formation : ' + detail + '<br>Situation : ' + situation + '<br>Tarif : ' + (prix > 0 ? fmt(prix) + " EUR" : "-") +
-      '<br>Contrôle prix : ' + (prixValide ? "OK" : "hors bornes / sur devis") + '<br>N° ' + external_id + '</p>'
+      '<br>Contrôle prix : ' + (prixValide ? "OK" : "hors bornes / sur devis") + '<br>Source prix : ' + prixSource + (code ? ' (code ' + code + ')' : '') + '<br>N° ' + external_id + '</p>'
     ).catch(() => {});
 
     res.json({ ok: true, id: external_id, mode: prixValide ? "devis" : "accuse" });

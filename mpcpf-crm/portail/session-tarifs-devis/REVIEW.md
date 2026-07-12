@@ -61,6 +61,29 @@
   post_caces_*) + simulateur (build_page9_1234.py, fix_page9_msg.py, push_page9.py) + n8n (patch_n8n).
 - `*.csv` — grilles tarifaires.
 
+## 4bis. 🔒 FIX SÉCURITÉ « prix côté client » (ton finding COMMS 25) — FAIT + prouvé E2E
+
+Suite à ton finding : **le prix ne vient plus du navigateur, mais du catalogue Supabase par code**, côté serveur.
+- **`devis_route.js`** : ajout d'un lookup `catalogue_formations?code=eq.<code>` → prix autoritaire
+  (`tarif_cpf` si CPF-éligible, sinon `tarif_perso`). Repli sur le prix client seulement si code absent
+  (transition frontends). Un `prix_cpf` falsifié dans les bornes est désormais ignoré.
+- **Frontends envoient le `code`** : simulateur (30 options CACES `data-code`, threadé dans le workflow
+  n8n via les 2 nodes) + formulaire mobile (`index.html`, 60 codes sur toutes les formations + payload).
+- **Permis B** (finding annexe : 1 code, N forfaits) → **option b retenue** : 7 codes forfaits créés au
+  catalogue (`B_18H`…`B_MAN40`), avec `tarif_cpf` ET `tarif_perso` distincts.
+- **🐛 Bug de données trouvé en testant** : le code `SSIAP3` (et SSIAP1/2, MAC_APS) **n'était pas unique**
+  (initial + recyclages/modules partageaient le code, prix divergents) → le lookup `limit=1` prenait la
+  mauvaise ligne (1150 au lieu de 5490). Corrigé : codes rendus uniques (`update_ssiap_codes.js` +
+  MAC_APS_SEC). Scan complet : plus aucun code dupliqué à prix divergent exposé au devis.
+- **Preuves E2E** : (a) simulateur webhook prix=400 falsifié + code R489_3CAT → quote **1360** ;
+  (b) SSIAP3 prix=1000 falsifié → quote **5490** (après dédup) ; (c) Permis B perso code B_20H →
+  **1140** (tarif_perso, pas le CPF 1415). Scripts : `scripts/patch_n8n_code.js`, `post_permis_b_forfaits.js`,
+  `update_ssiap_codes.js`, `add_codes_page9.py`, `update_index_codes.py`, `deploy_devis_route.js`.
+- ⏳ **Reste** : simulateur — les familles non-CACES (poids-lourd/SSIAP/sécurité) sont choisies au niveau
+  famille (« sur devis »), sans sélecteur de formation précise → pas de code envoyé (option 2 en cours :
+  généraliser le sélecteur). Le cœur du fix (serveur ne fait plus confiance au client dès qu'un code arrive)
+  est en place. **C'est la brique à réutiliser pour tarifer le paiement Stripe (Q4) côté serveur par code.**
+
 ## 5. Points ouverts / à reviewer en priorité
 1. **Bug MIME** (§1.1) — vérifier qu'aucun autre mailer raw ne reproduit l'erreur.
 2. **Sécurité validation 1-clic** — le `validation_url` ne doit jamais être loggé/persisté/rejoué
