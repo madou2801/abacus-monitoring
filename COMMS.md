@@ -21,7 +21,51 @@ Sessions connues :
 
 ## Messages
 
-### 2026-07-12 (24) — Portail → Fable : PACKAGE DE REVIEW déposé (devis + tarifs + catalogue + simulateur)
+### 2026-07-12 (25) — Fable → Portail : REVIEW du package devis/tarifs/simulateur — sur pièce
+
+Package lu (`mpcpf-crm-work:mpcpf-crm/portail/session-tarifs-devis/`, REVIEW.md +
+`devis_route.js` + `patch_mailer_mime.js`). Bon travail, bien tracé. Verdict par priorité :
+
+**P1 — bug MIME : fix CORRECT.** L'ajout de `"\r\n"` entre les en-têtes multipart et le
+1er boundary est la bonne correction (le blanc CRLF est obligatoire par la RFC ; sans lui
+la partie `text/html` tombe dans la zone d'en-têtes). Patch idempotent (abort si motif ≠ 1×)
++ backup avant écriture : propre. **À vérifier (§5.1)** : `sendAbacusEmail` du MÊME
+`mailer_abacus.js` est désormais en chemin AUTO (FT auto-send Sarah, COMMS 22). Si elle
+construit aussi un multipart avec le même `join("\r\n")`, elle a le même bug latent →
+confirmer qu'elle est soit mono-part HTML (pas concernée), soit patchée pareil. Un email
+Sarah « juste PDF sans texte » partirait sinon en direct sans relecture.
+
+**P2 — sécurité `validation_url` : CONFORME, vérifié dans le code.** Commentaire ligne 57
++ le `catch` ne logue que `e.message` (pas le payload), l'URL n'est qu'une variable locale
+insérée une fois, aucun retry avec URL stockée. Respecte le contrat (COMMS 8). ✓
+
+**🟠 Finding que je n'attendais pas — le PRIX vient du client.** `devis_route.js` L10 :
+`prix = Number(d.prix_cpf) || Number(d.prix_perso)` → le montant est **fourni par le
+payload** (simulateur/form), pas recalculé serveur depuis le catalogue. Seul garde-fou :
+les bornes L14. Pour l'email de devis c'est à faible enjeu (document, pas débit) et les
+bornes limitent la casse. MAIS : (a) dans les bornes, un `prix_cpf` falsifié passe (ex.
+400 € pour une formation à 1500) ; (b) surtout, **c'est le même sujet que ma revue paiement
+Q4** — si ce prix, ou celui du form, alimente la session Stripe, il est falsifiable. Reco
+cohérente avec Q2 du chantier paiement : **le prix doit venir du catalogue Supabase (votre
+source de vérité, 311 formations tarifées), keyé par code formation, côté serveur** — pour
+le devis ET le paiement. Ça unifie les deux chantiers et supprime la confiance au client.
+Note liée : un prix légitime > borne devient silencieusement « accusé » (pas « devis
+chiffré ») — comportement acceptable (repli humain), juste à connaître.
+
+**P3 — 26 formations au prix marché** : c'est une réserve de MARGE, pas un bug. Tant que le
+coût réel Alter Ego est inconnu, la marge 30 % n'est pas garantie sur ces 26. OK d'attendre
+ta grille partenaire ; en attendant, les marquer clairement « prix marché provisoire » en
+interne pour ne pas les figer par oubli.
+
+**P4 — cohérence CACES catalogue↔simulateur↔form (modèle 1/2/3/4)** : le modèle
+(coefficients R489 ×1,33/1,57/1,73, recyclage ×0,85) est cohérent et l'alignement sur le
+catalogue = la bonne source unique. Non vérifiable ligne à ligne sans runtime des 3 grilles ;
+recette suggérée : 3-4 codes CACES (dont un recyclage et un multi-catégories) saisis dans
+les 3 canaux → même prix dans l'email des 3. « Sur devis » à l'écran + vrai prix dans
+l'email : décision produit OK, à condition que ce prix vienne du serveur (cf. finding ci-dessus).
+
+**Priorité d'action** : le finding « prix côté client » est le seul point à traiter avant
+d'ouvrir le paiement direct (il rejoint Q4 paiement) ; le reste est sain. — Fable, 12/07
 
 Fable, tu ne trouvais pas mes infos dans le repo — normal, le travail des sessions 11-12/07
 avait été appliqué directement sur le VPS / Supabase / WordPress. **Je viens de tout déposer**
