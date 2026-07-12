@@ -1,0 +1,28 @@
+﻿Catégorie;Code;Formation;Durée;Prix actuel catalogue (€);Fourchette marché HT (€);Prix MPCPF proposé (€);Coût Alter Ego (€);Marge estimée;Mode conseillé;Note
+Prévention FP;PREV_ASSIST_FPT;Assistant de prévention FPT - initiale;5 j;0;800-1500;1200;1975;-39%;INTRA;Marché tiré par CNFPT gratuit
+Prévention FP;PREV_ASSIST_FPT_CONT;Assistant de prévention FPT - formation continue;2 j;0;450-700;600;790;-24%;INTRA;
+Prévention FP;PREV_CONS_FPT;Conseiller de prévention FPT - initiale;6 j;0;1200-2000;1700;2370;-28%;INTRA;
+Prévention FP;PREV_CONS_FPT_CONT;Conseiller de prévention FPT - formation continue;2 j;0;500-800;700;790;-11%;INTRA;
+Prévention FP;PREV_ASSIST_CONS_FPE;Assistant/Conseiller prévention FP d'État #1;4 j;0;800-1400;1150;1580;-27%;INTRA;
+Prévention FP;PREV_ASSIST_CONS_FPE2;Assistant/Conseiller prévention FP d'État #2;4 j;0;800-1400;1150;1580;-27%;INTRA;
+Prévention FP;PREV_REP_CSA;Représentant du personnel CSA (FP d'État);5 j;0;900-1400;1200;1975;-39%;INTRA;
+Prévention FP;PREV_REP_CST;Représentant du personnel CST (FP Territoriale);5 j;0;900-1400;1200;1975;-39%;INTRA;
+Prévention FP;PREV_DUER;Document Unique d'Évaluation des Risques (DUER);1 j;0;350-600;570;395;30%;inter OK;
+Prévention FP;PREV_CHEF_ETAB;Obligations/responsabilités chef d'établissement;1 j;0;300-550;570;395;30%;inter OK;
+Prévention FP;PREV_PERS_COMPETENTE;Personne compétente prévention risques (PCPRP);3 j;0;700-1200;1100;1185;-7%;INTRA;
+Prévention FP;PREV_CSE_CSSCT;CSE-CSSCT (déjà créé à 825€);5 j;825;1800-3500;1100;1975;-44%;INTRA;À REMONTER de 825 à 1100
+Incendie;INC_EPI;Équipier de Première Intervention (EPI);1 j;0;120-800;570;395;30%;inter OK;
+Incendie;INC_ESI;Équipier de Seconde Intervention (ESI);2 j;0;900-2690;950;790;17%;intra conseillé;
+Incendie;INC_SSI;Exploitation du SSI (sécurité incendie);1 j;0;699-800;570;395;30%;inter OK;
+Incendie;INC_GUIDE_FILE;Guide-file / Serre-file (évacuation);0,5 j;0;230-500;285;198;30%;inter OK;
+Incendie;INC_PERMIS_FEU;Permis feu;0,5 j;0;180-450;285;198;30%;inter OK;
+Secourisme;SECOUR_DAE;Défibrillateur (DAE) / initiation;0,5 j;0;140-200;200;198;1%;complément;Rentable si couplé EPI
+Secourisme;SECOUR_ENFANTS;Gestes de secours adaptés aux enfants;0,5 j;0;150-350;285;198;30%;inter OK;
+Secourisme;SECOUR_ARRET_CARDIAQUE;Sensibilisation arrêt cardiaque / GQS;2 h;0;50-120;120;99;17%;inter;
+Secourisme;SECOUR_PASSERELLE_PSC1;Passerelle PSC1 vers SST;1 j;0;200-350;350;395;-12%;INTRA;Plafond marché ~350
+Secourisme;SECOUR_TACTIQUE;Secourisme tactique;1 j;0;250-400;400;395;1%;inter limite;
+Chimie;CHIM_OPERATEUR;Prévention risque chimique 1er degré (opérateur);1 j;0;160-390;390;395;0%;INTRA;
+Chimie;CHIM_ENCADREMENT;Prévention risque chimique 2e degré (encadrement);2 j;0;320-600;600;790;-24%;INTRA;
+Sûreté;CONFLITS_GESTION;Gestion des conflits;1,5 j;0;700-1200;850;593;30%;inter OK;
+Sûreté;SURETE_ATTAQUE_TERRORISTE;Réactions en cas d'attaque terroriste;0,5 j;0;150-300;250;198;20%;inter;Doublon tarif catalogue existant 250€
+Risques physiques;RP_TRAVAIL_ECRAN;Travail sur écran;0,5 j;0;80-250;200;198;1%;e-learning;Préférer e-learning
