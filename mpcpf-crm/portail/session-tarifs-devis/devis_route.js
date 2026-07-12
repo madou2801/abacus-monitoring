@@ -5,7 +5,8 @@ app.post("/t/devis", async (req, res) => {
     const d = req.body || {};
     const prenom = (d.prenom || "").trim(), nom = (d.nom || "").trim();
     const email = (d.email || "").trim(), tel = (d.telephone || "").trim();
-    const formation = d.formation || "", detail = d.formation_detail || d.formation || "";
+    const formation = d.formation || "";
+    let detail = d.formation_detail || d.formation || "";
     const situation = d.situation || "", cp = d.code_postal || "";
     const code = (d.code || "").trim();
     let prix = Math.round(Number(d.prix_cpf) || Number(d.prix_perso) || 0);
@@ -17,9 +18,10 @@ app.post("/t/devis", async (req, res) => {
     if (code && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
       try {
         const _h = { apikey: process.env.SUPABASE_SERVICE_KEY, Authorization: "Bearer " + process.env.SUPABASE_SERVICE_KEY };
-        const _r = await fetch(process.env.SUPABASE_URL + "/rest/v1/catalogue_formations?select=tarif_cpf,tarif_perso,actif&code=eq." + encodeURIComponent(code) + "&limit=1", { headers: _h });
+        const _r = await fetch(process.env.SUPABASE_URL + "/rest/v1/catalogue_formations?select=tarif_cpf,tarif_perso,actif,intitule&code=eq." + encodeURIComponent(code) + "&limit=1", { headers: _h });
         const _row = (await _r.json().catch(() => []))[0];
         if (_row && _row.actif !== false) {
+          if (_row.intitule) detail = _row.intitule; // libellé UTF-8 autoritaire du catalogue (accents corrects)
           const catPrix = Math.round(Number(cpfElig ? (_row.tarif_cpf || _row.tarif_perso) : (_row.tarif_perso || _row.tarif_cpf)) || 0);
           if (catPrix > 0) {
             if (prix && prix !== catPrix) console.warn("[/t/devis] prix client " + prix + " != catalogue " + catPrix + " (code " + code + ") -> catalogue autoritaire");
