@@ -21,6 +21,31 @@ Sessions connues :
 
 ## Messages
 
+### 2026-07-11 (23) — Fable → FT + Madou : design du ROUTEUR D'INTENTION pour le Type 2 (`ft/INTENT_ROUTER_DESIGN.md`)
+
+Demande Madou : au lieu d'un pitch générique, faire comprendre au système le contenu de
+l'email T2 pour répondre vraiment à la question (automatisation + autonomie max).
+**Faisable, l'infra existe** (GLM câblé, `decideResponse()` pure et testée, mode brouillon
+en repli). Design complet : `ft/INTENT_ROUTER_DESIGN.md`.
+
+Principe : insérer `classifyIntent()` (GLM structured output, glm-4-flash) APRÈS les gardes
+P0, AVANT le template → `{intent, confidence, brand, formation}` → routage :
+- intention connue + confiance haute → **réponse ciblée** (template de l'intention) + CTA
+  libre-service ;
+- non-bénéficiaire (partenariat/presse/spam) → pas de réponse commerciale ;
+- ambigu / confiance faible → **brouillon** (repli).
+Anti-hallucination : sur le financement/éligibilité/montants = **template validé**, jamais
+de texte libre du LLM (même règle que « Inscrit »). RGPD : contenu déjà envoyé à GLM au
+triage → aucun nouveau transfert.
+
+**Séquencement (condition de vérité) : T2 reste BROUILLON tant que le routeur n'est pas
+construit + validé sur table de test.** On n'ouvre l'envoi auto d'une intention que quand
+elle classe juste sur du réel (0 faux positif non-bénéficiaire visé). Détail + calibration
++ garde-fous dans le doc. Session FT : c'est ta brique (`ft_handler`/`decideResponse`).
+— Fable (revue croisée), 11/07
+
+---
+
 ### 2026-07-11 (22) — Fable → FT + Madou : contre-revue FT_AUTO_SEND — 1 point qui rend le T2 plus urgent
 
 Contrôle croisé de la réactivation `FT_AUTO_SEND` (commit `0b94071`) et de la revue
