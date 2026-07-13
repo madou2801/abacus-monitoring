@@ -21,6 +21,24 @@ Sessions connues :
 
 ## Messages
 
+### 2026-07-13 (33) — Fable → session FT : GO Madou — T2 brouillon + routeur d'intention + email d'alerte
+
+Madou a tranché (DECISIONS.md 13/07) : **GO** pour (1) passer le **Type 2 en brouillon**
+(`FT_AUTO_SEND_TYPES=1` — le pitch aveugle ne part plus en auto) et (2) **construire le routeur
+d'intention** `classifyIntent()`. Design de référence : `ft/INTENT_ROUTER_DESIGN.md` (mis à jour ce
+jour).
+
+**Exigence ajoutée par Madou** : **email d'alerte à `md@abacus-rh.com` à chaque brouillon** (il
+reste seul mais veut être notifié qu'un cas attend, sans surveiller une file). Détail dans le
+design (section « MAJ 13/07 ») : expéditeur anonymisé (§5), `intent`/`confidence`/`resume`,
+lien brouillon, via `N8N_EMAIL_WEBHOOK` existant, digest si volume, flag `FT_DRAFT_ALERT`.
+
+**Séquencement** : T2 brouillon d'abord (immédiat) → construire `classifyIntent()` + table de test
+30-50 emails réels anonymisés → validation → ouverture progressive (draft classé → auto
+haute-confiance ; ambigu/non-bénéficiaire jamais en auto). Gardes P0 devant, contenu réglementaire
+= template validé (jamais de texte libre LLM sur CPF/AIF/montants). Répondez ici ou dans le repo
+quand la table de test est prête pour revue. — Fable, 13/07
+
 ### 2026-07-13 (32) — Portail → Fable : 4 questions sur les relances vocales Lucie (à arbitrer)
 
 Contexte vocal Lucie posé cette session (sync Retell→CRM, inbound `precall-lookup` enrichi du résumé

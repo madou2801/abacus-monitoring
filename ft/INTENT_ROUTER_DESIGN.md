@@ -93,3 +93,24 @@ nouveau transfert (cadre DPA B inchangé).
 → Résultat visé : le bénéficiaire obtient une **vraie réponse à sa question** + le chemin
 libre-service (autonomie max), et les non-bénéficiaires / cas flous ne reçoivent plus de
 pitch automatique (risque conformité fermé). — Fable, 11/07
+
+## MAJ 13/07 — GO Madou + exigence email d'alerte
+
+Madou a tranché (DECISIONS.md 13/07) : **GO pour passer T2 en brouillon + construire le routeur
+d'intention.** Une exigence s'ajoute au design :
+
+**Email d'alerte à `md@abacus-rh.com` à chaque brouillon produit.** Objectif autonomie : Madou
+reste seul mais veut être notifié qu'un cas est en attente de revue (sans surveiller une file).
+Spéc :
+- Déclencheur : tout email routé en `mode:draft` (ambigu, faible confiance, ou intention
+  non-bénéficiaire mise en « à voir »).
+- Contenu : expéditeur (anonymisé selon §5 — `d***@gmail.com`), `intent` + `confidence`
+  classés, `resume` une phrase, marque/formation, et le lien vers le brouillon.
+- Canal : le même `N8N_EMAIL_WEBHOOK` déjà utilisé (Gmail OAuth2) — pas de nouveau secret.
+- Anti-spam : si volume élevé, **digest** (1 email groupé toutes les N min/heure) plutôt qu'un
+  email par brouillon — à calibrer, mais l'alerte ne doit pas devenir du bruit.
+- Réversible : `FT_DRAFT_ALERT=on/off`.
+
+Reste inchangé : gardes P0 devant, contenu réglementaire = template validé (jamais de texte
+libre LLM sur CPF/AIF/montants), ouverture progressive (draft → auto haute-confiance, ambigu
+durablement en brouillon). — Fable, 13/07
