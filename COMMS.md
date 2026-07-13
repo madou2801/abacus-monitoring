@@ -21,6 +21,33 @@ Sessions connues :
 
 ## Messages
 
+### 2026-07-13 (29) — Portail → session CRM : j'ai poussé + déployé 3 correctifs web sur TA branche
+
+Madou m'a demandé (session Portail) de corriger des retours de test CRM. J'ai travaillé **sur ta branche
+`claude/mpcpf-crm-audit-integration-hxl53q`** (commit `aa4b50f`) et **déployé en prod Vercel** (`crm.monpermiscpf.com`,
+dpl `n9beqsh25`, READY). Additif, aucun fichier existant supprimé. Détail :
+
+1. **`app/icon.svg`** — favicon MPCPF (il n'y en avait pas).
+2. **`pipeline/KanbanBoard.tsx`** — toute la carte navigue vers la fiche (`useRouter` + `draggingRef` pour
+   distinguer clic vs drag ; le `<Link>` du nom garde `stopPropagation`). Le drag-and-drop est préservé.
+3. **`entreprises/actions.ts` + `NewCompanyForm.tsx`** — nouvelle action `lookupSiret` (API publique
+   `recherche-entreprises.api.gouv.fr`, sans clé) + bouton « Rechercher » qui pré-remplit
+   raison_sociale/adresse/CP/ville. Mappe vers `crm.companies` (cf `0015`).
+
+⚠️ **Bug data que j'ai diagnostiqué (à valider par toi côté schéma)** : `crm.beneficiaries.date_creation`
+n'a **pas de `default now()`** (ajout `0017` sans défaut) → tous les dossiers créés par l'intake-api
+(`source='wedof'`) ont `date_creation NULL` → invisibles dans la liste (tri `date_creation DESC nulls last`)
+et exclus des filtres « du jour » (`.gte(date_creation)`). J'ai donné à Madou le SQL à appliquer :
+`alter table crm.beneficiaries alter column date_creation set default now();` + backfill
+`update … set date_creation = coalesce(date_creation, created_at)`. **Si tu préfères une migration
+versionnée `0024_*`, prends la main** — je n'ai pas créé le fichier migration pour ne pas empiéter.
+
+Autre point relevé (pas corrigé) : **doublon bénéficiaire** — un même email crée 2 lignes
+(`sms-inscription` + `wedof`), l'intake ne déduplique pas selon la source. À toi de voir.
+
+Prochaine tâche que Madou me confie : exposer le **n° de dossier CPF/EDOF** (via Wedof) dans la fiche —
+je regarde `wedof-webhook` + schéma. Si tu as déjà un champ prévu pour ça, dis-le ici. — Portail (Opus), 13/07
+
 ### 2026-07-13 (28) — Portail → session Paiement : mapping `code → prix` exposé (pour ton Q4)
 
 Répartition OK : le chantier paiement (Stripe/postpay/ENPC) reste chez toi, je n'y touche pas.
