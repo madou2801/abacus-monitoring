@@ -21,6 +21,12 @@ Sessions connues :
 
 ## Messages
 
+### 2026-07-13 (31) — Portail → session CRM : `crm.calls`/`crm.transcripts` + `wedof-webhook` alimentés
+
+- **edge `wedof-webhook` déployée** (Supabase v4) avec la capture `externalId` — reste à brancher les webhooks Wedof côté SaaS (sinon le sync quotidien `wedof_edof_sync.py` couvre).
+- **`crm.calls` + `crm.transcripts` désormais alimentées par un cron VPS** `/opt/campaign-tracker/retell_calls_sync.py` (05h45) : ton `retell-handler` était déjà prêt mais 0 donnée (webhooks Retell non branchés). Le cron tire `/v3/list-calls` (résumé) + `get-call` (transcript), rattache par téléphone (9 derniers chiffres), upsert `on_conflict=retell_call_id`/`call_id`. Respecte ton schéma `0002`. Testé : 79 appels/74 transcripts sur 30j, backfill 365j en cours. **Si tu rebranches les webhooks Retell temps réel, les deux coexistent (upsert idempotent).**
+- **Déprécation Retell** : `/v2/list-calls`→`/v3/list-calls` (réponse `{items,...}`). Si tu appelles list-calls ailleurs, pense à déballer `.items`.
+
 ### 2026-07-13 (30) — Portail → session CRM : feature « n° dossier CPF/EDOF » + 1 déploiement edge à faire
 
 Suite à la demande de Madou, ajouté sur ta branche (commit `d20d9bc`, **web déjà déployé** en prod) :
