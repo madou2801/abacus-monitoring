@@ -30,7 +30,7 @@ export default async function Page({ params }: { params: { id: string } }) {
   const b = benefRes.data as any;
   if (!b) notFound();
 
-  const [coRes, aeRes, tlRes, qRes, iRes, notesRes, tasksRes, staffRes] = await Promise.all([
+  const [coRes, aeRes, tlRes, qRes, iRes, notesRes, tasksRes, staffRes, wextRes] = await Promise.all([
     b.company_id ? db.from("companies").select("*").eq("id", b.company_id).maybeSingle() : Promise.resolve({ data: null }),
     b.auto_ecole_id ? db.from("auto_ecoles").select("raison_sociale, nom, email, telephone, ville").eq("id", b.auto_ecole_id).maybeSingle() : Promise.resolve({ data: null }),
     db.from("vw_beneficiary_timeline").select("*").eq("beneficiary_id", id).order("occurred_at", { ascending: false }).limit(60),
@@ -39,6 +39,8 @@ export default async function Page({ params }: { params: { id: string } }) {
     db.from("notes").select("id, author_email, content, created_at").eq("beneficiary_id", id).order("created_at", { ascending: false }).limit(50),
     db.from("tasks").select("id, title, status, due_at, assignee_email, created_at").eq("beneficiary_id", id).order("created_at", { ascending: false }).limit(50),
     db.from("app_users").select("email").eq("active", true).order("email"),
+    // n° de dossier CPF/EDOF (Wedof externalId) — pas dans la vue enrichie, lu en direct.
+    db.from("beneficiaries").select("wedof_external_id").eq("id", id).maybeSingle(),
   ]);
   const co = coRes.data as any;
   const ae = aeRes.data as any;
@@ -48,6 +50,7 @@ export default async function Page({ params }: { params: { id: string } }) {
   const notes = (notesRes.data ?? []) as any[];
   const tasks = (tasksRes.data ?? []) as any[];
   const staffEmails = (staffRes.data ?? []).map((u: any) => u.email as string);
+  const wext = (wextRes.data as any)?.wedof_external_id ?? null;
   const fullName = [b.first_name, b.last_name].filter(Boolean).join(" ") || "Bénéficiaire";
 
   return (
@@ -118,6 +121,7 @@ export default async function Page({ params }: { params: { id: string } }) {
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <h2 className="mb-3 text-sm font-semibold text-slate-700">Wedof / dossier</h2>
             <StaticRow k="Statut Wedof" v={wedofStateFr(b.wedof_state)} />
+            <StaticRow k="N° dossier CPF (EDOF)" v={wext} />
             <StaticRow k="Dossier (folder)" v={b.wedof_folder_id} />
             <StaticRow k="SIRET formation" v={b.siret_formation} />
           </div>

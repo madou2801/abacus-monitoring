@@ -185,7 +185,7 @@ export class SupabaseCrmStore implements CrmStore {
 
   async updateBeneficiaryWedof(
     beneficiaryId: string,
-    fields: { wedof_state?: string | null; wedof_folder_id?: string | null },
+    fields: { wedof_state?: string | null; wedof_folder_id?: string | null; wedof_external_id?: string | null },
   ): Promise<void> {
     const { error } = await this.db()
       .from("beneficiaries")
