@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { STAGES, FINANCEUR_LABEL } from "@/lib/labels";
 import { moveStage } from "./actions";
 
@@ -47,6 +48,8 @@ function eurosCompact(cents: number): string {
 export function KanbanBoard({
   initial, aeName, centsByStage,
 }: { initial: Record<string, Card[]>; aeName: Record<string, string>; centsByStage?: Record<string, number> }) {
+  const router = useRouter();
+  const draggingRef = useRef(false); // distingue un vrai drag d'un simple clic
   const [cols, setCols] = useState<Record<string, Card[]>>(initial);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<string | null>(null);
@@ -120,12 +123,13 @@ export function KanbanBoard({
                 <div
                   key={b.id}
                   draggable
-                  onDragStart={() => setDragId(b.id)}
-                  onDragEnd={() => { setDragId(null); setOverStage(null); }}
-                  className={`group block cursor-grab rounded-lg border border-slate-200 bg-white p-3 text-sm shadow-sm transition hover:border-brand hover:shadow active:cursor-grabbing ${dragId === b.id ? "opacity-40" : ""} ${pending ? "pointer-events-none" : ""}`}
+                  onDragStart={() => { draggingRef.current = true; setDragId(b.id); }}
+                  onDragEnd={() => { setDragId(null); setOverStage(null); setTimeout(() => { draggingRef.current = false; }, 0); }}
+                  onClick={() => { if (!draggingRef.current) router.push(`/beneficiaires/${b.id}`); }}
+                  className={`group block cursor-pointer rounded-lg border border-slate-200 bg-white p-3 text-sm shadow-sm transition hover:border-brand hover:shadow active:cursor-grabbing ${dragId === b.id ? "opacity-40" : ""} ${pending ? "pointer-events-none" : ""}`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <Link href={`/beneficiaires/${b.id}`} className="font-medium text-slate-800 hover:text-brand hover:underline">
+                    <Link href={`/beneficiaires/${b.id}`} onClick={(e) => e.stopPropagation()} className="font-medium text-slate-800 hover:text-brand hover:underline">
                       {title(b)}
                     </Link>
                     <span className="select-none text-slate-300 group-hover:text-slate-400">⠿</span>
