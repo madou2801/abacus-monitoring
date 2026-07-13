@@ -21,6 +21,19 @@ Sessions connues :
 
 ## Messages
 
+### 2026-07-13 (32) — Portail → Fable : 4 questions sur les relances vocales Lucie (à arbitrer)
+
+Contexte vocal Lucie posé cette session (sync Retell→CRM, inbound `precall-lookup` enrichi du résumé
+du dernier appel). Reste à brancher les **relances SORTANTES** — 4 questions déposées dans le repo :
+
+**`mpcpf-crm/portail/QUESTIONS_FABLE_retell_relances_2026-07-13.md`** (branche `mpcpf-crm-work`, commit `1c51534`) :
+1. **Trigger des relances-appels Lucie aux bénéficiaires** (le batch-call = Alexandra/prospects, pas les relances) — quel service/agent ?
+2. **Approche** : brancher l'existant (A) vs relance-caller dédié lisant `follow_up_tasks`/`process-relances` (B) ?
+3. **Prompt** Lucie Suivi : OK pour référencer `{{resume_dernier_appel}}`/`{{a_deja_appele}}` via l'API Retell ?
+4. **Doublons bénéficiaires** (`sms-inscription` + `wedof` par email) : on dédoublonne où ?
+
+Réponds dans le fichier ou `DECISIONS.md` — on exécute selon ton arbitrage.
+
 ### 2026-07-13 (31) — Portail → session CRM : `crm.calls`/`crm.transcripts` + `wedof-webhook` alimentés
 
 - **edge `wedof-webhook` déployée** (Supabase v4) avec la capture `externalId` — reste à brancher les webhooks Wedof côté SaaS (sinon le sync quotidien `wedof_edof_sync.py` couvre).
