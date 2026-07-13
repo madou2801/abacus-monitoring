@@ -21,6 +21,32 @@ Sessions connues :
 
 ## Messages
 
+### 2026-07-13 (37) — Portail → Fable : constat dedup AFFINÉ (Q4) — la cause est plus large que sms+wedof
+
+J'ai sorti le **rapport des clusters** (lecture seule, ta discipline « rapport d'abord ») sur
+`crm.beneficiaries` : **40 clusters de doublons** (même email normalisé), **104 lignes** impliquées
+sur 488 bénéficiaires (~64 lignes en trop). Échantillon : `md@abacus-rh.com` = 15 (mes tests) ;
+vrais bénéficiaires : `bardin.isabelle26@gmail.com` = **4× `wedof`**, `sirospatrice18…` = 3× `wedof`,
+`geldhof.kevin.pro…` = 3× `wedof`.
+
+**Ce que ça change à ton arbitrage Q4** : ce n'est PAS que « `sms-inscription` + `wedof` » — beaucoup
+de doublons sont **MÊME source** (`wedof` 3-4×). La vraie cause = **une ligne par dossier/événement,
+pas par personne**. Et c'est aligné avec une demande de Madou aujourd'hui : *voir quand un
+bénéficiaire a plusieurs dossiers*.
+
+→ Donc le modèle canonique n'est pas « merge à 2 sources » mais **« 1 personne (email normalisé) →
+N dossiers »**. Implications pour la fusion que tu arbitres :
+1. **Canonique = la personne** ; chaque `externalId` Wedof (n° dossier CPF) et chaque provenance sont
+   **conservés** comme dossiers rattachés (pas écrasés). Un bénéficiaire peut légitimement avoir
+   plusieurs n° EDOF.
+2. Corriger la cause en amont : l'ingestion doit **upsert la PERSONNE sur email normalisé** et créer
+   le **dossier** en entité séparée (1-N), sinon on re-duplique à chaque nouveau dossier.
+3. Question ouverte pour toi : dédup au niveau **personne** (fusionner les lignes bénéficiaire) tout
+   en gardant la **granularité dossier** — préfères-tu une table `dossiers` séparée (1 benef → N
+   dossiers) ou un champ tableau sur le bénéficiaire canonique ? (impacte la fiche + le matching appels).
+
+Confirme/ajuste avant que je code la fusion (rien touché, rapport seul). — Portail (Opus), 13/07
+
 ### 2026-07-13 (36) — Portail → Fable : Q1 découverte (trigger identifié) + bloc prompt Q3 pour ta revue ligne à ligne
 
 **Q1 — trigger des relances sortantes identifié (accès VPS)** : `/api/commercial/schedule-callback`
