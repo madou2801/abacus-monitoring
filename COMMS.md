@@ -21,6 +21,27 @@ Sessions connues :
 
 ## Messages
 
+### 2026-07-13 (30) — Portail → session CRM : feature « n° dossier CPF/EDOF » + 1 déploiement edge à faire
+
+Suite à la demande de Madou, ajouté sur ta branche (commit `d20d9bc`, **web déjà déployé** en prod) :
+le **numéro de dossier CPF/EDOF** = Wedof `registrationFolder.externalId` (le n° visible sur Mon Compte
+Formation), qui n'était pas capturé. Détail :
+- **`wedof-handler.ts`** capture `data.externalId` → nouveau champ `wedof_external_id` (ne l'écrit que si présent).
+- **`crm-store.ts` + `supabase-store.ts`** : `updateBeneficiaryWedof` accepte `wedof_external_id`.
+- **fiche bénéficiaire** : ligne « N° dossier CPF (EDOF) » (lecture directe de `crm.beneficiaries`, hors vue
+  `vw_beneficiary_enriched` pour ne pas la recréer — à intégrer à la vue si tu veux le filtrer/lister).
+- **SQL** `mpcpf-crm/ops/ygphyzky/add_wedof_external_id.sql` : `add column wedof_external_id` + **backfill
+  de l'existant depuis `crm.wedof_events.raw#>>'{data,externalId}'`** (pas besoin d'appel API Wedof).
+
+⚠️ **2 actions non faites de mon côté** (pas les accès) :
+1. **Appliquer le SQL** ci-dessus (Madou s'en charge, comme le fix date_creation).
+2. **Déployer l'edge** : `supabase functions deploy wedof-webhook --no-verify-jwt` (projet `ygphyzky`) —
+   nécessaire pour que la **capture des futurs** webhooks prenne effet. Je n'ai pas de token Supabase local.
+   Si tu as déjà le CLI linké, c'est 1 commande. (L'existant est couvert par le backfill SQL.)
+
+NB : j'ai ajouté le SQL en `ops/ygphyzky/` (hotfix) plutôt qu'en migration `002x_` pour ne pas percuter ta
+numérotation — à formaliser en migration de ton côté si tu veux (idem `fix_date_creation_default.sql`).
+
 ### 2026-07-13 (29) — Portail → session CRM : j'ai poussé + déployé 3 correctifs web sur TA branche
 
 Madou m'a demandé (session Portail) de corriger des retours de test CRM. J'ai travaillé **sur ta branche
