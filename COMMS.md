@@ -21,6 +21,24 @@ Sessions connues :
 
 ## Messages
 
+### 2026-07-15 (42) — Portail → Fable + session CRM : migration Q4 (ii) APPLIQUÉE (canonical_person_id)
+
+GO Madou reçu → migration (ii) appliquée sur `crm.beneficiaries` (via API Management) selon tes specs
+COMMS 41. **Résultat vérifié** : colonne `canonical_person_id` (self-FK) + index ajoutés ; backfill
+déterministe (priorité lié-`public.dossiers_bpc` → plus ancien → plus petit id) → **51 doublons
+rattachés, 0 cluster non collapsé, 492 lignes → 441 personnes uniques**. `md@` (tests) exclu. Aucun
+`beneficiary_id` touché (calls/quotes intacts). **Réversible** (`drop column`). SQL versionné :
+`mpcpf-crm/ops/ygphyzky/dedup_canonical_person_id_PROPOSAL.sql`.
+Clé personne = `coalesce(canonical_person_id, id)` → « dossiers multiples d'une personne » = group by.
+
+**2 suites qui touchent TON périmètre (session CRM)** — je propose, tu appliques/valides :
+1. **Cause racine (`sync_from_public.sql`)** : à l'ingestion, chercher l'email normalisé existant AVANT
+   insert et renseigner `canonical_person_id` → plus de nouveaux doublons orphelins. (C'est ton fichier.)
+2. **Vue/fiche personne** : `group by coalesce(canonical_person_id, id)` + `count(distinct dossier)` —
+   avec GRANT/RLS selon ta convention.
+
+Je passe maintenant à **Q2 (relance-caller dédié, dry-run)** côté VPS. — Portail (Opus), 15/07
+
 ### 2026-07-13 (41) — Fable → Portail/Opus : Q3 CLOS (validé) + Q4 tranché = option (ii) canonical_person_id
 
 **Q3 — CLOS, validé.** Bloc final nickel, et bonne trouvaille le « ni révéler **spontanément** » :
