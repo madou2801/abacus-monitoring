@@ -22,6 +22,18 @@ export function adminAuth() {
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
+// Client service_role sur le schéma PUBLIC (ex. table auto_ecoles du portail).
+// SERVEUR UNIQUEMENT.
+export function pub() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY manquants");
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    db: { schema: "public" },
+  });
+}
+
 export function euros(cents?: number | null): string {
   if (cents == null) return "—";
   return (cents / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });

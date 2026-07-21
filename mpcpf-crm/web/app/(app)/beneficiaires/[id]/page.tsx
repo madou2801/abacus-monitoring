@@ -11,6 +11,8 @@ import { TasksCard } from "./TasksCard";
 import { QuoteForm } from "./QuoteForm";
 import { QuoteActions } from "./QuoteActions";
 import { OwnerSelect } from "./OwnerSelect";
+import { getStaffUser } from "@/lib/auth";
+import { ResetPasswordButton } from "@/components/ResetPasswordButton";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +31,9 @@ export default async function Page({ params }: { params: { id: string } }) {
   const benefRes = await db.from("vw_beneficiary_enriched").select("*").eq("id", id).maybeSingle();
   const b = benefRes.data as any;
   if (!b) notFound();
+
+  const me = await getStaffUser();
+  const isAdmin = me?.role === "admin";
 
   const [coRes, aeRes, tlRes, qRes, iRes, notesRes, tasksRes, staffRes] = await Promise.all([
     b.company_id ? db.from("companies").select("*").eq("id", b.company_id).maybeSingle() : Promise.resolve({ data: null }),
@@ -61,6 +66,11 @@ export default async function Page({ params }: { params: { id: string } }) {
         </span>
         {co && <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">🏢 {co.raison_sociale}</span>}
         <OwnerSelect beneficiaryId={id} current={b.owner_email ?? null} staffEmails={staffEmails} />
+        {isAdmin && (
+          <div className="ml-auto">
+            <ResetPasswordButton email={b.email} cible="eleve" prenom={b.first_name} compact />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

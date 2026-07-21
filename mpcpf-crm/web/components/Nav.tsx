@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/beneficiaires", label: "Bénéficiaires", icon: "🧑" },
   { href: "/pipeline", label: "Pipeline", icon: "🗂️" },
   { href: "/entreprises", label: "Entreprises", icon: "🏢" },
+  { href: "/auto-ecoles", label: "Auto-écoles", icon: "🏫" },
   { href: "/facturation", label: "Facturation", icon: "🧾" },
   { href: "/parametres", label: "Paramètres", icon: "⚙️" },
 ];
