@@ -13,6 +13,7 @@ import { QuoteActions } from "./QuoteActions";
 import { OwnerSelect } from "./OwnerSelect";
 import { getStaffUser } from "@/lib/auth";
 import { ResetPasswordButton } from "@/components/ResetPasswordButton";
+import { BeneficiaryEmails } from "@/components/BeneficiaryEmails";
 
 export const dynamic = "force-dynamic";
 
@@ -167,6 +168,7 @@ export default async function Page({ params }: { params: { id: string } }) {
         <div className="space-y-4 lg:col-span-2">
           <TasksCard beneficiaryId={id} tasks={tasks} staffEmails={staffEmails} />
           <NotesCard beneficiaryId={id} notes={notes} />
+          <BeneficiaryEmails email={b.email} />
 
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
