@@ -14,11 +14,25 @@ export type MailMsg = {
   direction: "sent" | "received";
 };
 
+export type MailBody = {
+  id: string;
+  threadId: string;
+  subject: string;
+  from: string;
+  to: string;
+  cc: string;
+  date: string;
+  html: string;
+  text: string;
+};
+
+const SECRET = () => process.env.INTERNAL_MAIL_SECRET;
+
 export async function fetchBeneficiaryEmails(email: string | null, max = 25): Promise<MailMsg[]> {
   const addr = (email || "").trim();
   if (!addr) return [];
   const url = process.env.INTERNAL_GMAIL_URL || "https://api.monpermiscpf.com/t/internal-gmail-search";
-  const secret = process.env.INTERNAL_MAIL_SECRET;
+  const secret = SECRET();
   if (!secret) return [];
   try {
     const res = await fetch(url, {
@@ -32,5 +46,26 @@ export async function fetchBeneficiaryEmails(email: string | null, max = 25): Pr
     return data && data.ok && Array.isArray(data.messages) ? data.messages : [];
   } catch {
     return [];
+  }
+}
+
+export async function fetchEmailBody(id: string): Promise<MailBody | null> {
+  const mid = (id || "").trim();
+  if (!mid) return null;
+  const url = process.env.INTERNAL_GMAIL_MESSAGE_URL || "https://api.monpermiscpf.com/t/internal-gmail-message";
+  const secret = SECRET();
+  if (!secret) return null;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-internal-secret": secret },
+      body: JSON.stringify({ id: mid }),
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { ok?: boolean; message?: MailBody };
+    return data && data.ok && data.message ? data.message : null;
+  } catch {
+    return null;
   }
 }
