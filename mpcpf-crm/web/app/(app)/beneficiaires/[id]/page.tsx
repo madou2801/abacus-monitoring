@@ -13,15 +13,9 @@ import { QuoteActions } from "./QuoteActions";
 import { OwnerSelect } from "./OwnerSelect";
 import { getStaffUser } from "@/lib/auth";
 import { ResetPasswordButton } from "@/components/ResetPasswordButton";
-import { BeneficiaryEmails } from "@/components/BeneficiaryEmails";
+import { UnifiedTimeline } from "@/components/UnifiedTimeline";
 
 export const dynamic = "force-dynamic";
-
-const EVENT_ICON: Record<string, string> = {
-  call: "📞", email: "✉️", notification: "🔔", wedof: "🎓",
-  stage: "➡️", form: "📝", document: "📎", quote: "💶",
-  note: "🗒️", task: "✅", edit: "✏️",
-};
 
 const FINANCEUR_OPTIONS = Object.entries(FINANCEUR_LABEL).map(([value, label]) => ({ value, label }));
 
@@ -168,7 +162,6 @@ export default async function Page({ params }: { params: { id: string } }) {
         <div className="space-y-4 lg:col-span-2">
           <TasksCard beneficiaryId={id} tasks={tasks} staffEmails={staffEmails} />
           <NotesCard beneficiaryId={id} notes={notes} />
-          <BeneficiaryEmails email={b.email} />
 
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -223,25 +216,7 @@ export default async function Page({ params }: { params: { id: string } }) {
             ) : <p className="text-sm text-slate-400">Aucune facture.</p>}
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <h2 className="mb-3 text-sm font-semibold text-slate-700">Historique (timeline)</h2>
-            {timeline.length ? (
-              <ul className="space-y-3">
-                {timeline.map((e: any, idx: number) => (
-                  <li key={idx} className="flex gap-3">
-                    <span className="text-lg leading-none">{EVENT_ICON[e.event_type] ?? "•"}</span>
-                    <div className="flex-1 border-b border-slate-100 pb-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-800">{e.title}</span>
-                        <span className="text-xs text-slate-400">{dateFr(e.occurred_at)}</span>
-                      </div>
-                      {e.detail && <div className="text-xs text-slate-500">{e.detail}</div>}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : <p className="text-sm text-slate-400">Aucun évènement.</p>}
-          </div>
+          <UnifiedTimeline events={timeline as any[]} email={b.email} />
         </div>
       </div>
     </div>
