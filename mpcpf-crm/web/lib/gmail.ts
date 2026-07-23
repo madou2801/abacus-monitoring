@@ -17,6 +17,7 @@ export type MailMsg = {
 export type MailBody = {
   id: string;
   threadId: string;
+  messageId: string;
   subject: string;
   from: string;
   to: string;
@@ -24,6 +25,15 @@ export type MailBody = {
   date: string;
   html: string;
   text: string;
+};
+
+export type SendEmailInput = {
+  to: string;
+  subject: string;
+  html: string;
+  inReplyTo?: string;
+  references?: string;
+  threadId?: string;
 };
 
 const SECRET = () => process.env.INTERNAL_MAIL_SECRET;
@@ -46,6 +56,36 @@ export async function fetchBeneficiaryEmails(email: string | null, max = 25): Pr
     return data && data.ok && Array.isArray(data.messages) ? data.messages : [];
   } catch {
     return [];
+  }
+}
+
+export async function sendEmail(
+  input: SendEmailInput
+): Promise<{ ok: boolean; threadId?: string; error?: string }> {
+  const to = (input.to || "").trim();
+  if (!to) return { ok: false, error: "destinataire manquant" };
+  const url = process.env.INTERNAL_MAIL_URL || "https://api.monpermiscpf.com/t/internal-send-mail";
+  const secret = SECRET();
+  if (!secret) return { ok: false, error: "INTERNAL_MAIL_SECRET manquant" };
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-internal-secret": secret },
+      body: JSON.stringify({
+        to,
+        subject: input.subject || "MonPermisCPF",
+        html: input.html || "",
+        inReplyTo: input.inReplyTo,
+        references: input.references,
+        threadId: input.threadId,
+      }),
+      cache: "no-store",
+    });
+    const data = (await res.json().catch(() => ({}))) as { ok?: boolean; threadId?: string; error?: string };
+    if (!res.ok || !data.ok) return { ok: false, error: data?.error || `HTTP ${res.status}` };
+    return { ok: true, threadId: data.threadId };
+  } catch (e) {
+    return { ok: false, error: String((e as Error)?.message || e) };
   }
 }
 

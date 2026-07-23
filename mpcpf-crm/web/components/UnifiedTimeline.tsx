@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ComposeEmail, type ComposeInit } from "@/components/ComposeEmail";
 
 type DbEvent = {
   event_type: string;
@@ -23,6 +24,8 @@ type MailMsg = {
 
 type MailBody = {
   id: string;
+  threadId: string;
+  messageId: string;
   subject: string;
   from: string;
   to: string;
@@ -31,6 +34,16 @@ type MailBody = {
   html: string;
   text: string;
 };
+
+// Extrait l'adresse email d'une chaîne "Nom <email>" ou "email".
+function extractAddr(s: string): string {
+  const m = (s || "").match(/<([^>]+)>/);
+  return (m ? m[1] : s || "").trim();
+}
+// "Re: " en évitant "Re: Re:".
+function replySubject(s: string): string {
+  return "Re: " + (s || "").replace(/^(re\s*:\s*)+/i, "").trim();
+}
 
 const EVENT_ICON: Record<string, string> = {
   call: "📞", email: "✉️", notification: "🔔", wedof: "🎓",
@@ -65,6 +78,9 @@ export function UnifiedTimeline({ events, email }: { events: DbEvent[]; email: s
   const [bodyLoading, setBodyLoading] = useState<string | null>(null);
   const [bodyError, setBodyError] = useState<string | null>(null);
 
+  const [compose, setCompose] = useState<ComposeInit | null>(null);
+  const [reload, setReload] = useState(0);
+
   useEffect(() => {
     let alive = true;
     if (!email) {
@@ -92,7 +108,7 @@ export function UnifiedTimeline({ events, email }: { events: DbEvent[]; email: s
     return () => {
       alive = false;
     };
-  }, [email]);
+  }, [email, reload]);
 
   const items = useMemo<Item[]>(() => {
     const dbItems: Item[] = (events || []).map((e) => ({
@@ -137,11 +153,22 @@ export function UnifiedTimeline({ events, email }: { events: DbEvent[]; email: s
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-slate-700">Historique</h2>
-        <span className="text-xs text-slate-400">
-          {mailsLoading ? "chargement des emails…" : email ? `${mails.length} email${mails.length > 1 ? "s" : ""}` : ""}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-400">
+            {mailsLoading ? "chargement des emails…" : email ? `${mails.length} email${mails.length > 1 ? "s" : ""}` : ""}
+          </span>
+          {email && (
+            <button
+              type="button"
+              onClick={() => setCompose({ to: email, subject: "" })}
+              className="rounded bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700"
+            >
+              ✉️ Nouvel email
+            </button>
+          )}
+        </div>
       </div>
 
       {mailsError && <p className="mb-2 text-xs text-amber-600">Emails : {mailsError}</p>}
@@ -205,6 +232,23 @@ export function UnifiedTimeline({ events, email }: { events: DbEvent[]; email: s
                       ) : (
                         <p className="text-xs text-slate-400">(corps du message vide)</p>
                       ))}
+                      {body && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCompose({
+                              to: extractAddr(m.direction === "sent" ? m.to : m.from),
+                              subject: replySubject(m.subject),
+                              inReplyTo: body.messageId || undefined,
+                              references: body.messageId || undefined,
+                              threadId: body.threadId || m.threadId || undefined,
+                            })
+                          }
+                          className="mt-2 rounded border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        >
+                          ↩ Répondre
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -214,6 +258,17 @@ export function UnifiedTimeline({ events, email }: { events: DbEvent[]; email: s
         </ul>
       ) : (
         <p className="text-sm text-slate-400">Aucun évènement.</p>
+      )}
+
+      {compose && (
+        <ComposeEmail
+          init={compose}
+          onClose={() => setCompose(null)}
+          onSent={() => {
+            setCompose(null);
+            setReload((r) => r + 1);
+          }}
+        />
       )}
     </div>
   );
