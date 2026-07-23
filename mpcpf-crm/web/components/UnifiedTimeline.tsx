@@ -64,7 +64,7 @@ function fmtDateTime(ts: number): string {
 }
 
 type Item =
-  | { kind: "db"; ts: number; icon: string; title: string; detail: string | null }
+  | { kind: "db"; ts: number; icon: string; title: string; detail: string | null; eventType: string }
   | { kind: "mail"; ts: number; msg: MailMsg };
 
 // Historique unifié : évènements CRM (base) + emails Gmail (boîte contact@monpermiscpf.com),
@@ -120,13 +120,23 @@ export function UnifiedTimeline({ events, email }: { events: DbEvent[]; email: s
       icon: EVENT_ICON[e.event_type] ?? "•",
       title: e.title,
       detail: e.detail,
+      eventType: e.event_type,
     }));
     const mailItems: Item[] = mails.map((m) => ({
       kind: "mail",
       ts: m.internalDate || Date.parse(m.date) || 0,
       msg: m,
     }));
-    let all = [...dbItems, ...mailItems].sort((a, b) => b.ts - a.ts);
+    // Dédup : un évènement "email" en base qui coïncide (±3 min) avec un vrai
+    // message Gmail est masqué — on garde le message Gmail (plus riche, cliquable).
+    const mailTs = mailItems.map((mi) => mi.ts);
+    const dbFiltered = dbItems.filter(
+      (d) =>
+        d.kind !== "db" ||
+        d.eventType !== "email" ||
+        !mailTs.some((t) => Math.abs(t - d.ts) < 180000)
+    );
+    let all = [...dbFiltered, ...mailItems].sort((a, b) => b.ts - a.ts);
     const q = query.trim().toLowerCase();
     if (q) {
       all = all.filter((it) =>
