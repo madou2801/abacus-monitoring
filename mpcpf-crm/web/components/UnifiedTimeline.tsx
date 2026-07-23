@@ -20,6 +20,7 @@ type MailMsg = {
   subject: string;
   snippet: string;
   direction: "sent" | "received";
+  unread: boolean;
 };
 
 type MailBody = {
@@ -144,6 +145,16 @@ export function UnifiedTimeline({ events, email }: { events: DbEvent[]; email: s
     }
     setOpenId(id);
     setBodyError(null);
+    // marquer lu (optimiste) si le message est non-lu
+    const msg = mails.find((x) => x.id === id);
+    if (msg && msg.unread) {
+      setMails((prev) => prev.map((x) => (x.id === id ? { ...x, unread: false } : x)));
+      fetch("/api/mark-read", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id }),
+      }).catch(() => {});
+    }
     if (bodies[id]) return;
     setBodyLoading(id);
     try {
@@ -167,6 +178,11 @@ export function UnifiedTimeline({ events, email }: { events: DbEvent[]; email: s
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-slate-700">Historique</h2>
         <div className="flex items-center gap-3">
+          {mails.some((m) => m.unread) && (
+            <span className="rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+              {mails.filter((m) => m.unread).length} non lu{mails.filter((m) => m.unread).length > 1 ? "s" : ""}
+            </span>
+          )}
           <span className="text-xs text-slate-400">
             {mailsLoading ? "chargement des emails…" : email ? `${mails.length} email${mails.length > 1 ? "s" : ""}` : ""}
           </span>
@@ -221,7 +237,10 @@ export function UnifiedTimeline({ events, email }: { events: DbEvent[]; email: s
                 <div className="min-w-0 flex-1 border-b border-slate-100 pb-2">
                   <button type="button" onClick={() => toggle(m.id)} className="block w-full text-left">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-sm font-medium text-slate-800">
+                      <span className={`truncate text-sm ${m.unread ? "font-bold text-slate-900" : "font-medium text-slate-800"}`}>
+                        {m.unread && (
+                          <span className="mr-1 inline-block h-2 w-2 rounded-full bg-blue-500 align-middle" title="Non lu" />
+                        )}
                         {m.subject} <span className="ml-1 text-slate-300">{isOpen ? "▾" : "▸"}</span>
                       </span>
                       <span className="shrink-0 text-xs text-slate-400">{fmtDateTime(it.ts)}</span>

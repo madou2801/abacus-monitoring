@@ -12,7 +12,28 @@ export type MailMsg = {
   subject: string;
   snippet: string;
   direction: "sent" | "received";
+  unread: boolean;
 };
+
+export async function markEmailRead(id: string): Promise<boolean> {
+  const mid = (id || "").trim();
+  if (!mid) return false;
+  const url = process.env.INTERNAL_GMAIL_MARKREAD_URL || "https://api.monpermiscpf.com/t/internal-gmail-markread";
+  const secret = SECRET();
+  if (!secret) return false;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-internal-secret": secret },
+      body: JSON.stringify({ id: mid }),
+      cache: "no-store",
+    });
+    const data = (await res.json().catch(() => ({}))) as { ok?: boolean };
+    return !!(res.ok && data.ok);
+  } catch {
+    return false;
+  }
+}
 
 export type MailBody = {
   id: string;
