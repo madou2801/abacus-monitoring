@@ -14,6 +14,7 @@ import { OwnerSelect } from "./OwnerSelect";
 import { getStaffUser } from "@/lib/auth";
 import { ResetPasswordButton } from "@/components/ResetPasswordButton";
 import { UnifiedTimeline } from "@/components/UnifiedTimeline";
+import { DossierCompletion } from "./DossierCompletion";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,16 @@ export default async function Page({ params }: { params: { id: string } }) {
   const tasks = (tasksRes.data ?? []) as any[];
   const staffEmails = (staffRes.data ?? []).map((u: any) => u.email as string);
   const fullName = [b.first_name, b.last_name].filter(Boolean).join(" ") || "Bénéficiaire";
+
+  // Complétude : champs Dossier vides mais dérivables du dernier devis.
+  const latestQuote = (quotes as any[])[0];
+  const dossierSuggested: Record<string, string> = {};
+  if (!b.intitule_formation && latestQuote?.formation_label) {
+    dossierSuggested.intitule_formation = latestQuote.formation_label;
+  }
+  if (!b.financeur && latestQuote?.financeur) {
+    dossierSuggested.financeur = latestQuote.financeur;
+  }
 
   return (
     <div className="p-6 lg:p-8">
@@ -89,6 +100,10 @@ export default async function Page({ params }: { params: { id: string } }) {
               </>
             }
           />
+
+          {Object.keys(dossierSuggested).length > 0 && (
+            <DossierCompletion beneficiaryId={id} suggested={dossierSuggested} source="devis" />
+          )}
 
           <EditableCard
             title="Dossier"
