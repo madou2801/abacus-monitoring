@@ -80,6 +80,8 @@ export function UnifiedTimeline({ events, email }: { events: DbEvent[]; email: s
 
   const [compose, setCompose] = useState<ComposeInit | null>(null);
   const [reload, setReload] = useState(0);
+  const [max, setMax] = useState(25);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -93,7 +95,7 @@ export function UnifiedTimeline({ events, email }: { events: DbEvent[]; email: s
         const res = await fetch("/api/beneficiary-emails", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email, max }),
         });
         const data = await res.json();
         if (!alive) return;
@@ -108,7 +110,7 @@ export function UnifiedTimeline({ events, email }: { events: DbEvent[]; email: s
     return () => {
       alive = false;
     };
-  }, [email, reload]);
+  }, [email, reload, max]);
 
   const items = useMemo<Item[]>(() => {
     const dbItems: Item[] = (events || []).map((e) => ({
@@ -123,8 +125,17 @@ export function UnifiedTimeline({ events, email }: { events: DbEvent[]; email: s
       ts: m.internalDate || Date.parse(m.date) || 0,
       msg: m,
     }));
-    return [...dbItems, ...mailItems].sort((a, b) => b.ts - a.ts);
-  }, [events, mails]);
+    let all = [...dbItems, ...mailItems].sort((a, b) => b.ts - a.ts);
+    const q = query.trim().toLowerCase();
+    if (q) {
+      all = all.filter((it) =>
+        it.kind === "db"
+          ? `${it.title} ${it.detail || ""}`.toLowerCase().includes(q)
+          : `${it.msg.subject} ${it.msg.from} ${it.msg.to} ${it.msg.snippet}`.toLowerCase().includes(q)
+      );
+    }
+    return all;
+  }, [events, mails, query]);
 
   async function toggle(id: string) {
     if (openId === id) {
@@ -170,6 +181,15 @@ export function UnifiedTimeline({ events, email }: { events: DbEvent[]; email: s
           )}
         </div>
       </div>
+
+      {email && (
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Rechercher dans l'historique…"
+          className="mb-3 w-full rounded border border-slate-200 px-2 py-1 text-xs"
+        />
+      )}
 
       {mailsError && <p className="mb-2 text-xs text-amber-600">Emails : {mailsError}</p>}
 
@@ -257,7 +277,20 @@ export function UnifiedTimeline({ events, email }: { events: DbEvent[]; email: s
           })}
         </ul>
       ) : (
-        <p className="text-sm text-slate-400">Aucun évènement.</p>
+        <p className="text-sm text-slate-400">
+          {query ? "Aucun résultat pour cette recherche." : "Aucun évènement."}
+        </p>
+      )}
+
+      {email && !query && mails.length >= max && max < 100 && (
+        <button
+          type="button"
+          onClick={() => setMax((m) => Math.min(m + 25, 100))}
+          disabled={mailsLoading}
+          className="mt-3 w-full rounded border border-slate-200 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+        >
+          {mailsLoading ? "Chargement…" : "Charger plus d'emails"}
+        </button>
       )}
 
       {compose && (
