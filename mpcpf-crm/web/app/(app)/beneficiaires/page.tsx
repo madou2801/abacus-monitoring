@@ -22,7 +22,12 @@ function startOfTodayParisISO(): string {
       .format(new Date(`${ymd}T12:00:00Z`)),
   );
   const offset = parisHourAtNoonUtc - 12;
-  return `${ymd}T00:00:00${offset >= 0 ? "+" : "-"}${String(Math.abs(offset)).padStart(2, "0")}:00`;
+  // Minuit Paris exprimé en UTC (suffixe Z), PAS avec l'offset "+02:00" : dans
+  // l'URL PostgREST le "+" est décodé en espace → timestamp invalide → 400 →
+  // liste "du jour" toujours vide. Le format Z évite ce piège.
+  const d = new Date(`${ymd}T00:00:00Z`);
+  d.setUTCHours(d.getUTCHours() - offset);
+  return d.toISOString();
 }
 
 export default async function Page({ searchParams }: { searchParams: SP }) {
