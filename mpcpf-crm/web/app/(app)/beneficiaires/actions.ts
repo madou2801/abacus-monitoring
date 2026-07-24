@@ -11,6 +11,7 @@ type Result = { ok: boolean; error?: string; id?: string };
 const EDITABLE_FIELDS = [
   "first_name", "last_name", "email", "phone", "financeur",
   "intitule_formation", "code_postal", "ville_formation", "motif", "owner_email",
+  "numero_france_travail",
 ] as const;
 export type EditableField = (typeof EDITABLE_FIELDS)[number];
 

@@ -111,6 +111,7 @@ export default async function Page({ params }: { params: { id: string } }) {
             fields={[
               { key: "intitule_formation", label: "Formation", value: b.intitule_formation },
               { key: "financeur", label: "Financeur", value: b.financeur, type: "select", options: FINANCEUR_OPTIONS },
+              { key: "numero_france_travail", label: "N° identifiant France Travail (DE)", value: b.numero_france_travail },
               { key: "motif", label: "Motif / contexte", value: b.motif, type: "textarea" },
             ]}
             extra={
