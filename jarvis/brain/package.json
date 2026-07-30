@@ -1,0 +1,14 @@
+{
+  "name": "jarvis-brain",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cerveau orchestrateur de JARVIS — couplage LLM chinois (GLM) x Claude",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
