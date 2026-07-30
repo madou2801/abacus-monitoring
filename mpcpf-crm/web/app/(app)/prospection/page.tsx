@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export const dynamic = "force-dynamic";
 
 const STATS_URL = process.env.FINANCEMENTS_STATS_URL ?? "https://financements.abacus-rh.com/stats";
@@ -26,19 +28,21 @@ async function getStats(): Promise<Stats | null> {
   }
 }
 
-function Kpi({ label, value, sub, tone = "slate" }: {
-  label: string; value: string; sub?: string; tone?: "slate" | "green" | "amber" | "blue";
+function Kpi({ label, value, sub, tone = "slate", href }: {
+  label: string; value: string; sub?: string; tone?: "slate" | "green" | "amber" | "blue"; href?: string;
 }) {
   const toneCls = {
     slate: "text-slate-900", green: "text-emerald-600", amber: "text-amber-600", blue: "text-blue-600",
   }[tone];
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+  const inner = (
+    <div className="h-full rounded-xl border border-slate-200 bg-white p-4 transition hover:border-blue-300 hover:shadow-sm">
       <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
       <div className={`mt-1 text-2xl font-bold ${toneCls}`}>{value}</div>
       {sub && <div className="mt-0.5 text-xs text-slate-400">{sub}</div>}
+      {href && <div className="mt-1 text-[11px] font-medium text-blue-500">Voir la liste →</div>}
     </div>
   );
+  return href ? <Link href={href} className="block">{inner}</Link> : inner;
 }
 
 function Dod({ ok, label }: { ok: boolean; label: string }) {
@@ -50,6 +54,8 @@ function Dod({ ok, label }: { ok: boolean; label: string }) {
     </span>
   );
 }
+
+const L = (f: string) => `/prospection/liste?f=${f}`;
 
 export default async function Page() {
   const s = await getStats();
@@ -75,7 +81,7 @@ export default async function Page() {
           <h1 className="text-2xl font-bold text-slate-900">Prospection Financements</h1>
           <p className="text-sm text-slate-500">
             Acquisition entreprises — base T1 & campagne d'approche. En amont de l'onglet Entreprises
-            (un prospect converti y devient client).
+            (un prospect converti y devient client). Chaque indicateur est cliquable.
           </p>
         </div>
         <div className="text-xs text-slate-400">
@@ -86,12 +92,12 @@ export default async function Page() {
       {/* --- Base de prospection --- */}
       <h2 className="mb-2 mt-6 text-sm font-semibold uppercase tracking-wide text-slate-500">Base de prospection</h2>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        <Kpi label="Entreprises" value={base.companies.toLocaleString("fr-FR")} sub={`${base.contacts.toLocaleString("fr-FR")} contacts`} />
-        <Kpi label="Avec contact" value={`${base.with_contact_pct}%`} sub={`${base.with_contact} entreprises`} tone="blue" />
-        <Kpi label="Exploitable" value={`${base.exploitable_pct}%`} sub="≥ 70% cible" tone={base.dod.exploitable_ok ? "green" : "amber"} />
-        <Kpi label="Domaine résolu" value={`${base.domain_pct}%`} sub="≥ 60% cible" tone={base.dod.domain_ok ? "green" : "amber"} />
-        <Kpi label="Prospects chauds" value={base.hot_prospects.toLocaleString("fr-FR")} sub="v_hot_prospects" tone="blue" />
-        <Kpi label="Génériques (VERT)" value={`${base.generic_pct}%`} sub="distribuables RGPD" tone={base.dod.generic_ok ? "green" : "amber"} />
+        <Kpi label="Entreprises" value={base.companies.toLocaleString("fr-FR")} sub={`${base.contacts.toLocaleString("fr-FR")} contacts`} href={L("entreprises")} />
+        <Kpi label="Avec contact" value={`${base.with_contact_pct}%`} sub={`${base.with_contact} entreprises`} tone="blue" href={L("avec_contact")} />
+        <Kpi label="Exploitable" value={`${base.exploitable_pct}%`} sub="≥ 70% cible" tone={base.dod.exploitable_ok ? "green" : "amber"} href={L("exploitable")} />
+        <Kpi label="Domaine résolu" value={`${base.domain_pct}%`} sub="≥ 60% cible" tone={base.dod.domain_ok ? "green" : "amber"} href={L("domaine")} />
+        <Kpi label="Prospects chauds" value={base.hot_prospects.toLocaleString("fr-FR")} sub="entreprises" tone="blue" href={L("hot")} />
+        <Kpi label="Génériques (VERT)" value={`${base.generic_pct}%`} sub="distribuables RGPD" tone={base.dod.generic_ok ? "green" : "amber"} href={L("generique")} />
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         <Dod ok={base.dod.exploitable_ok} label="DoD exploitable ≥ 70%" />
@@ -104,12 +110,12 @@ export default async function Page() {
       {/* --- Campagne email --- */}
       <h2 className="mb-2 mt-8 text-sm font-semibold uppercase tracking-wide text-slate-500">Campagne email « diagnostic financement »</h2>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        <Kpi label="Cible" value={String(campaign.targets)} sub="email sûr + aides" />
-        <Kpi label="Envoyés" value={String(campaign.sent)} sub={`${sentPct}%`} tone="green" />
-        <Kpi label="Restants" value={String(campaign.remaining)} tone="blue" />
-        <Kpi label="Désabonnés" value={String(campaign.optout)} tone={campaign.optout > 0 ? "amber" : "slate"} />
-        <Kpi label="Emails sûrs (base)" value={String(campaign.safe_emails)} sub="domaine = nom" />
-        <Kpi label="Avec aides éligibles" value={String(campaign.with_aids)} />
+        <Kpi label="Cible" value={String(campaign.targets)} sub="email sûr + aides" href={L("cible")} />
+        <Kpi label="Envoyés" value={String(campaign.sent)} sub={`${sentPct}%`} tone="green" href={L("envoyes")} />
+        <Kpi label="Restants" value={String(campaign.remaining)} tone="blue" href={L("restants")} />
+        <Kpi label="Désabonnés" value={String(campaign.optout)} tone={campaign.optout > 0 ? "amber" : "slate"} href={L("desabonnes")} />
+        <Kpi label="Emails sûrs (base)" value={String(campaign.safe_emails)} sub="domaine = nom" href={L("emails_surs")} />
+        <Kpi label="Avec aides éligibles" value={String(campaign.with_aids)} href={L("avec_aides")} />
       </div>
 
       <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
