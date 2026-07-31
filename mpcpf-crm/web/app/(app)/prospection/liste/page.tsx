@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ListTable } from "./ListTable";
 
 export const dynamic = "force-dynamic";
 
@@ -43,30 +44,7 @@ export default async function Page({ searchParams }: { searchParams: { f?: strin
           Aucun résultat pour le moment.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-              <tr>
-                {data.columns.map(([key, label]) => (
-                  <th key={key} className="whitespace-nowrap px-4 py-2">{label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {data.rows.map((row, i) => (
-                <tr key={i} className="hover:bg-slate-50">
-                  {data.columns.map(([key]) => (
-                    <td key={key} className="whitespace-nowrap px-4 py-2 text-slate-700">
-                      {key === "email" && row[key]
-                        ? <a href={`mailto:${row[key]}`} className="text-blue-600 hover:underline">{row[key]}</a>
-                        : (row[key] || <span className="text-slate-300">—</span>)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ListTable columns={data.columns} rows={data.rows} />
       )}
     </div>
   );
