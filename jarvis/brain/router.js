@@ -9,7 +9,7 @@
 //
 // `now` est injecté par l'appelant (le serveur) pour rester testable/déterministe.
 
-const { call } = require('./providers');
+const providers = require('./providers');
 const memory = require('./memory');
 const tools = require('./tools');
 
@@ -44,7 +44,9 @@ function safeParse(text) {
   return null;
 }
 
-async function handleTurn(cfg, userText, now) {
+// `deps.call` est injectable pour les tests (par défaut : les vrais fournisseurs).
+async function handleTurn(cfg, userText, now, deps = {}) {
+  const call = deps.call || providers.call;
   const mem = memory.load();
   const ctx = memory.contextBlock(mem);
   const toolList = tools.list();
