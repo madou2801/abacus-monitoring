@@ -1,0 +1,27 @@
+{
+  "reflex": {
+    "provider": "glm",
+    "model": "glm-4.6",
+    "baseUrl": "https://api.z.ai/api/paas/v4",
+    "apiKeyEnv": "GLM_API_KEY",
+    "temperature": 0.3,
+    "maxTokens": 1024
+  },
+  "deep": {
+    "provider": "claude",
+    "model": "claude-opus-4-8",
+    "baseUrl": "https://api.anthropic.com/v1",
+    "apiKeyEnv": "ANTHROPIC_API_KEY",
+    "temperature": 0.2,
+    "maxTokens": 4096
+  },
+  "escalation": {
+    "toDeepIntents": ["code", "deploy", "decision", "analysis", "multi_step"],
+    "confidenceFloor": 0.6,
+    "alwaysConfirmIntents": ["send_email", "launch_relance", "deploy", "delete"]
+  },
+  "server": {
+    "port": 3860,
+    "host": "127.0.0.1"
+  }
+}
