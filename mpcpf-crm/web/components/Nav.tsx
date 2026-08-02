@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/entreprises", label: "Entreprises", icon: "🏢" },
   { href: "/auto-ecoles", label: "Auto-écoles", icon: "🏫" },
   { href: "/facturation", label: "Facturation", icon: "🧾" },
+  { href: "/factory", label: "Internal Factory", icon: "🏭" },
   { href: "/parametres", label: "Paramètres", icon: "⚙️" },
 ];
 

@@ -34,6 +34,21 @@ export function pub() {
   });
 }
 
+// Client service_role sur le schéma PUBLIC de la base GAIA (oezaby) — lecture du
+// suivi ZYVARA Factory (table zyvara_factory_projects). SERVEUR UNIQUEMENT :
+// la clé service_role ne touche jamais le navigateur.
+export function gaia() {
+  const url = process.env.GAIA_SUPABASE_URL;
+  const key = process.env.GAIA_SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error("GAIA_SUPABASE_URL / GAIA_SUPABASE_SERVICE_ROLE_KEY manquants (voir .env.local / Vercel)");
+  }
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    db: { schema: "public" },
+  });
+}
+
 export function euros(cents?: number | null): string {
   if (cents == null) return "—";
   return (cents / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
