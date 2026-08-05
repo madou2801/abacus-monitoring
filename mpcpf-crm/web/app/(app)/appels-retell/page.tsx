@@ -107,6 +107,11 @@ export default async function Page() {
   const todaysTransfers = todays.filter((e) => e.transfer.tone === "done").length;
   const todaysAsked = todays.filter((e) => e.transfer.tone !== "none").length;
 
+  // Notification : transferts conseiller des 7 derniers jours = appelants à rappeler.
+  const toCallBack = enriched
+    .filter((e) => e.transfer.tone === "done" && Date.now() - e.dt.ts < 7 * 864e5)
+    .slice(0, 15);
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -123,6 +128,34 @@ export default async function Page() {
           <Stat label="Demandes conseiller (jour)" value={todaysAsked} tone="asked" />
         </div>
       </header>
+
+      {toCallBack.length > 0 && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm">
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-800">
+            <span aria-hidden="true">📞</span> Transferts conseiller à rappeler
+            <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs text-amber-900">{toCallBack.length}</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {toCallBack.map(({ c, dt, name }) => (
+              <a
+                key={c.id}
+                href={`tel:${c.from_number}`}
+                className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-sm transition hover:bg-amber-100"
+                title="Rappeler cet appelant"
+              >
+                <span className="font-medium tabular-nums text-slate-800">{formatPhoneFr(c.from_number)}</span>
+                <span className="text-xs text-slate-400">
+                  {dt.time} {dt.day}
+                </span>
+                {name && <span className="text-xs text-slate-500">· {name}</span>}
+              </a>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-amber-700">
+            Appelants transférés vers un conseiller sur les 7 derniers jours. Cliquez un numéro pour rappeler.
+          </p>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">

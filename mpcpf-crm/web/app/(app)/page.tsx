@@ -4,6 +4,15 @@ import { STAGES, INVOICE_STATUS, CHANNELS } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
+function fmtPhoneFr(p?: string | null): string {
+  if (!p) return "—";
+  const d = p.replace(/\D/g, "");
+  let local = d;
+  if (d.startsWith("33") && d.length >= 11) local = "0" + d.slice(2);
+  if (local.length === 10) return local.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
+  return p;
+}
+
 function tally<T extends string>(rows: { [k: string]: any }[], key: string): Record<string, number> {
   const out: Record<string, number> = {};
   for (const r of rows) {
@@ -15,7 +24,7 @@ function tally<T extends string>(rows: { [k: string]: any }[], key: string): Rec
 
 export default async function Dashboard() {
   const db = crm();
-  const [benef, inv, companies, ae, review, todayRes, lateTasks] = await Promise.all([
+  const [benef, inv, companies, ae, review, todayRes, lateTasks, transfersRes] = await Promise.all([
     db.from("beneficiaries").select("pipeline_stage"),
     db.from("invoices").select("status, amount_cents"),
     db.from("companies").select("id", { count: "exact", head: true }),
@@ -24,8 +33,14 @@ export default async function Dashboard() {
     db.from("vw_intake_today").select("*").maybeSingle(),
     db.from("tasks").select("id", { count: "exact", head: true })
       .eq("status", "open").lte("due_at", new Date().toISOString()),
+    // Transferts conseiller des dernières 48 h = appelants à rappeler (notification CRM).
+    db.from("calls").select("id, from_number, started_at")
+      .ilike("disconnection_reason", "%transfer%")
+      .gte("started_at", new Date(Date.now() - 48 * 3600 * 1000).toISOString())
+      .order("started_at", { ascending: false }),
   ]);
   const today = (todayRes.data ?? {}) as any;
+  const transfers = (transfersRes.data ?? []) as { id: string; from_number: string | null; started_at: string | null }[];
 
   const rows = benef.data ?? [];
   const total = rows.length;
@@ -44,6 +59,28 @@ export default async function Dashboard() {
     <div className="p-6 lg:p-8">
       <h1 className="mb-1 text-2xl font-bold text-slate-900">Tableau de bord</h1>
       <p className="mb-6 text-sm text-slate-500">Vue d'ensemble du parcours bénéficiaire jusqu'à la facturation.</p>
+
+      {transfers.length > 0 && (
+        <Link
+          href="/appels-retell"
+          className="mb-6 flex items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 transition hover:bg-amber-100"
+        >
+          <span className="text-xl" aria-hidden="true">📞</span>
+          <div className="flex-1">
+            <div className="font-semibold text-amber-800">
+              {transfers.length} transfert{transfers.length > 1 ? "s" : ""} conseiller à rappeler (48 h)
+            </div>
+            <div className="text-sm tabular-nums text-amber-700">
+              {transfers
+                .slice(0, 5)
+                .map((t) => fmtPhoneFr(t.from_number))
+                .join("  ·  ")}
+              {transfers.length > 5 ? "  …" : ""}
+            </div>
+          </div>
+          <span className="whitespace-nowrap text-sm font-medium text-amber-800">Voir les appels →</span>
+        </Link>
+      )}
 
       {/* ---- Aujourd'hui (temps réel, dédupliqué par personne) ---- */}
       <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5">
