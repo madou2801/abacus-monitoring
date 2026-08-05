@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/", label: "Tableau de bord", icon: "📊" },
   { href: "/inbox", label: "Boîte de réception", icon: "📥" },
   { href: "/appels-retell", label: "Appels Retell", icon: "📞" },
+  { href: "/audit-repondeur", label: "Audit auto-répondeur", icon: "🛡️" },
   { href: "/beneficiaires", label: "Bénéficiaires", icon: "🧑" },
   { href: "/pipeline", label: "Pipeline", icon: "🗂️" },
   { href: "/entreprises", label: "Entreprises", icon: "🏢" },
