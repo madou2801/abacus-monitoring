@@ -5,9 +5,13 @@ import { usePathname } from "next/navigation";
 
 const LINKS = [
   { href: "/", label: "Tableau de bord", icon: "📊" },
+  { href: "/inbox", label: "Boîte de réception", icon: "📥" },
+  { href: "/appels-retell", label: "Appels Retell", icon: "📞" },
   { href: "/beneficiaires", label: "Bénéficiaires", icon: "🧑" },
   { href: "/pipeline", label: "Pipeline", icon: "🗂️" },
   { href: "/entreprises", label: "Entreprises", icon: "🏢" },
+  { href: "/prospection", label: "Prospection", icon: "🎯" },
+  { href: "/suivi-sites", label: "Suivi des sites", icon: "📈" },
   { href: "/auto-ecoles", label: "Auto-écoles", icon: "🏫" },
   { href: "/facturation", label: "Facturation", icon: "🧾" },
   { href: "/factory", label: "Internal Factory", icon: "🏭" },
