@@ -175,7 +175,7 @@ export interface CrmStore {
   insertWedofEvent(e: WedofEventInput): Promise<void>;
   updateBeneficiaryWedof(
     beneficiaryId: string,
-    fields: { wedof_state?: string | null; wedof_folder_id?: string | null },
+    fields: { wedof_state?: string | null; wedof_folder_id?: string | null; wedof_external_id?: string | null },
   ): Promise<void>;
 
   // Pipeline DMAIC

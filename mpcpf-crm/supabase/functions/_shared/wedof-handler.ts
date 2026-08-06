@@ -83,9 +83,12 @@ export async function handleWedofWebhook(
       return { status: 202, body: { ok: true, matched: false } };
     }
 
+    // externalId Wedof = n° de dossier CPF/EDOF (visible sur Mon Compte Formation).
+    const externalId = data.externalId != null && data.externalId !== "" ? String(data.externalId) : null;
     await deps.store.updateBeneficiaryWedof(benef.id, {
       wedof_state: state,
       wedof_folder_id: folderId ?? benef.wedof_folder_id,
+      ...(externalId ? { wedof_external_id: externalId } : {}),
     });
 
     await deps.store.insertWedofEvent({

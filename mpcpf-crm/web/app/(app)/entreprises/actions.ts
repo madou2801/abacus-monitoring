@@ -51,3 +51,41 @@ export async function createCompany(input: {
   revalidatePath("/");
   return { ok: true, id: data.id as string };
 }
+
+// Recherche des coordonnées d'une entreprise par SIRET via l'API publique
+// recherche-entreprises.api.gouv.fr (INSEE/DINUM, sans clé). Pré-remplit le formulaire.
+export async function lookupSiret(siretRaw: string): Promise<{
+  ok: boolean;
+  error?: string;
+  company?: { raison_sociale: string; siret: string; adresse: string; code_postal: string; ville: string };
+}> {
+  const staff = await getStaffUser();
+  if (!staff) return { ok: false, error: "Non autorisé" };
+
+  const siret = (siretRaw ?? "").replace(/\s+/g, "");
+  if (!/^\d{14}$/.test(siret)) return { ok: false, error: "SIRET invalide (14 chiffres attendus)." };
+
+  try {
+    const url = `https://recherche-entreprises.api.gouv.fr/search?q=${siret}&per_page=1&page=1`;
+    const r = await fetch(url, { headers: { "User-Agent": "MPCPF-CRM" }, cache: "no-store" });
+    if (!r.ok) return { ok: false, error: `Annuaire entreprises indisponible (HTTP ${r.status}).` };
+    const j: any = await r.json();
+    const res = j?.results?.[0];
+    if (!res) return { ok: false, error: "Aucune entreprise trouvée pour ce SIRET." };
+
+    const s = res.siege ?? {};
+    const adresse = [s.numero_voie, s.type_voie, s.libelle_voie].filter(Boolean).join(" ").trim() || s.adresse || "";
+    return {
+      ok: true,
+      company: {
+        raison_sociale: res.nom_complet ?? res.nom_raison_sociale ?? "",
+        siret: s.siret ?? siret,
+        adresse,
+        code_postal: s.code_postal ?? "",
+        ville: s.libelle_commune ?? s.commune ?? "",
+      },
+    };
+  } catch {
+    return { ok: false, error: "Erreur réseau lors de la recherche SIRET." };
+  }
+}
