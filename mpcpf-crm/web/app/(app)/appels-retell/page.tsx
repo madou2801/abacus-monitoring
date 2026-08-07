@@ -15,6 +15,7 @@ type CallRow = {
   call_successful: boolean | null;
   summary: string | null;
   beneficiary_id: string | null;
+  transcripts: { full_text: string | null; word_count: number | null } | { full_text: string | null; word_count: number | null }[] | null;
 };
 
 function formatPhoneFr(p?: string | null): string {
@@ -77,7 +78,7 @@ export default async function Page() {
   const { data: rawCalls, error } = await db
     .from("calls")
     .select(
-      "id,from_number,to_number,direction,started_at,disconnection_reason,duration_ms,outcome,call_successful,summary,beneficiary_id"
+      "id,from_number,to_number,direction,started_at,disconnection_reason,duration_ms,outcome,call_successful,summary,beneficiary_id,transcripts(full_text,word_count)"
     )
     .order("started_at", { ascending: false })
     .limit(400);
@@ -100,7 +101,16 @@ export default async function Page() {
 
   const enriched = calls.map((c) => {
     const dt = parisDateTime(c.started_at);
-    return { c, dt, transfer: transferStatus(c), name: c.beneficiary_id ? id2name.get(c.beneficiary_id) || "" : "" };
+    // transcripts embarqué via FK : objet (1:1) ou tableau selon PostgREST — on normalise.
+    const tr = Array.isArray(c.transcripts) ? c.transcripts[0] : c.transcripts;
+    const transcript = tr && tr.full_text ? { full_text: tr.full_text, word_count: tr.word_count ?? null } : null;
+    return {
+      c,
+      dt,
+      transfer: transferStatus(c),
+      name: c.beneficiary_id ? id2name.get(c.beneficiary_id) || "" : "",
+      transcript,
+    };
   });
 
   const todays = enriched.filter((e) => isToday(e.dt.ts));
@@ -173,11 +183,11 @@ export default async function Page() {
               <th className="px-4 py-3">Transfert conseiller</th>
               <th className="px-4 py-3">Bénéficiaire</th>
               <th className="px-4 py-3">Durée</th>
-              <th className="px-4 py-3">Résumé</th>
+              <th className="px-4 py-3">Résumé / transcription</th>
             </tr>
           </thead>
           <tbody>
-            {enriched.map(({ c, dt, transfer, name }) => (
+            {enriched.map(({ c, dt, transfer, name, transcript }) => (
               <tr key={c.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60">
                 <td className="whitespace-nowrap px-4 py-3">
                   <span className="font-medium text-slate-800">{dt.time}</span>{" "}
@@ -204,6 +214,14 @@ export default async function Page() {
                 </td>
                 <td className="max-w-md px-4 py-3 text-slate-500">
                   <span className="line-clamp-2">{c.summary || "—"}</span>
+                  {transcript?.full_text && (
+                    <details className="mt-1">
+                      <summary className="cursor-pointer select-none text-xs font-medium text-indigo-600 hover:text-indigo-800">
+                        Voir la transcription{transcript.word_count ? ` · ${transcript.word_count} mots` : ""}
+                      </summary>
+                      <TranscriptView text={transcript.full_text} />
+                    </details>
+                  )}
                 </td>
               </tr>
             ))}
@@ -219,9 +237,10 @@ export default async function Page() {
       </div>
 
       <p className="text-xs text-slate-400">
-        Source : Retell → table <code>crm.calls</code> (synchro automatique). « Transféré » = mise en
-        relation aboutie avec un conseiller ; « Demandé » = l'appelant a demandé un humain sans
-        transfert abouti.
+        Source : Retell → tables <code>crm.calls</code> + <code>crm.transcripts</code> (synchro
+        automatique). « Transféré » = mise en relation aboutie avec un conseiller ; « Demandé » =
+        l'appelant a demandé un humain sans transfert abouti. Cliquez « Voir la transcription » pour
+        dérouler l'échange complet.
       </p>
     </div>
   );
@@ -234,6 +253,30 @@ function Stat({ label, value, tone }: { label: string; value: number; tone?: "do
     <div className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-center shadow-sm">
       <div className={`text-2xl font-bold ${color}`}>{value}</div>
       <div className="text-[11px] uppercase tracking-wide text-slate-400">{label}</div>
+    </div>
+  );
+}
+
+// Affiche la transcription Retell (format "Agent: … / User: …") en tours de parole lisibles.
+function TranscriptView({ text }: { text: string }) {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  return (
+    <div className="mt-2 max-h-72 space-y-1.5 overflow-y-auto whitespace-normal rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed text-slate-700">
+      {lines.map((line, i) => {
+        const m = line.match(/^(Agent|Lucie|Assistant|User|Utilisateur|Client|Caller)\s*:\s*(.*)$/i);
+        if (m) {
+          const isAgent = /agent|lucie|assistant/i.test(m[1]);
+          return (
+            <p key={i}>
+              <span className={`font-semibold ${isAgent ? "text-indigo-700" : "text-slate-900"}`}>
+                {isAgent ? "Lucie" : "Appelant"} :
+              </span>{" "}
+              {m[2]}
+            </p>
+          );
+        }
+        return <p key={i}>{line}</p>;
+      })}
     </div>
   );
 }
