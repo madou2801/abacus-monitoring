@@ -110,6 +110,38 @@ export async function sendEmail(
   }
 }
 
+// Boîte de réception globale (contact@monpermiscpf.com), façon Conversations.
+// q = requête Gmail libre (ex "in:inbox", "newer_than:30d", "is:unread"). Défaut backend: in:inbox.
+export async function fetchInbox(q: string, max = 30): Promise<MailMsg[]> {
+  const url = process.env.INTERNAL_GMAIL_INBOX_URL || "https://api.monpermiscpf.com/t/internal-gmail-inbox";
+  const secret = SECRET();
+  if (!secret) return [];
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-internal-secret": secret },
+      body: JSON.stringify({ q: q || "", max }),
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { ok?: boolean; messages?: MailMsg[] };
+    return data && data.ok && Array.isArray(data.messages) ? data.messages : [];
+  } catch {
+    return [];
+  }
+}
+
+// Adresse email « propre » depuis un en-tête From/To ("Nom <a@b.com>" → "a@b.com").
+export function extractEmail(s: string): string {
+  const m = (s || "").match(/<([^>]+)>/);
+  return (m ? m[1] : s || "").trim().toLowerCase();
+}
+
+// Adresse de l'interlocuteur (pas nous) : le destinataire si on a envoyé, l'expéditeur sinon.
+export function counterpartEmail(msg: MailMsg): string {
+  return extractEmail(msg.direction === "sent" ? msg.to : msg.from);
+}
+
 export async function fetchEmailBody(id: string): Promise<MailBody | null> {
   const mid = (id || "").trim();
   if (!mid) return null;
