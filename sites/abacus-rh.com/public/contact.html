@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact — Être rappelé par un consultant | ABACUS RH</title>
+  <meta name="description" content="Contactez ABACUS RH : e-learning, bilan de compétences en ligne, VAE, outplacement. Un consultant vous rappelle sous 24h ouvrées.">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="container">
+      <span>💼 ABACUS RH — Cabinet conseil RH &amp; organisme de formation</span>
+      <span>✉️ <a href="mailto:contact@abacus-rh.com">contact@abacus-rh.com</a></span>
+    </div>
+  </div>
+
+  <header class="site">
+    <div class="container">
+      <a class="logo" href="/"><span class="l1">ABACUS</span><span class="l2">&nbsp;RH</span></a>
+      <button class="burger" aria-label="Menu">☰</button>
+      <nav class="main">
+        <a href="/e-learning">E-learning</a>
+        <a href="/bilan-de-competences">Bilan de compétences</a>
+        <a href="/vae">VAE en ligne</a>
+        <a href="/outplacement">Outplacement</a>
+        <a href="/financements">Financements</a>
+        <a href="/contact" class="cta">Être rappelé</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero" style="padding:52px 0">
+    <div class="container" style="grid-template-columns:1fr">
+      <div>
+        <h1>Parlons de <em>votre projet</em></h1>
+        <p class="lead">Décrivez votre besoin : un consultant vous rappelle sous 24h ouvrées pour un premier échange gratuit et sans engagement.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="container" style="max-width:820px">
+      <form class="lead" novalidate>
+        <div class="row">
+          <div>
+            <label for="nom">Nom et prénom *</label>
+            <input type="text" id="nom" name="nom" required placeholder="Marie Martin">
+          </div>
+          <div>
+            <label for="telephone">Téléphone *</label>
+            <input type="tel" id="telephone" name="telephone" required placeholder="06 12 34 56 78">
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="marie.martin@email.fr">
+          </div>
+          <div>
+            <label for="service">Service souhaité *</label>
+            <select id="service" name="service" required>
+              <option value="">— Choisir —</option>
+              <option>E-learning (catalogue SCORM)</option>
+              <option>Bilan de compétences en ligne (BOVC)</option>
+              <option>VAE en ligne</option>
+              <option>Outplacement</option>
+              <option>Autre / je ne sais pas encore</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="statut">Votre statut</label>
+            <select id="statut" name="statut">
+              <option>Salarié(e)</option>
+              <option>Demandeur d'emploi</option>
+              <option>Indépendant(e)</option>
+              <option>Entreprise / employeur</option>
+            </select>
+          </div>
+          <div>
+            <label for="financement">Financement envisagé</label>
+            <select id="financement" name="financement">
+              <option>OPCO</option>
+              <option>AIF (France Travail)</option>
+              <option>Entreprise</option>
+              <option>Personnel</option>
+              <option>Je ne sais pas</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label for="message">Votre projet en quelques mots</label>
+          <textarea id="message" name="message" rows="4" placeholder="Ex. : bilan de compétences pour préparer une reconversion, disponibilités en soirée."></textarea>
+        </div>
+        <button type="submit" class="btn btn-accent">Être rappelé(e)</button>
+        <p id="form-status" role="status"></p>
+        <p class="notice">* Champs obligatoires. Vos données sont utilisées uniquement pour traiter votre demande et ne sont jamais cédées à des tiers. Voir nos <a href="/mentions-legales">mentions légales</a>.</p>
+      </form>
+    </div>
+  </section>
+
+  <footer class="site">
+    <div class="container">
+      <div class="cols">
+        <div>
+          <h4>ABACUS RH</h4>
+          <p>Cabinet conseil RH et organisme de formation : e-learning SCORM, bilan de compétences en ligne (BOVC), VAE et outplacement.</p>
+        </div>
+        <div>
+          <h4>Services</h4>
+          <ul>
+            <li><a href="/e-learning">Formations e-learning</a></li>
+            <li><a href="/bilan-de-competences">Bilan de compétences (BOVC)</a></li>
+            <li><a href="/vae">VAE en ligne</a></li>
+            <li><a href="/outplacement">Outplacement</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Informations</h4>
+          <ul>
+            <li><a href="/financements">Financements (OPCO, AIF…)</a></li>
+            <li><a href="/contact">Contact</a></li>
+            <li><a href="/mentions-legales">Mentions légales</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Groupe</h4>
+          <ul>
+            <li><a href="https://moncaces.com" rel="noopener">MonCACES</a></li>
+            <li><a href="https://www.monpermiscpf.com" rel="noopener">MonPermisCPF</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="legal">© 2026 ABACUS RH — Tous droits réservés. <a href="/mentions-legales">Mentions légales</a></div>
+    </div>
+  </footer>
+
+  <script src="/assets/site.js"></script>
+</body>
+</html>

@@ -12,7 +12,9 @@ const SERVICES = [
   { name: 'Stripe Webhook', port: 3780, path: '/health', critical: true },
   { name: 'PilotCPF Site', port: 3790, path: '/', critical: true },
   { name: 'BDR Alexandra', port: 3402, path: '/health', critical: true },
-  { name: 'PilotCPF CRM', port: 3700, path: '/health', critical: false }
+  { name: 'PilotCPF CRM', port: 3700, path: '/health', critical: false },
+  { name: 'MonCACES Site', port: 3810, path: '/health', critical: true },
+  { name: 'ABACUS RH Site', port: 3820, path: '/health', critical: true }
 ];
 
 const DOMAINS = [
@@ -22,7 +24,8 @@ const DOMAINS = [
   'platform.abacus-rh.com',
   'formations.abacus-rh.com',
   'academy.abacus-rh.com',
-  'annuaire.monpermiscpf.com'
+  'annuaire.monpermiscpf.com',
+  'moncaces.com'
 ];
 
 // Rate limiting: max 10 requests per hour

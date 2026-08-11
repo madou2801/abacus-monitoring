@@ -14,6 +14,8 @@ Scripts de monitoring et health check pour l'infrastructure VPS ABACUS (76.13.59
 | PilotCPF Site | 3790 | / |
 | BDR Alexandra | 3402 | /health |
 | PilotCPF CRM | 3700 | /health |
+| MonCACES Site | 3810 | /health |
+| ABACUS RH Site | 3820 | /health |
 
 ## Domaines surveillés
 
@@ -23,6 +25,26 @@ Scripts de monitoring et health check pour l'infrastructure VPS ABACUS (76.13.59
 - platform.abacus-rh.com
 - formations.abacus-rh.com
 - academy.abacus-rh.com
+- moncaces.com
+
+## Sites web (`sites/`)
+
+Le dossier `sites/` contient les deux sites vitrines servis sur le VPS,
+construits sur la même architecture que les autres services (Node.js natif
+sans dépendance, écoute sur 127.0.0.1, PM2, reverse proxy Nginx, endpoint
+`/health` monitored) :
+
+| Site | Port | Contenu |
+|------|------|---------|
+| `sites/moncaces.com` | 3810 | Formations CACES®, sécurité & prévention — présentiel + e-learning (catalogue E Forma Pro), financement OPCO/entreprise/AIF (le CACES n'est pas éligible au CPF) |
+| `sites/abacus-rh.com` | 3820 | E-learning (catalogue SCORM), bilan de compétences en ligne (BOVC), VAE en ligne, outplacement — financements OPCO, AIF, personnel, entreprises |
+
+Chaque site expose `POST /api/lead` (formulaire de contact → `leads.jsonl`).
+Déploiement : `bash sites/deploy-sites.sh` (voir les étapes manuelles DNS/SSL
+affichées en fin de script). Configs Nginx : `sites/nginx/`.
+
+Test local : `node sites/moncaces.com/server.js` puis
+`curl http://127.0.0.1:3810/health` (idem port 3820 pour abacus-rh).
 
 ## Utilisation
 
