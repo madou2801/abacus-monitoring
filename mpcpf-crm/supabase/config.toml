@@ -1,0 +1,19 @@
+# Configuration projet Supabase — MPCPF CRM.
+# Les webhooks Retell/Wedof ne portent pas de JWT Supabase : verify_jwt = false.
+# (La sécurité repose sur la signature HMAC Retell et le secret partagé Wedof.)
+
+project_id = "mpcpf-crm"
+
+[functions.retell-webhook]
+verify_jwt = false
+
+[functions.wedof-webhook]
+verify_jwt = false
+
+[functions.process-relances]
+# Déclenchée par cron interne / scheduler -> JWT service_role requis.
+verify_jwt = true
+
+[functions.intake-api]
+# Appelée par le portail bénéficiaire ; auth par INTAKE_API_SECRET.
+verify_jwt = false

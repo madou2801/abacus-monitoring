@@ -1,0 +1,44 @@
+﻿Famille;Formation;Sous-traitant;Coût 2018-19 HT (€);Coût sous-traitant 2025-26 (x1,065) (€);Prix public EDOF Alter Ego (€);Tarif MPCPF actuel (€);Marge MPCPF (%);Note
+CACES;CACES R489 - 1 catégorie initial;Alter Ego;440;469;653;865;45.8;⚠️ MPCPF 865€ > prix public EDOF Alter Ego 653€ = non compétitif sur la marketplace malgré marge 46%
+CACES;CACES R489 - 2 catégories initial;Alter Ego;520;554;1051;non vendu;-;à créer au catalogue
+CACES;CACES R489 - 3 catégories initial;Alter Ego;600;639;1235;non vendu;-;à créer au catalogue
+CACES;CACES R489 - 4 catégories initial;Alter Ego;680;724;n/c;non vendu;-;à créer au catalogue
+Sécurité;Travail en hauteur / Port du harnais (1j);Alter Ego;120;128;-;non vendu;-;à créer au catalogue
+Sécurité;Échafaudage roulant (1j);Alter Ego;150;160;-;non vendu;-;à créer au catalogue
+Sécurité;Échafaudage de pied / fixe (2j);Alter Ego;260;277;-;non vendu;-;à créer au catalogue
+AIPR;AIPR Opérateur (1j);Alter Ego;180;192;-;non vendu;-;à créer au catalogue
+AIPR;AIPR Encadrant / Concepteur;Alter Ego;280;298;-;non vendu;-;à créer au catalogue
+Habilitation électrique;Hab élec non-électricien H0/B0/BE manœuvre (1j);Alter Ego;150;160;-;non vendu;-;à créer au catalogue
+Habilitation électrique;Hab élec BS/BE consignation-mesurage-vérif (2j);Alter Ego;250;266;-;non vendu;-;à créer au catalogue
+Habilitation électrique;Hab élec électricien BT B1/B2/BR/BC initial (3j);Alter Ego;350;373;-;non vendu;-;à créer au catalogue
+Habilitation électrique;Hab élec électricien BT B1/B2/BR/BC recyclage (2j);Alter Ego;250;266;-;non vendu;-;à créer au catalogue
+Habilitation électrique;Hab élec Haute Tension H1/H2 (2j);Alter Ego;350;373;-;non vendu;-;à créer au catalogue
+Secourisme;SST initiale (2j);Alter Ego;180;192;-;300;36.0;
+Secourisme;MAC SST recyclage (1j);Alter Ego;100;106;-;non vendu;-;à créer au catalogue
+Sécurité;Gestes et postures (1j);Alter Ego;100;106;-;non vendu;-;à créer au catalogue
+Sécurité;Journée incendie (1j);Alter Ego;180;192;-;non vendu;-;à créer au catalogue
+Sécurité;CHSCT / CSSCT (3j);Alter Ego;540;575;-;non vendu;-;coeff CHSCT réel = ×1,179 (420→495) si retenu ; à créer au catalogue
+Sécurité / Surveillance;CQP / TFP APS;Alter Ego;1050;1118;-;1890;40.8;
+Sécurité / Surveillance;MAC APS sans secourisme;Alter Ego;290;309;-;490;36.9;
+Sécurité / Surveillance;MAC APS avec secourisme;Alter Ego;340;362;-;550;34.2;
+SSIAP;SSIAP 1 Initial;Alter Ego;690;735;-;1200;38.8;
+SSIAP;SSIAP 1 Recyclage;Alter Ego;210;224;-;450;50.2;
+SSIAP;SSIAP 1 Remise à niveau;Alter Ego;250;266;-;550;51.6;
+SSIAP;SSIAP 1 Module complémentaire;Alter Ego;350;373;-;890;58.1;
+SSIAP;SSIAP 2 Initial;Alter Ego;900;958;-;2400;60.1;
+SSIAP;SSIAP 2 Recyclage;Alter Ego;230;245;-;450;45.6;
+SSIAP;SSIAP 2 Remise à niveau;Alter Ego;260;277;-;550;49.6;
+SSIAP;SSIAP 3 Initial (33j);Alter Ego;4000;4260;-;5490;22.4;Prix relevé 3200->5490 (charm pricing, appliqué en base 11/07). Marge 22,4% ; sous 30% car formation 33j
+SSIAP;SSIAP 3 Recyclage;Alter Ego;460;490;-;650;24.6;
+SSIAP;SSIAP 3 Remise à niveau;Alter Ego;710;756;-;1050;28.0;
+Amiante;Amiante SS4 Opérateur;Loxam;650;650;-;non vendu;-;hors Alter Ego ; à créer au catalogue
+Amiante;Amiante SS4 Encadrant;Loxam;1350;1350;-;non vendu;-;hors Alter Ego ; à créer au catalogue
+Hygiène alimentaire;HACCP;CNFCE;1290;1290;-;non vendu;-;hors Alter Ego ; à créer au catalogue
+Permis poids lourds;Permis C (et C1);Formalogistics;2200;2200;-;3000;26.7;Prix relevé 2500->3000 (appliqué en base 11/07, C et C1)
+Permis poids lourds;Permis CE;Formalogistics;2400;2400;-;3500;31.4;hors Alter Ego
+Permis poids lourds;Permis D (et D1);Promotrans;2999;2999;-;3500;14.3;Prix relevé 3150->3500 (appliqué en base 11/07, D et D1)
+Permis poids lourds;Permis DE;Promotrans;2499;2499;-;3500;28.6;hors Alter Ego
+Transport;FIMO Marchandises;Formalogistics;2200;2200;-;3000;26.7;hors Alter Ego
+Transport;FCO Marchandises;Promotrans;699;699;-;1500;53.4;hors Alter Ego
+Transport;FIMO Voyageurs;Promotrans;2499;2499;-;3150;20.7;Prix relevé 3000->3150 (appliqué en base 11/07)
+Transport;FCO Voyageurs;Promotrans;749;749;-;1500;50.1;hors Alter Ego
