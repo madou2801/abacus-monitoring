@@ -34,6 +34,19 @@ export function pub() {
   });
 }
 
+// Client service_role sur le schéma PILOTKAIROS (même base MPCPF ygphyzky) — lecture
+// des dossiers/devis Kairos (dossiers_kairos, devis_aif_poei) pour afficher le statut du
+// devis AIF France Travail sur la fiche. SERVEUR UNIQUEMENT.
+export function pilotkairos() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY manquants");
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    db: { schema: "pilotkairos" },
+  });
+}
+
 // Client service_role sur le schéma PUBLIC de la base GAIA (oezaby) — lecture du
 // suivi ZYVARA Factory (table zyvara_factory_projects). SERVEUR UNIQUEMENT :
 // la clé service_role ne touche jamais le navigateur.

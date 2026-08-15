@@ -15,6 +15,8 @@ import { getStaffUser } from "@/lib/auth";
 import { ResetPasswordButton } from "@/components/ResetPasswordButton";
 import { UnifiedTimeline } from "@/components/UnifiedTimeline";
 import { DossierCompletion } from "./DossierCompletion";
+import { KairosDevisCard } from "./KairosDevisCard";
+import { fetchKairosDevis, isValidFt } from "@/lib/kairos";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +55,12 @@ export default async function Page({ params }: { params: { id: string } }) {
   const staffEmails = (staffRes.data ?? []).map((u: any) => u.email as string);
   const wext = (wextRes.data as any)?.wedof_external_id ?? null;
   const fullName = [b.first_name, b.last_name].filter(Boolean).join(" ") || "Bénéficiaire";
+
+  // Devis Kairos (AIF France Travail) — relié par l'identifiant FT ; couvre tous les
+  // canaux (qualification, mini-form, CRM). Affiché sur la fiche : statut + n° + date.
+  const kairosDevis = await fetchKairosDevis(b.numero_france_travail);
+  const ftValid = isValidFt(b.numero_france_travail);
+  const formationFilled = !!(b.intitule_formation && String(b.intitule_formation).trim());
 
   // Complétude : champs Dossier vides mais dérivables du dernier devis.
   const latestQuote = (quotes as any[])[0];
@@ -123,6 +131,13 @@ export default async function Page({ params }: { params: { id: string } }) {
                 <StaticRow k="Date d'inscription" v={dateFr(b.date_inscription)} />
               </>
             }
+          />
+
+          <KairosDevisCard
+            beneficiaryId={id}
+            ftValid={ftValid}
+            formationFilled={formationFilled}
+            devis={kairosDevis}
           />
 
           <div className="rounded-xl border border-slate-200 bg-white p-5">

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { crm } from "@/lib/supabase";
 import { getStaffUser } from "@/lib/auth";
 
-type Result = { ok: boolean; error?: string; id?: string };
+type Result = { ok: boolean; error?: string; id?: string; message?: string };
 
 // Champs éditables depuis la fiche (doit rester aligné avec l'allowlist SQL
 // de crm.update_beneficiary_fields — migration 0022).
@@ -210,4 +210,67 @@ export async function createBeneficiary(input: {
   revalidatePath("/pipeline");
   revalidatePath("/");
   return { ok: true, id: data.id as string };
+}
+
+// Crée & transmet le devis Kairos (AIF France Travail) pour un bénéficiaire.
+// Insère un dossier PROSPECT via l'endpoint campaign-tracker (même flux que la
+// qualification / le mini-form : une seule source de vérité), que le robot Kairos
+// transmet ensuite. Gate : identifiant FT valide + formation renseignée. Le permis
+// et les formations non résolvables sont refusés côté endpoint (422).
+export async function createKairosDevis(beneficiaryId: string): Promise<Result> {
+  const staff = await getStaffUser();
+  if (!staff) return { ok: false, error: "Non autorisé" };
+
+  const { data: b } = await crm()
+    .from("vw_beneficiary_enriched")
+    .select("numero_france_travail, intitule_formation, code_postal, first_name, last_name, email, phone")
+    .eq("id", beneficiaryId)
+    .maybeSingle();
+  if (!b) return { ok: false, error: "Bénéficiaire introuvable" };
+
+  const ft = String(b.numero_france_travail ?? "").trim();
+  if (!/^(\d{11}|\d{7}[A-Za-z])$/.test(ft)) {
+    return { ok: false, error: "Identifiant France Travail manquant ou invalide (11 chiffres, ou 7 chiffres + 1 lettre)." };
+  }
+  const formation = String(b.intitule_formation ?? "").trim();
+  if (!formation) return { ok: false, error: "Renseignez la formation avant de créer le devis." };
+
+  const secret = process.env.INTERNAL_MAIL_SECRET;
+  if (!secret) return { ok: false, error: "INTERNAL_MAIL_SECRET manquant (config serveur)." };
+  const url = process.env.INTERNAL_KAIROS_DEVIS_URL || "https://api.monpermiscpf.com/t/internal-create-kairos-devis";
+
+  try {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-internal-secret": secret },
+      body: JSON.stringify({
+        ft_individu_id: ft,
+        formation_intitule: formation,
+        code_postal: b.code_postal ?? "",
+        nom: b.last_name ?? "",
+        prenom: b.first_name ?? "",
+        email: b.email ?? "",
+        telephone: b.phone ?? "",
+        beneficiary_id: beneficiaryId,
+        created_by: "crm-fiche",
+      }),
+    });
+    const j = (await r.json().catch(() => ({}))) as Record<string, any>;
+    if (r.status === 422 && j?.error === "permis_non_eligible_kairos") {
+      return { ok: false, error: "Le permis n'est pas éligible au dispositif Kairos (AIF France Travail)." };
+    }
+    if (r.status === 422 && j?.error === "formation_non_resolvable") {
+      return { ok: false, error: "Formation non reconnue au catalogue — vérifiez l'intitulé exact." };
+    }
+    if (!r.ok || j?.ok === false) {
+      return { ok: false, error: j?.error || `Erreur endpoint (HTTP ${r.status})` };
+    }
+    revalidateBenef(beneficiaryId);
+    if (j?.dedup) {
+      return { ok: true, id: j?.dossier_id, message: "Un dossier Kairos existe déjà pour cet identifiant FT." };
+    }
+    return { ok: true, id: j?.dossier_id, message: "Dossier créé — le robot transmet le devis à France Travail sous peu." };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || "Échec de l'appel à l'endpoint Kairos." };
+  }
 }
