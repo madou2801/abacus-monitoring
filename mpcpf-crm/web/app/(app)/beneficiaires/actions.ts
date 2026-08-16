@@ -262,6 +262,9 @@ export async function createKairosDevis(beneficiaryId: string): Promise<Result> 
     if (r.status === 422 && j?.error === "formation_non_resolvable") {
       return { ok: false, error: "Formation non reconnue au catalogue — vérifiez l'intitulé exact." };
     }
+    if (r.status === 422 && j?.error === "formation_generique") {
+      return { ok: false, error: "Formation trop générique (« sur devis » / « Autre ») — précisez la formation exacte, ou chiffrez le devis à la main." };
+    }
     if (!r.ok || j?.ok === false) {
       return { ok: false, error: j?.error || `Erreur endpoint (HTTP ${r.status})` };
     }
