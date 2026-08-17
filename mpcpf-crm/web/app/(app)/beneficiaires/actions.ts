@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { crm } from "@/lib/supabase";
+import { crm, pub } from "@/lib/supabase";
 import { getStaffUser } from "@/lib/auth";
+import { sendEmail } from "@/lib/gmail";
+import { cpfLinkEmailHtml, cpfTrackedUrl, type EdofUrlRow } from "@/lib/edof";
 
 type Result = { ok: boolean; error?: string; id?: string; message?: string };
 
@@ -276,4 +278,89 @@ export async function createKairosDevis(beneficiaryId: string): Promise<Result> 
   } catch (e: any) {
     return { ok: false, error: e?.message || "Échec de l'appel à l'endpoint Kairos." };
   }
+}
+
+// ---- Lien d'inscription CPF (moncompteformation.gouv.fr) — bouton manuel ----
+// Recrée la brique perdue (spec V4). Le staff cherche le lien exact dans public.urls_cpf
+// (489 liens permis × villes), pré-filtré sur le département du bénéficiaire, puis l'envoie
+// par email (avec suivi du clic via campaign-tracker) + trace de l'envoi (note + événement).
+
+// Recherche des liens EDOF pour la modale (intitulé / n° formation / ville).
+export async function searchEdofLinks(q: string, cp?: string): Promise<EdofUrlRow[]> {
+  const staff = await getStaffUser();
+  if (!staff) return [];
+  const term = (q ?? "").trim().replace(/[%,()]/g, " ");
+  let query = pub()
+    .from("urls_cpf")
+    .select("id,formation_numero,code_cpf,intitule,code_postal,ville,url,actif")
+    .eq("actif", true)
+    .limit(80);
+  if (term) query = query.or(`intitule.ilike.%${term}%,formation_numero.ilike.%${term}%,ville.ilike.%${term}%`);
+  const { data } = await query;
+  let rows = (data ?? []) as EdofUrlRow[];
+  // Tri : le département du bénéficiaire d'abord, puis Chessy (siège), puis le reste.
+  const dept = String(cp ?? "").replace(/\D/g, "").slice(0, 2);
+  const rank = (r: EdofUrlRow) => {
+    const rcp = String(r.code_postal ?? "");
+    if (dept && rcp.slice(0, 2) === dept) return 0;
+    if (rcp === "77700") return 1;
+    return 2;
+  };
+  rows = rows.sort((a, b) => rank(a) - rank(b));
+  return rows;
+}
+
+// Envoi du lien EDOF choisi : email HTML + note de traçabilité + événement cpf_sent.
+export async function sendEdofLink(
+  beneficiaryId: string,
+  urlId: number,
+  message?: string,
+): Promise<Result> {
+  const staff = await getStaffUser();
+  if (!staff) return { ok: false, error: "Non autorisé" };
+
+  const { data: b } = await crm()
+    .from("vw_beneficiary_enriched")
+    .select("email, first_name, intitule_formation")
+    .eq("id", beneficiaryId)
+    .maybeSingle();
+  if (!b) return { ok: false, error: "Bénéficiaire introuvable" };
+  const email = String(b.email ?? "").trim();
+  if (!email) return { ok: false, error: "Renseignez l'email du bénéficiaire avant d'envoyer le lien." };
+
+  const { data: u } = await pub()
+    .from("urls_cpf")
+    .select("id,intitule,ville,url,actif")
+    .eq("id", urlId)
+    .maybeSingle();
+  if (!u || (u as any).actif === false) return { ok: false, error: "Lien EDOF introuvable ou inactif." };
+
+  const tracked = cpfTrackedUrl(beneficiaryId, String((u as any).url));
+  const prenom = String(b.first_name ?? "").trim();
+  const detail = String(b.intitule_formation ?? (u as any).intitule ?? "").trim();
+  const html = cpfLinkEmailHtml(prenom, detail, String((u as any).intitule ?? ""), String((u as any).ville ?? ""), tracked, message);
+
+  const sent = await sendEmail({
+    to: email,
+    subject: `Votre lien d'inscription CPF — ${detail || "votre formation"} — MonPermisCPF`,
+    html,
+  });
+  if (!sent.ok) return { ok: false, error: sent.error || "Échec de l'envoi de l'email." };
+
+  // Traçabilité (best-effort, non bloquant) : note sur la fiche + événement d'envoi.
+  await crm().from("notes").insert({
+    beneficiary_id: beneficiaryId,
+    author_email: staff.email,
+    content: `Lien d'inscription CPF envoyé — ${(u as any).intitule} (${(u as any).ville}) → ${email}`,
+  });
+  try {
+    await pub().from("campaign_events").insert({
+      send_id: beneficiaryId,
+      event_type: "cpf_sent",
+      target_url: String((u as any).url),
+    });
+  } catch { /* trace best-effort */ }
+
+  revalidateBenef(beneficiaryId);
+  return { ok: true, message: "Lien d'inscription CPF envoyé." };
 }

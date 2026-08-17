@@ -17,6 +17,7 @@ import { UnifiedTimeline } from "@/components/UnifiedTimeline";
 import { DossierCompletion } from "./DossierCompletion";
 import { KairosDevisCard } from "./KairosDevisCard";
 import { fetchKairosDevis, isValidFt } from "@/lib/kairos";
+import { EdofLinkButton } from "./EdofLinkButton";
 
 export const dynamic = "force-dynamic";
 
@@ -138,6 +139,13 @@ export default async function Page({ params }: { params: { id: string } }) {
             ftValid={ftValid}
             formationFilled={formationFilled}
             devis={kairosDevis}
+          />
+
+          <EdofLinkButton
+            beneficiaryId={id}
+            defaultQuery={b.intitule_formation}
+            cp={b.code_postal}
+            hasEmail={!!(b.email && String(b.email).trim())}
           />
 
           <div className="rounded-xl border border-slate-200 bg-white p-5">
