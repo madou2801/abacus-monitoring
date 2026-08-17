@@ -33,7 +33,9 @@ export function hexToBytes(hex: string): Uint8Array {
 
 // Calcule le SHA-256 d'un Uint8Array et renvoie le résultat en hex.
 export async function sha256Hex(data: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", data);
+  // Cast BufferSource : depuis TS 5.7 / @types/node récent, Uint8Array est générique
+  // sur ArrayBufferLike et n'est plus assignable tel quel à BufferSource (aucun impact runtime).
+  const digest = await crypto.subtle.digest("SHA-256", data as BufferSource);
   return bytesToHex(new Uint8Array(digest));
 }
 

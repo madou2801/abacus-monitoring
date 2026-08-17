@@ -9,7 +9,10 @@
     "test:db": "node --import tsx --test --test-concurrency=1 tests/db/*.test.ts",
     "test:unit": "node --import tsx --test --test-concurrency=1 tests/unit/*.test.ts",
     "test:integration": "node --import tsx --test --test-concurrency=1 tests/integration/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "typecheck:web": "npm --prefix web run typecheck",
+    "scan:secrets": "node scripts/scan-secrets.mjs",
+    "verify": "npm run typecheck && npm run typecheck:web && npm run test && npm run scan:secrets"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.2.0",
