@@ -121,3 +121,42 @@ devis du site au CRM. L'id CRM d'un dossier = l'id de `public.dossiers_bpc`
 4. Proposer le **plan de bascule** (remplacement de l'existant) — exécuté après GO.
 
 Détails d'install/reprise terminal : voir `GETTING_STARTED_TERMINAL.md`.
+
+---
+
+## Contrat de session — ÉTAPE 2
+
+> Instance repo du document directeur `passage-etape-2`. Détails : `docs/ETAPE2.md`.
+
+### Vérifier (commande unique — C2)
+
+```bash
+npm run verify
+```
+= `eslint` (racine, `--max-warnings=0`) + `next lint` (web) + `tsc --noEmit` (racine + web)
++ `node --test` (97 tests, PGlite) + `scan:secrets` (gitleaks, repli node).
+**Exit 0 = sain.** À lancer **avant toute présentation**.
+
+### Conventions non négociables
+
+- Pas de dépendance nouvelle sans justification explicite dans le diff.
+- Pas de `any` gratuit, pas de `catch` silencieux (catch vide = seulement si explicite + tracé).
+- Injection de dépendances (port `CrmStore` / `Notifier`) : ne jamais coupler un handler à Supabase directement.
+- RLS `crm` réservée au `service_role` ; ne jamais la désactiver, même en test.
+
+### Zones interdites (étape 1 — approbation manuelle obligatoire)
+
+- Écritures **EDOF / Wedof / Kairos** · **facturation / paiement / montants** · **RLS & rôles Supabase** ·
+  migrations destructives (`DROP`/`TRUNCATE`/`ALTER … DROP COLUMN`) · secrets / `.env` / accès VPS ·
+  `ops/ygphyzky/sync_from_public.sql` (alimentation prod non testée).
+
+### Données & secrets
+
+- Schéma `crm` (service_role) + `public` (urls_cpf, catalogue, dossiers_bpc) + `pilotkairos` (base MPCPF `ygphyzky`).
+- Aucune donnée bénéficiaire réelle dans les fixtures. `.env.example` = seule référence de nommage.
+- Aucune valeur secrète en clair, jamais (y compris commentaires et tests).
+
+### Définition de terminé
+
+Un travail est présentable si et seulement si : (1) `npm run verify` passe intégralement ;
+(2) le rapport du relecteur adversarial (`docs/REVUE-ADVERSARIALE.md`) est joint ; (3) le diff est lisible en une passe.

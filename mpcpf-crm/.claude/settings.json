@@ -1,0 +1,47 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm --prefix web run *)",
+      "Bash(npx vitest *)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(npx next lint *)",
+      "Bash(node --import tsx --test *)",
+      "Bash(gitleaks *)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git worktree *)",
+      "Read(*)",
+      "Edit(supabase/**)",
+      "Edit(web/**)",
+      "Edit(tests/**)",
+      "Edit(scripts/**)",
+      "Edit(docs/**)"
+    ],
+    "ask": [
+      "Bash(git push*)",
+      "Bash(vercel *)",
+      "Bash(supabase db push*)",
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(curl *)",
+      "Bash(psql *)",
+      "Edit(.env*)",
+      "Edit(supabase/migrations/**)",
+      "Edit(ops/**)",
+      "Edit(.github/**)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push --force*)",
+      "Read(.env)",
+      "Read(web/.env.local)",
+      "Read(**/*credentials*)",
+      "Read(**/*.pem)"
+    ]
+  }
+}
