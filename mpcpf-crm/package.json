@@ -11,14 +11,20 @@
     "test:integration": "node --import tsx --test --test-concurrency=1 tests/integration/*.test.ts",
     "typecheck": "tsc --noEmit",
     "typecheck:web": "npm --prefix web run typecheck",
+    "lint": "eslint . --max-warnings=0",
+    "lint:web": "npm --prefix web run lint",
     "scan:secrets": "node scripts/scan-secrets.mjs",
-    "verify": "npm run typecheck && npm run typecheck:web && npm run test && npm run scan:secrets"
+    "verify": "npm run lint && npm run lint:web && npm run typecheck && npm run typecheck:web && npm run test && npm run scan:secrets"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.2.0",
+    "@eslint/js": "^8.57.1",
     "@types/node": "^25.9.3",
+    "eslint": "^8.57.1",
+    "globals": "^17.11.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.67.0"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0"

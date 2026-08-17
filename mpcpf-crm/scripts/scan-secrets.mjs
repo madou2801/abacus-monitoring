@@ -1,12 +1,34 @@
 #!/usr/bin/env node
-// Scan-secrets léger (stand-in gitleaks — chantier C2 / passage-etape-2 §C2).
-// Objectif : bloquant, haute précision (0 faux positif toléré), à remplacer par
-// `gitleaks detect` dès qu'il est installé. Ne scanne que les fichiers versionnés,
-// hors node_modules/.next/dist/.git et hors .env.example (référence de nommage).
-import { execSync } from "node:child_process";
+// scan:secrets (chantier C2 / passage-etape-2 §C2) — bloquant, exit 0/1.
+// Préfère gitleaks (règles complètes + config .gitleaks.toml). Repli sur un scan node
+// haute-précision si gitleaks n'est pas installé (portabilité CI / autres postes).
+import { execSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-// Motifs haute confiance uniquement (une vraie clé, pas un placeholder).
+function hasGitleaks() {
+  try { execSync("gitleaks version", { stdio: "ignore" }); return true; }
+  catch { return false; }
+}
+
+if (hasGitleaks()) {
+  // Mode `dir` : scanne l'arbre de travail (source committée + fichiers). node_modules,
+  // .env locaux, code mort : exclus via .gitleaks.toml. exit 1 si secret trouvé.
+  const r = spawnSync(
+    "gitleaks",
+    ["dir", ".", "-c", ".gitleaks.toml", "--no-banner", "--redact", "--exit-code", "1"],
+    { stdio: "inherit", shell: true },
+  );
+  if (r.status === 0) {
+    console.log("scan:secrets — gitleaks OK (aucun secret).");
+    process.exit(0);
+  }
+  console.error("scan:secrets — gitleaks a détecté des secrets (voir ci-dessus).");
+  process.exit(typeof r.status === "number" ? r.status : 1);
+}
+
+// ---------- Repli node (gitleaks absent) ----------
+console.warn("scan:secrets — gitleaks absent : repli sur le scan node (installez gitleaks pour la couverture complète).");
+
 const RULES = [
   { name: "Supabase secret key", re: /sb_secret_[A-Za-z0-9_-]{12,}/ },
   { name: "Private key block", re: /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/ },
@@ -15,8 +37,6 @@ const RULES = [
   { name: "Retell key", re: /\bkey_[a-f0-9]{24,}/ },
   { name: "Google API key", re: /\bAIza[0-9A-Za-z_-]{30,}/ },
 ];
-
-// Un placeholder n'est pas un secret : on ignore les valeurs manifestement factices.
 const PLACEHOLDER = /(your|example|placeholder|xxxx|redacted|dummy|<[^>]+>|\.\.\.)/i;
 
 let files = [];

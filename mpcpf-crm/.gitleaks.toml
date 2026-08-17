@@ -1,0 +1,21 @@
+# Config gitleaks — mpcpf-crm (chantier C2). Étend les règles par défaut + allowlist
+# des chemins hors périmètre et de la référence de nommage `.env.example`.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Chemins hors périmètre produit + référence de nommage"
+paths = [
+  '''(^|/)node_modules/''',
+  '''(^|/)\.next/''',
+  '''(^|/)dist/''',
+  '''(^|/)\.git/''',
+  '''(^|/)\.env\.example$''',
+  # Fichiers d'environnement LOCAUX (gitignorés, jamais committés — vérifié via git
+  # check-ignore). Ils contiennent légitimement des secrets ; le scan `dir` lit le
+  # disque, on les exclut. La détection reste active sur toute source committée.
+  '''(^|/)\.env$''',
+  '''(^|/)\.env\..*local$''',
+  # Artefacts historiques (code mort, spec §2.4)
+  '''(^|/)portail/session-tarifs-devis/''',
+]
