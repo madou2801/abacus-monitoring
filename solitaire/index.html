@@ -164,35 +164,81 @@
   }
 
   /* ---------- Réglages ---------- */
-  .settings { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+  .settings {
+    display: flex;
+    align-items: flex-end;
+    gap: .45rem .5rem;
+    flex-wrap: wrap;
+  }
 
-  .segmented {
-    display: inline-flex;
+  .field { position: relative; display: inline-grid; gap: .16rem; }
+
+  .field > span,
+  .swatch > span {
+    font-size: .63rem;
+    font-weight: 600;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    padding-left: .15rem;
+  }
+
+  .field select {
+    appearance: none;
+    font: inherit;
+    font-size: .84rem;
+    font-weight: 500;
+    color: var(--ink);
     background: var(--panel);
     border: 1px solid var(--panel-edge);
-    border-radius: 999px;
-    padding: 3px;
-    gap: 2px;
+    border-radius: 10px;
+    padding: .4rem 1.85rem .4rem .68rem;
+    cursor: pointer;
+    transition: border-color .18s ease;
+  }
+  .field select:hover { border-color: var(--ink-faint); }
+  .field select:focus-visible { outline: 2.5px solid var(--brass); outline-offset: 2px; }
+
+  .field::after {
+    content: "";
+    position: absolute;
+    right: .68rem;
+    bottom: .85rem;
+    width: 6px; height: 6px;
+    border-right: 1.7px solid var(--ink-faint);
+    border-bottom: 1.7px solid var(--ink-faint);
+    transform: rotate(45deg);
+    pointer-events: none;
   }
 
-  .segmented button {
-    appearance: none;
-    border: 0;
-    background: transparent;
-    color: var(--ink-soft);
-    font: inherit;
-    font-size: .82rem;
-    font-weight: 500;
-    padding: .34rem .78rem;
-    border-radius: 999px;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background .18s ease, color .18s ease;
+  .swatches {
+    display: flex;
+    align-items: flex-end;
+    gap: .5rem;
+    flex-wrap: wrap;
   }
-  .segmented button:hover { color: var(--ink); }
-  .segmented button[aria-pressed="true"] {
-    background: var(--ink);
-    color: var(--ground);
+  .swatches[hidden] { display: none; }
+
+  .swatch { display: inline-grid; gap: .16rem; }
+  .swatch input[type="color"] {
+    appearance: none;
+    width: 58px; height: 33px;
+    padding: 3px;
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  .swatch input[type="color"]:focus-visible { outline: 2.5px solid var(--brass); outline-offset: 2px; }
+  .swatch input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+  .swatch input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
+  .swatch input[type="color"]::-moz-color-swatch { border: 0; border-radius: 7px; }
+
+  .btn-quiet {
+    align-self: end;
+    font-size: .8rem;
+    padding: .42rem .7rem;
+    box-shadow: none;
   }
 
   .toggle {
@@ -257,6 +303,57 @@
   @media (min-width: 860px) { .board-wrap { max-width: min(100%, 74dvh); } }
 
   svg.board { width: 100%; height: 100%; display: block; touch-action: none; overflow: visible; }
+
+  .board-col { display: grid; gap: .5rem; justify-items: center; }
+
+  .pace {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    width: 100%;
+    max-width: min(100%, 68dvh);
+  }
+  .pace[hidden] { display: none; }
+  @media (min-width: 860px) { .pace { max-width: min(100%, 74dvh); } }
+
+  .pace-label {
+    font-size: .68rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    white-space: nowrap;
+  }
+
+  .pace-track {
+    flex: 1;
+    height: 9px;
+    border-radius: 999px;
+    background: var(--panel-edge);
+    overflow: hidden;
+  }
+  .pace-fill {
+    height: 100%;
+    width: 100%;
+    border-radius: 999px;
+    background: var(--jade);
+    transform-origin: left center;
+  }
+  .pace[data-state="warn"] .pace-fill { background: var(--brass); }
+  .pace[data-state="danger"] .pace-fill { background: var(--alert); }
+
+  .pace-num {
+    font-family: "Bricolage Grotesque", Archivo, sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    font-variant-numeric: tabular-nums;
+    min-width: 3.4ch;
+    text-align: right;
+    color: var(--ink-soft);
+  }
+  .pace[data-state="danger"] .pace-num { color: var(--alert); }
+
+  .verdict[data-tone="timeout"] h2 { color: var(--alert); }
 
   /* ---------- Pièces ---------- */
   .hole-shadow { fill: var(--hole-lo); }
@@ -461,10 +558,34 @@
       <span class="eyebrow" id="setupLabel">37 trous &middot; 36 pions</span>
     </div>
     <div class="settings">
-      <div class="segmented" role="group" aria-label="Forme du plateau">
-        <button type="button" data-variant="octogone" aria-pressed="true">Octogone 37</button>
-        <button type="button" data-variant="croix" aria-pressed="false">Croix 33</button>
-      </div>
+      <label class="field">
+        <span>Plateau</span>
+        <select id="variantSel">
+          <option value="octogone">Octogone &mdash; 37 trous</option>
+          <option value="croix">Croix anglaise &mdash; 33 trous</option>
+          <option value="enfant">Enfant &mdash; 21 trous</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Rythme</span>
+        <select id="paceSel">
+          <option value="libre">Sans limite</option>
+          <option value="enfant">Enfant &mdash; 12 s</option>
+          <option value="debutant">D&eacute;butant &mdash; 8 s</option>
+          <option value="joueur">Joueur &mdash; 5 s</option>
+          <option value="pro">Pro &mdash; 3 s</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Couleurs</span>
+        <select id="paletteSel">
+          <option value="hetre">H&ecirc;tre</option>
+          <option value="noyer">Noyer &amp; ivoire</option>
+          <option value="ebene">&Eacute;b&egrave;ne &amp; laiton</option>
+          <option value="olivier">Olivier</option>
+          <option value="perso">Sur mesure&hellip;</option>
+        </select>
+      </label>
       <label class="toggle">
         <input type="checkbox" id="diagToggle">
         <span class="track" aria-hidden="true"></span>
@@ -473,8 +594,23 @@
     </div>
   </header>
 
+  <div class="swatches" id="swatches" hidden>
+    <label class="swatch"><span>Plateau</span><input type="color" id="cBoard" value="#ce9f63"></label>
+    <label class="swatch"><span>Pions</span><input type="color" id="cPeg" value="#8e3e22"></label>
+    <label class="swatch"><span>Rep&egrave;res</span><input type="color" id="cAccent" value="#35825f"></label>
+    <button class="btn btn-quiet" id="resetColors" type="button">R&eacute;initialiser</button>
+  </div>
+
   <div class="play">
-    <div class="board-wrap">
+    <div class="board-col">
+      <div class="pace" id="pace" hidden>
+        <span class="pace-label" id="paceLabel">Pr&ecirc;t</span>
+        <div class="pace-track" role="timer" aria-label="Temps restant pour jouer ce coup">
+          <div class="pace-fill" id="paceFill"></div>
+        </div>
+        <span class="pace-num" id="paceNum">&mdash;</span>
+      </div>
+      <div class="board-wrap">
       <svg class="board" id="board" viewBox="-60 -60 820 820" role="application"
            aria-label="Plateau de solitaire. Flèches pour déplacer la sélection, Entrée pour choisir un pion puis sa case d'arrivée.">
         <defs>
@@ -509,8 +645,8 @@
         <path id="plateEdge" d="" fill="var(--wood-edge)" stroke="var(--wood-edge)" stroke-width="26" stroke-linejoin="round" transform="translate(0,14)"/>
         <g clip-path="url(#plateClip)">
           <path id="plateFace" d="" fill="url(#woodFace)" stroke="url(#woodFace)" stroke-width="26" stroke-linejoin="round"/>
-          <rect x="-120" y="-120" width="940" height="940" filter="url(#woodGrain)" style="mix-blend-mode:multiply" opacity="var(--grain)"/>
-          <rect x="-120" y="-120" width="940" height="940" fill="none"/>
+          <rect class="grain-plate" x="-120" y="-120" width="940" height="940" filter="url(#woodGrain)" style="mix-blend-mode:multiply" opacity="var(--grain)"/>
+          
         </g>
         <path id="plateLip" d="" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="3" stroke-linejoin="round"/>
 
@@ -519,6 +655,7 @@
         <g id="pegLayer"></g>
         <g id="hitLayer"></g>
       </svg>
+      </div>
     </div>
 
     <div class="rail">
@@ -557,9 +694,22 @@
       <ul>
         <li>Les sauts se font en <strong>ligne droite</strong>, horizontalement ou verticalement. L'option <em>Diagonales</em> ouvre quatre directions de plus&nbsp;: c'est nettement plus facile.</li>
         <li>Un saut est toujours <strong>de deux cases</strong>, et la case d'arrivée doit être vide.</li>
-        <li>Le but&nbsp;: finir avec <strong>un seul pion</strong>. Le laisser au centre, c'est la partie parfaite.</li>
+        <li>Le but&nbsp;: descendre au plus petit nombre de pions possible. L'objectif exact est affich&eacute;
+          &agrave; c&ocirc;t&eacute; du titre, car il d&eacute;pend du plateau.</li>
       </ul>
+      <p><strong>Pourquoi l'objectif n'est pas toujours&nbsp;1&nbsp;:</strong> sur l'octogone &agrave; 37&nbsp;trous,
+        un d&eacute;part au centre ne peut <em>math&eacute;matiquement pas</em> descendre en dessous de
+        <strong>deux pions</strong>&nbsp;&mdash; c'est une propri&eacute;t&eacute; du plateau, d&eacute;montr&eacute;e
+        par Reiss en 1857, pas une question d'habilet&eacute;. Deux pions, c'est donc la partie parfaite.
+        La croix anglaise, elle, se termine bien sur un pion unique au centre. Le petit plateau enfant a besoin
+        des diagonales pour &ecirc;tre gagnable&nbsp;: elles s'activent toutes seules quand on le choisit.</p>
+      <p><strong>Rythme&nbsp;:</strong> sans limite par d&eacute;faut. Les autres r&eacute;glages donnent un temps fixe
+        pour chaque coup&nbsp;&mdash; 12&nbsp;s en enfant, 8&nbsp;s en d&eacute;butant, 5&nbsp;s en joueur, 3&nbsp;s en pro.
+        Le compte &agrave; rebours part au premier coup et repart &agrave; z&eacute;ro apr&egrave;s chaque saut&nbsp;;
+        s'il arrive au bout, la partie s'arr&ecirc;te. Le plateau <em>Enfant</em> n'a que 21 trous, une partie bien plus courte.</p>
       <p><strong>Pour jouer&nbsp;:</strong> touchez un pion puis sa case d'arrivée, ou faites-le glisser. Au clavier, déplacez la sélection avec les <kbd>flèches</kbd> et validez avec <kbd>Entrée</kbd>&nbsp;; <kbd>Échap</kbd> désélectionne, <kbd>Ctrl</kbd>+<kbd>Z</kbd> annule le dernier coup.</p>
+      <p><strong>Couleurs&nbsp;:</strong> quatre essences pr&ecirc;tes &agrave; l'emploi, ou <em>Sur mesure</em> pour choisir
+        vous-m&ecirc;me la teinte du plateau, celle des pions et celle des rep&egrave;res. Le choix est retenu d'une partie &agrave; l'autre.</p>
     </div>
   </details>
 </div>
@@ -571,14 +721,20 @@
   'use strict';
 
   var SVGNS = 'http://www.w3.org/2000/svg';
-  var N = 7, CELL = 100, PAD = 40;
-  var B_MIN = -PAD, B_MAX = N * CELL + PAD;   /* -40 .. 740 */
-  var STORE = 'solitaire-octogone.v1';
+  var CELL = 100, PAD = 40;
+  var STORE = 'solitaire-octogone.v2';
 
   /* ---------------- Plateaux ---------------- */
 
-  function octagonPath(inset) {
-    var a = B_MIN + inset, b = B_MAX - inset;
+  function octaValid(n, cut) {
+    var m = n - 1;
+    return function (r, c) {
+      return (r + c >= cut) && (r + (m - c) >= cut) && ((m - r) + c >= cut) && ((m - r) + (m - c) >= cut);
+    };
+  }
+
+  function octagonPath(n, inset) {
+    var a = -PAD + inset, b = n * CELL + PAD - inset;
     var k = (b - a) / (2 + Math.SQRT2);
     return 'M' + (a + k) + ',' + a +
            'L' + (b - k) + ',' + a +
@@ -590,9 +746,9 @@
            'L' + a + ',' + (a + k) + 'Z';
   }
 
-  function crossPath(inset) {
-    var a = B_MIN + inset, b = B_MAX - inset;
-    var p = 160 + inset, q = 540 - inset;
+  function crossPath(n, inset) {
+    var a = -PAD + inset, b = n * CELL + PAD - inset;
+    var p = 2 * CELL - PAD + inset, q = n * CELL - (2 * CELL - PAD) - inset;
     return 'M' + p + ',' + a + 'L' + q + ',' + a + 'L' + q + ',' + p +
            'L' + b + ',' + p + 'L' + b + ',' + q + 'L' + q + ',' + q +
            'L' + q + ',' + b + 'L' + p + ',' + b + 'L' + p + ',' + q +
@@ -601,36 +757,74 @@
 
   var VARIANTS = {
     octogone: {
-      label: '37 trous · 36 pions',
-      valid: function (r, c) {
-        return (r + c >= 2) && (r + (6 - c) >= 2) && ((6 - r) + c >= 2) && ((6 - r) + (6 - c) >= 2);
-      },
-      plate: octagonPath
+      n: 7, label: '37 trous · 36 pions',
+      valid: octaValid(7, 2),
+      plate: function (i) { return octagonPath(7, i); }
     },
     croix: {
-      label: '33 trous · 32 pions',
+      n: 7, label: '33 trous · 32 pions',
       valid: function (r, c) { return (r >= 2 && r <= 4) || (c >= 2 && c <= 4); },
-      plate: crossPath
+      plate: function (i) { return crossPath(7, i); }
+    },
+    enfant: {
+      n: 5, label: '21 trous · 20 pions',
+      valid: octaValid(5, 1),
+      plate: function (i) { return octagonPath(5, i); }
     }
+  };
+
+  var PACES = {
+    libre:    { secs: 0 },
+    enfant:   { secs: 12 },
+    debutant: { secs: 8 },
+    joueur:   { secs: 5 },
+    pro:      { secs: 3 }
+  };
+
+  var PALETTES = {
+    hetre:   null,
+    noyer:   { board: '#6b4423', peg: '#eadcc0', accent: '#6fb894' },
+    ebene:   { board: '#332f2c', peg: '#d9b96a', accent: '#6fa8c9' },
+    olivier: { board: '#b0a06b', peg: '#3b4a2e', accent: '#c2683a' },
+    perso:   { board: '#ce9f63', peg: '#8e3e22', accent: '#35825f' }
   };
 
   var ORTHO = [[-1, 0], [1, 0], [0, -1], [0, 1]];
   var DIAG = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
-  var CENTER = 3 * N + 3;
+
+  /* Minimum de pions réellement atteignable en partant du trou central.
+     Établi hors ligne : invariant de Reiss sur GF(4) pour l'impossibilité,
+     recherche exhaustive (plateau 21) ou solution explicite pour l'atteignabilité.
+     L'octogone 37 depuis le centre ne peut PAS descendre à un seul pion. */
+  var OBJECTIFS = {
+    'octogone|ortho': 2,
+    'octogone|diag': 1,
+    'croix|ortho': 1,
+    'croix|diag': 1,
+    'enfant|ortho': 4,
+    'enfant|diag': 1
+  };
 
   /* ---------------- État ---------------- */
 
   var variant = 'octogone';
+  var pace = 'libre';
+  var palette = 'hetre';
+  var custom = { board: '#ce9f63', peg: '#8e3e22', accent: '#35825f' };
   var diagonals = false;
+
+  var N = 7;                      /* côté de la grille du plateau courant */
   var cells = [];                 /* null = pas de trou, 0 = vide, 1 = pion */
   var pegEls = new Map();
   var history = [];
   var selected = null;
-  var focusIdx = CENTER;
+  var focusIdx = 0;
   var hints = false;
   var finished = false;
-  var elapsed = 0, tickId = null, running = false;
   var records = {};
+
+  var elapsed = 0, tickId = null, running = false;
+  var deadline = 0, leftMs = 0, rafId = null, ticking = false;
 
   var $ = function (id) { return document.getElementById(id); };
   var svg = $('board');
@@ -645,7 +839,12 @@
   function colOf(i) { return i % N; }
   function px(i) { return colOf(i) * CELL + CELL / 2; }
   function py(i) { return rowOf(i) * CELL + CELL / 2; }
-  function recordKey() { return variant + (diagonals ? '|diag' : '|ortho'); }
+  function center() { var m = (N - 1) / 2; return m * N + m; }
+  function recordKey() { return variant + '|' + (diagonals ? 'diag' : 'ortho') + '|' + pace; }
+  function limitMs() { return PACES[pace].secs * 1000; }
+  function objective() { return OBJECTIFS[variant + (diagonals ? '|diag' : '|ortho')] || 1; }
+  function pions(n) { return n + ' pion' + (n > 1 ? 's' : ''); }
+  function started() { return history.length > 0; }
 
   /* ---------------- Règles ---------------- */
 
@@ -676,14 +875,89 @@
     return n;
   }
 
+  /* ---------------- Couleurs ---------------- */
+
+  var TINTED = ['--wood-hi', '--wood', '--wood-lo', '--wood-edge', '--hole-lo', '--hole-hi',
+                '--peg-hi', '--peg', '--peg-lo', '--jade', '--jade-ink'];
+
+  function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+  function hex2hsl(hex) {
+    var r = parseInt(hex.slice(1, 3), 16) / 255,
+        g = parseInt(hex.slice(3, 5), 16) / 255,
+        b = parseInt(hex.slice(5, 7), 16) / 255;
+    var mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, h = 0, s = 0;
+    if (mx !== mn) {
+      var d = mx - mn;
+      s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+      if (mx === r) h = (g - b) / d + (g < b ? 6 : 0);
+      else if (mx === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h *= 60;
+    }
+    return [h, s * 100, l * 100];
+  }
+
+  function hsl2hex(h, s, l) {
+    h = ((h % 360) + 360) % 360;
+    s = clamp(s, 0, 100) / 100;
+    l = clamp(l, 0, 100) / 100;
+    var c = (1 - Math.abs(2 * l - 1)) * s;
+    var x = c * (1 - Math.abs((h / 60) % 2 - 1));
+    var m = l - c / 2;
+    var t = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x]
+          : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+    return '#' + t.map(function (v) {
+      return ('0' + Math.round((v + m) * 255).toString(16)).slice(-2);
+    }).join('');
+  }
+
+  function tint(hex, dl, ds) {
+    var p = hex2hsl(hex);
+    return hsl2hex(p[0], p[1] + (ds || 0), p[2] + dl);
+  }
+
+  function activeColors() {
+    return palette === 'perso' ? custom : PALETTES[palette];
+  }
+
+  function applyPalette() {
+    var root = document.documentElement.style;
+    var c = activeColors();
+    if (!c) {
+      TINTED.forEach(function (k) { root.removeProperty(k); });
+      return;
+    }
+    var w = hex2hsl(c.board);
+    root.setProperty('--wood-hi', tint(c.board, 9, -2));
+    root.setProperty('--wood', c.board);
+    root.setProperty('--wood-lo', tint(c.board, -11));
+    root.setProperty('--wood-edge', tint(c.board, -22, -4));
+    root.setProperty('--hole-lo', hsl2hex(w[0], w[1] * 0.9, Math.max(3, w[2] * 0.28)));
+    root.setProperty('--hole-hi', hsl2hex(w[0], w[1], Math.max(9, w[2] * 0.62)));
+    root.setProperty('--peg-hi', tint(c.peg, 16));
+    root.setProperty('--peg', c.peg);
+    root.setProperty('--peg-lo', tint(c.peg, -19, 2));
+    root.setProperty('--jade', c.accent);
+    root.setProperty('--jade-ink', tint(c.accent, -10));
+  }
+
   /* ---------------- Construction du plateau ---------------- */
 
   function buildPlate() {
     var plate = VARIANTS[variant].plate;
+    var span = N * CELL + 120;
+    svg.setAttribute('viewBox', '-60 -60 ' + span + ' ' + span);
     $('plateFace').setAttribute('d', plate(13));
     $('plateEdge').setAttribute('d', plate(13));
     $('plateLip').setAttribute('d', plate(17));
     $('plateClipPath').setAttribute('d', plate(0));
+
+    var grainSpan = N * CELL + 240;
+    Array.prototype.forEach.call(svg.querySelectorAll('.grain-plate'), function (r) {
+      r.setAttribute('width', grainSpan);
+      r.setAttribute('height', grainSpan);
+    });
   }
 
   function makePeg(i) {
@@ -718,6 +992,12 @@
     return g;
   }
 
+  function arcPath(cx, cy, r, fromDeg, toDeg) {
+    var a = fromDeg * Math.PI / 180, b = toDeg * Math.PI / 180;
+    return 'M' + (cx + r * Math.cos(a)) + ',' + (cy + r * Math.sin(a)) +
+           'A' + r + ',' + r + ' 0 0 1 ' + (cx + r * Math.cos(b)) + ',' + (cy + r * Math.sin(b));
+  }
+
   function renderStatic() {
     holeLayer.textContent = '';
     hitLayer.textContent = '';
@@ -746,36 +1026,37 @@
     }
   }
 
-  function arcPath(cx, cy, r, fromDeg, toDeg) {
-    var a = fromDeg * Math.PI / 180, b = toDeg * Math.PI / 180;
-    return 'M' + (cx + r * Math.cos(a)) + ',' + (cy + r * Math.sin(a)) +
-           'A' + r + ',' + r + ' 0 0 1 ' + (cx + r * Math.cos(b)) + ',' + (cy + r * Math.sin(b));
+  function resetPegs() {
+    pegLayer.textContent = '';
+    pegEls.clear();
+    for (var i = 0; i < cells.length; i++) if (cells[i] === 1) makePeg(i);
   }
 
-  function reset(keepTime) {
+  function reset() {
+    N = VARIANTS[variant].n;
     cells = new Array(N * N).fill(null);
     for (var r = 0; r < N; r++) {
       for (var c = 0; c < N; c++) {
         if (VARIANTS[variant].valid(r, c)) cells[r * N + c] = 1;
       }
     }
-    cells[CENTER] = 0;
+    cells[center()] = 0;
     history = [];
     selected = null;
     finished = false;
-    focusIdx = CENTER;
-    if (!keepTime) { elapsed = 0; }
+    focusIdx = center();
+    elapsed = 0;
     stopClock();
+    stopCountdown();
+    updateSetupLabel();
     buildPlate();
     renderStatic();
     resetPegs();
     refresh();
   }
 
-  function resetPegs() {
-    pegLayer.textContent = '';
-    pegEls.clear();
-    for (var i = 0; i < cells.length; i++) if (cells[i] === 1) makePeg(i);
+  function updateSetupLabel() {
+    $('setupLabel').textContent = VARIANTS[variant].label + ' · objectif ' + pions(objective());
   }
 
   /* ---------------- Coups ---------------- */
@@ -806,6 +1087,7 @@
     buzz(14);
     startClock();
     refresh();
+    if (!finished) restartCountdown();
     announce('Saut joué. ' + pegCount() + ' pions restants.');
   }
 
@@ -829,10 +1111,27 @@
     finished = false;
     focusIdx = m.from;
     refresh();
+    /* Le compte à rebours attend le prochain saut : on peut annuler plusieurs coups sans courir. */
+    if (!finished) stopCountdown();
     announce('Coup annulé. ' + pegCount() + ' pions restants.');
   }
 
   /* ---------------- Rendu dynamique ---------------- */
+
+  function ring(i, r, cls) {
+    var c = document.createElementNS(SVGNS, 'circle');
+    c.setAttribute('class', 'marker ' + cls);
+    c.setAttribute('cx', px(i)); c.setAttribute('cy', py(i));
+    c.setAttribute('r', r);
+    return c;
+  }
+
+  function describe(idx, drop) {
+    var pos = 'ligne ' + (rowOf(idx) + 1) + ', colonne ' + (colOf(idx) + 1);
+    if (drop) return "Case d'arrivée libre, " + pos;
+    if (cells[idx] === 1) return (selected === idx ? 'Pion sélectionné, ' : 'Pion, ') + pos;
+    return 'Trou vide, ' + pos;
+  }
 
   function refresh() {
     markerLayer.textContent = '';
@@ -871,14 +1170,15 @@
       node.setAttribute('aria-label', describe(idx, drop));
     }
 
+    updateSetupLabel();
+
     var pegs = pegCount();
     $('statPegs').textContent = pegs;
     $('undoBtn').disabled = history.length === 0;
 
     var key = recordKey();
-    if (history.length && (records[key] === undefined || pegs < records[key])) {
+    if (started() && (records[key] === undefined || pegs < records[key])) {
       records[key] = pegs;
-      save();
     }
     $('statBest').innerHTML = records[key] === undefined
       ? '&mdash;'
@@ -888,46 +1188,38 @@
     save();
   }
 
-  function ring(i, r, cls) {
-    var c = document.createElementNS(SVGNS, 'circle');
-    c.setAttribute('class', 'marker ' + cls);
-    c.setAttribute('cx', px(i)); c.setAttribute('cy', py(i));
-    c.setAttribute('r', r);
-    return c;
-  }
-
-  function describe(idx, drop) {
-    var pos = 'ligne ' + (rowOf(idx) + 1) + ', colonne ' + (colOf(idx) + 1);
-    if (drop) return "Case d'arrivée libre, " + pos;
-    if (cells[idx] === 1) return (selected === idx ? 'Pion sélectionné, ' : 'Pion, ') + pos;
-    return 'Trou vide, ' + pos;
+  function show(tone, title, body) {
+    var v = $('verdict');
+    v.setAttribute('data-show', 'true');
+    v.setAttribute('data-tone', tone);
+    $('verdictTitle').textContent = title;
+    $('verdictBody').textContent = body;
   }
 
   function checkEnd(pegs) {
-    var v = $('verdict');
-    if (pegs === 1) {
-      finished = true; stopClock();
-      show(v, 'win',
-        cells[CENTER] === 1 ? 'Partie parfaite' : 'Gagné',
-        cells[CENTER] === 1
+    if (anyMove()) { $('verdict').setAttribute('data-show', 'false'); return; }
+
+    finished = true; stopClock(); stopCountdown();
+    var obj = objective();
+
+    if (pegs > obj) {
+      show('stuck', 'Bloqué à ' + pions(pegs),
+        'Plus aucun saut possible. Le minimum atteignable sur ce plateau est de ' + pions(obj) +
+        '. Annulez quelques coups pour tenter une autre suite.');
+      announce('Bloqué avec ' + pions(pegs) + '.');
+    } else if (pegs === 1) {
+      show('win',
+        cells[center()] === 1 ? 'Partie parfaite' : 'Gagné',
+        cells[center()] === 1
           ? "Un seul pion, et il est au centre. C'est la fin la plus propre du solitaire."
           : 'Un seul pion sur le plateau. Reste à le faire finir au centre.');
       announce('Gagné, un seul pion restant.');
-    } else if (!anyMove()) {
-      finished = true; stopClock();
-      show(v, 'stuck', 'Bloqué à ' + pegs + ' pions',
-        'Plus aucun saut possible. Annulez quelques coups pour tenter une autre suite.');
-      announce('Bloqué avec ' + pegs + ' pions.');
     } else {
-      v.setAttribute('data-show', 'false');
+      show('win', 'Partie parfaite',
+        pions(pegs) + ', c\u2019est le minimum possible sur ce plateau en partant du centre. ' +
+        'Personne ne fera mieux.');
+      announce('Partie parfaite, ' + pions(pegs) + '.');
     }
-  }
-
-  function show(el, tone, title, body) {
-    el.setAttribute('data-show', 'true');
-    el.setAttribute('data-tone', tone);
-    $('verdictTitle').textContent = title;
-    $('verdictBody').textContent = body;
   }
 
   function announce(msg) { live.textContent = msg; }
@@ -936,7 +1228,7 @@
     try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {}
   }
 
-  /* ---------------- Chronomètre ---------------- */
+  /* ---------------- Chronomètre total ---------------- */
 
   function startClock() {
     if (running || finished) return;
@@ -953,7 +1245,84 @@
     $('statTime').textContent = m + ':' + (s < 10 ? '0' : '') + s;
   }
 
-  /* ---------------- Selection ---------------- */
+  /* ---------------- Chrono du coup ---------------- */
+
+  function paintCountdown(left) {
+    var total = limitMs();
+    var bar = $('pace');
+    var ratio = total ? clamp(left / total, 0, 1) : 1;
+    $('paceFill').style.width = (ratio * 100).toFixed(2) + '%';
+    $('paceNum').textContent = (Math.max(0, left) / 1000).toFixed(1).replace('.', ',') + ' s';
+    bar.setAttribute('data-state', ratio > 0.5 ? 'ok' : ratio > 0.25 ? 'warn' : 'danger');
+  }
+
+  function stopCountdown() {
+    ticking = false;
+    if (rafId) { window.cancelAnimationFrame(rafId); rafId = null; }
+    var bar = $('pace');
+    if (!limitMs()) { bar.hidden = true; return; }
+    bar.hidden = false;
+    $('paceLabel').textContent = finished ? 'Fini' : 'Prêt';
+    $('paceFill').style.width = '100%';
+    $('paceNum').textContent = PACES[pace].secs.toFixed(1).replace('.', ',') + ' s';
+    bar.setAttribute('data-state', 'ok');
+  }
+
+  function restartCountdown() {
+    if (!limitMs() || finished || !started()) { stopCountdown(); return; }
+    leftMs = limitMs();
+    deadline = Date.now() + leftMs;
+    runCountdown();
+  }
+
+  function runCountdown() {
+    var bar = $('pace');
+    bar.hidden = false;
+    $('paceLabel').textContent = 'Ce coup';
+    ticking = true;
+    if (rafId) window.cancelAnimationFrame(rafId);
+    var step = function () {
+      if (!ticking) return;
+      var left = deadline - Date.now();
+      paintCountdown(left);
+      if (left <= 0) { timeUp(); return; }
+      rafId = window.requestAnimationFrame(step);
+    };
+    step();
+  }
+
+  function pauseCountdown() {
+    if (!ticking) return;
+    leftMs = Math.max(0, deadline - Date.now());
+    ticking = false;
+    if (rafId) { window.cancelAnimationFrame(rafId); rafId = null; }
+  }
+
+  function resumeCountdown() {
+    if (ticking || !limitMs() || finished || !started() || leftMs <= 0) return;
+    deadline = Date.now() + leftMs;
+    runCountdown();
+  }
+
+  function timeUp() {
+    ticking = false;
+    if (rafId) { window.cancelAnimationFrame(rafId); rafId = null; }
+    finished = true;
+    selected = null;
+    stopClock();
+    paintCountdown(0);
+    $('paceLabel').textContent = 'Fini';
+    buzz([40, 60, 120]);
+    markerLayer.textContent = '';
+    pegEls.forEach(function (el) { el.classList.remove('selected'); });
+    show('timeout', 'Temps écoulé',
+      'Le coup n’est pas parti dans les ' + PACES[pace].secs + ' secondes. ' +
+      'Annulez un coup pour reprendre la partie, ou recommencez.');
+    announce('Temps écoulé.');
+    save();
+  }
+
+  /* ---------------- Sélection ---------------- */
 
   function pick(idx) {
     if (finished) return;
@@ -991,7 +1360,7 @@
     if (!e.target.hasAttribute || !e.target.hasAttribute('data-idx') || finished) return;
     var idx = +e.target.getAttribute('data-idx');
     e.preventDefault();
-    drag = { idx: idx, id: e.pointerId, start: toUser(e), moved: false, peg: null, armed: false };
+    drag = { idx: idx, id: e.pointerId, start: toUser(e), moved: false, peg: null, armed: false, dead: false };
     /* Sélectionner dès l'appui : le pion suit le doigt s'il glisse. */
     if (cells[idx] === 1 && movesFrom(idx).length && selected !== idx) {
       selected = idx; focusIdx = idx; drag.armed = true; refresh();
@@ -1001,11 +1370,13 @@
   });
 
   hitLayer.addEventListener('pointermove', function (e) {
-    if (!drag || e.pointerId !== drag.id) return;
+    if (!drag || e.pointerId !== drag.id || drag.dead) return;
     var p = toUser(e);
     if (!drag.moved) {
       if (Math.hypot(p.x - drag.start.x, p.y - drag.start.y) < 16) return;
-      if (cells[drag.idx] !== 1 || !movesFrom(drag.idx).length) { drag = null; return; }
+      /* Rien à traîner ici : on neutralise le geste sans perdre la capture,
+         qui doit être relâchée au relâchement du pointeur. */
+      if (cells[drag.idx] !== 1 || !movesFrom(drag.idx).length) { drag.dead = true; return; }
       drag.moved = true;
       drag.peg = pegEls.get(drag.idx);
       if (drag.peg) drag.peg.classList.add('dragging');
@@ -1018,6 +1389,7 @@
     var d = drag; drag = null;
     try { hitLayer.releasePointerCapture(e.pointerId); } catch (err) {}
 
+    if (d.dead) return;
     /* Simple appui : si la sélection vient d'être posée, ne pas la reprendre. */
     if (!d.moved) { if (!d.armed) pick(d.idx); return; }
 
@@ -1039,6 +1411,7 @@
   hitLayer.addEventListener('pointercancel', function (e) {
     if (!drag || e.pointerId !== drag.id) return;
     var d = drag; drag = null;
+    try { hitLayer.releasePointerCapture(e.pointerId); } catch (err) {}
     if (d.peg) {
       d.peg.classList.remove('dragging');
       d.peg.style.transform = 'translate(' + px(d.idx) + 'px,' + py(d.idx) + 'px)';
@@ -1052,6 +1425,16 @@
   hitLayer.addEventListener('focusin', function (e) {
     if (e.target.hasAttribute && e.target.hasAttribute('data-idx')) focusIdx = +e.target.getAttribute('data-idx');
   });
+
+  function moveFocus(idx) {
+    focusIdx = idx;
+    var node = hitLayer.querySelector('[data-idx="' + idx + '"]');
+    if (node) {
+      for (var k = 0; k < hitLayer.children.length; k++) hitLayer.children[k].setAttribute('tabindex', '-1');
+      node.setAttribute('tabindex', '0');
+      node.focus();
+    }
+  }
 
   hitLayer.addEventListener('keydown', function (e) {
     if (!e.target.hasAttribute || !e.target.hasAttribute('data-idx')) return;
@@ -1074,16 +1457,6 @@
     }
   });
 
-  function moveFocus(idx) {
-    focusIdx = idx;
-    var node = hitLayer.querySelector('[data-idx="' + idx + '"]');
-    if (node) {
-      for (var k = 0; k < hitLayer.children.length; k++) hitLayer.children[k].setAttribute('tabindex', '-1');
-      node.setAttribute('tabindex', '0');
-      node.focus();
-    }
-  }
-
   document.addEventListener('keydown', function (e) {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
   });
@@ -1093,7 +1466,7 @@
   $('undoBtn').addEventListener('click', undo);
 
   $('restartBtn').addEventListener('click', function () {
-    reset(false);
+    reset();
     announce('Nouvelle partie.');
   });
 
@@ -1103,15 +1476,48 @@
     refresh();
   });
 
-  Array.prototype.forEach.call(document.querySelectorAll('[data-variant]'), function (btn) {
-    btn.addEventListener('click', function () {
-      variant = btn.getAttribute('data-variant');
-      Array.prototype.forEach.call(document.querySelectorAll('[data-variant]'), function (b) {
-        b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
-      });
-      $('setupLabel').textContent = VARIANTS[variant].label;
-      reset(false);
+  $('variantSel').addEventListener('change', function () {
+    variant = this.value;
+    /* Sans les diagonales, le petit plateau plafonne à quatre pions : on les active. */
+    if (variant === 'enfant' && !diagonals) {
+      diagonals = true;
+      $('diagToggle').checked = true;
+      announce('Diagonales activées : sans elles, le plateau enfant ne peut pas descendre sous quatre pions.');
+    }
+    reset();
+  });
+
+  $('paceSel').addEventListener('change', function () {
+    pace = this.value;
+    restartCountdown();
+    refresh();
+  });
+
+  $('paletteSel').addEventListener('change', function () {
+    palette = this.value;
+    syncSwatches();
+    applyPalette();
+    save();
+  });
+
+  ['cBoard', 'cPeg', 'cAccent'].forEach(function (id, k) {
+    $(id).addEventListener('input', function () {
+      custom[['board', 'peg', 'accent'][k]] = this.value;
+      palette = 'perso';
+      $('paletteSel').value = 'perso';
+      syncSwatches();
+      applyPalette();
+      save();
     });
+  });
+
+  $('resetColors').addEventListener('click', function () {
+    custom = { board: '#ce9f63', peg: '#8e3e22', accent: '#35825f' };
+    palette = 'hetre';
+    $('paletteSel').value = 'hetre';
+    syncSwatches();
+    applyPalette();
+    save();
   });
 
   $('diagToggle').addEventListener('change', function () {
@@ -1120,17 +1526,31 @@
     refresh();
   });
 
+  function syncSwatches() {
+    var on = palette === 'perso';
+    $('swatches').hidden = !on;
+    if (on) {
+      $('cBoard').value = custom.board;
+      $('cPeg').value = custom.peg;
+      $('cAccent').value = custom.accent;
+    }
+  }
+
   /* ---------------- Sauvegarde ---------------- */
 
   function save() {
     try {
       window.localStorage.setItem(STORE, JSON.stringify({
         variant: variant,
+        pace: pace,
+        palette: palette,
+        custom: custom,
         diagonals: diagonals,
         cells: cells,
         history: history.map(function (m) { return [m.from, m.over, m.to]; }),
         elapsed: elapsed,
         hints: hints,
+        finished: finished,
         records: records
       }));
     } catch (e) {}
@@ -1142,42 +1562,63 @@
     if (!raw) return false;
     var data;
     try { data = JSON.parse(raw); } catch (e) { return false; }
-    if (!data || !VARIANTS[data.variant] || !Array.isArray(data.cells) || data.cells.length !== N * N) return false;
+    if (!data || !VARIANTS[data.variant] || !Array.isArray(data.cells)) return false;
+
+    var n = VARIANTS[data.variant].n;
+    if (data.cells.length !== n * n) return false;
 
     records = (data.records && typeof data.records === 'object') ? data.records : {};
     variant = data.variant;
+    N = n;
+    pace = PACES[data.pace] ? data.pace : 'libre';
+    palette = PALETTES[data.palette] !== undefined ? data.palette : 'hetre';
+    if (data.custom && data.custom.board) custom = data.custom;
     diagonals = !!data.diagonals;
     hints = !!data.hints;
     elapsed = typeof data.elapsed === 'number' ? data.elapsed : 0;
     cells = data.cells.map(function (v) { return v === null ? null : (v ? 1 : 0); });
     history = (data.history || []).map(function (m) { return { from: m[0], over: m[1], to: m[2] }; });
 
-    $('diagToggle').checked = diagonals;
-    $('hintBtn').setAttribute('aria-pressed', hints ? 'true' : 'false');
-    $('setupLabel').textContent = VARIANTS[variant].label;
-    Array.prototype.forEach.call(document.querySelectorAll('[data-variant]'), function (b) {
-      b.setAttribute('aria-pressed', b.getAttribute('data-variant') === variant ? 'true' : 'false');
-    });
-
     selected = null;
     finished = false;
-    focusIdx = CENTER;
-    buildPlate();
-    renderStatic();
-    resetPegs();
-    paintClock();
-    refresh();
+    focusIdx = center();
     return true;
   }
 
   /* ---------------- Démarrage ---------------- */
 
-  if (!load()) reset(false);
+  var restored = load();
+
+  $('variantSel').value = variant;
+  $('paceSel').value = pace;
+  $('paletteSel').value = palette;
+  $('diagToggle').checked = diagonals;
+  $('hintBtn').setAttribute('aria-pressed', hints ? 'true' : 'false');
+  syncSwatches();
+  applyPalette();
+
+  if (restored) {
+    $('setupLabel').textContent = VARIANTS[variant].label;
+    buildPlate();
+    renderStatic();
+    resetPegs();
+    refresh();
+  } else {
+    reset();
+  }
   paintClock();
+  stopCountdown();
 
   window.addEventListener('beforeunload', save);
   document.addEventListener('visibilitychange', function () {
-    if (document.hidden) { save(); }
+    if (document.hidden) {
+      pauseCountdown();
+      if (running) { window.clearInterval(tickId); tickId = null; running = false; }
+      save();
+    } else {
+      resumeCountdown();
+      if (started() && !finished) startClock();
+    }
   });
 })();
 </script>
