@@ -1,0 +1,15 @@
+{
+  "name": "Solitaire Octogone",
+  "short_name": "Solitaire",
+  "description": "Le solitaire en bois à 37 trous, jouable au doigt ou à la souris.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#171B19",
+  "theme_color": "#B9854A",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -1,0 +1,1186 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Le solitaire en bois à 37 trous, jouable au doigt ou à la souris.">
+<meta name="theme-color" content="#B9854A">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<script>
+  window.addEventListener('load', function () {
+    try {
+      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+        navigator.serviceWorker.register('sw.js').catch(function () {});
+      }
+    } catch (e) {}
+  });
+</script>
+</head>
+<body>
+<!--ARTIFACT-START-->
+<title>Solitaire Octogone</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap">
+<style>
+  /* ---------- Jetons de style ---------- */
+  :root {
+    color-scheme: light dark;
+
+    --ground:      #DDE1DA;
+    --ground-deep: #CDD3CA;
+    --panel:       #F0F2ED;
+    --panel-edge:  #C6CCC3;
+    --ink:         #1F2622;
+    --ink-soft:    #5C6660;
+    --ink-faint:   #8A948D;
+
+    --wood-hi:     #E0BA88;
+    --wood:        #CE9F63;
+    --wood-lo:     #B07C41;
+    --wood-edge:   #7C5227;
+    --grain:       0.34;
+
+    --hole-lo:     #1E0F05;
+    --hole-hi:     #5A3819;
+
+    --peg-hi:      #C57647;
+    --peg:         #8E3E22;
+    --peg-lo:      #3D160B;
+
+    --brass:       #C8912E;
+    --jade:        #35825F;
+    --jade-ink:    #2A6B4E;
+    --alert:       #A8452F;
+
+    --shadow:      0 1px 2px rgba(31,38,34,.06), 0 8px 28px -12px rgba(31,38,34,.28);
+    --radius:      14px;
+    --step:        clamp(.62rem, .35rem + .9vw, .95rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #171B19;
+      --ground-deep: #101312;
+      --panel:       #212724;
+      --panel-edge:  #333B37;
+      --ink:         #E6EBE7;
+      --ink-soft:    #9BA79F;
+      --ink-faint:   #6E7A73;
+
+      --wood-hi:     #C79A64;
+      --wood:        #B0844B;
+      --wood-lo:     #8E6236;
+      --wood-edge:   #55371B;
+      --grain:       0.4;
+
+      --hole-lo:     #150A03;
+      --hole-hi:     #4C2E13;
+
+      --brass:       #DFA93F;
+      --jade:        #4FA47A;
+      --jade-ink:    #7FC7A4;
+
+      --shadow:      0 1px 2px rgba(0,0,0,.5), 0 14px 40px -14px rgba(0,0,0,.75);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #171B19;
+    --ground-deep: #101312;
+    --panel:       #212724;
+    --panel-edge:  #333B37;
+    --ink:         #E6EBE7;
+    --ink-soft:    #9BA79F;
+    --ink-faint:   #6E7A73;
+
+    --wood-hi:     #C79A64;
+    --wood:        #B0844B;
+    --wood-lo:     #8E6236;
+    --wood-edge:   #55371B;
+    --grain:       0.4;
+
+    --hole-lo:     #150A03;
+    --hole-hi:     #4C2E13;
+
+    --brass:       #DFA93F;
+    --jade:        #4FA47A;
+    --jade-ink:    #7FC7A4;
+
+    --shadow:      0 1px 2px rgba(0,0,0,.5), 0 14px 40px -14px rgba(0,0,0,.75);
+  }
+
+  /* ---------- Base ---------- */
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background:
+      radial-gradient(120% 80% at 50% 0%, var(--ground) 0%, var(--ground-deep) 100%);
+    color: var(--ink);
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+  }
+
+  .shell {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: calc(var(--step) * 1.6) var(--step) calc(var(--step) * 2.4);
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--step) * 1.15);
+    min-height: 100dvh;
+  }
+
+  /* ---------- En-tête ---------- */
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+
+  .wordmark { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+
+  h1 {
+    font-family: "Bricolage Grotesque", Archivo, sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 800;
+    font-size: clamp(1.45rem, 1.05rem + 1.9vw, 2.3rem);
+    letter-spacing: -.022em;
+    line-height: 1;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .eyebrow {
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- Réglages ---------- */
+  .settings { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+
+  .segmented {
+    display: inline-flex;
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 999px;
+    padding: 3px;
+    gap: 2px;
+  }
+
+  .segmented button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--ink-soft);
+    font: inherit;
+    font-size: .82rem;
+    font-weight: 500;
+    padding: .34rem .78rem;
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .18s ease, color .18s ease;
+  }
+  .segmented button:hover { color: var(--ink); }
+  .segmented button[aria-pressed="true"] {
+    background: var(--ink);
+    color: var(--ground);
+  }
+
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: .48rem;
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 999px;
+    padding: .3rem .7rem .3rem .55rem;
+    font-size: .82rem;
+    font-weight: 500;
+    color: var(--ink-soft);
+    cursor: pointer;
+    user-select: none;
+  }
+  .toggle input { position: absolute; opacity: 0; pointer-events: none; }
+  .track {
+    width: 30px; height: 17px;
+    border-radius: 999px;
+    background: var(--panel-edge);
+    position: relative;
+    transition: background .2s ease;
+    flex: none;
+  }
+  .track::after {
+    content: "";
+    position: absolute;
+    inset: 2px auto 2px 2px;
+    width: 13px;
+    border-radius: 50%;
+    background: var(--panel);
+    box-shadow: 0 1px 2px rgba(0,0,0,.25);
+    transition: transform .2s cubic-bezier(.3,.7,.3,1);
+  }
+  .toggle input:checked + .track { background: var(--jade); }
+  .toggle input:checked + .track::after { transform: translateX(13px); }
+  .toggle:has(input:checked) { color: var(--ink); }
+
+  /* ---------- Zone de jeu ---------- */
+  .play {
+    display: grid;
+    gap: calc(var(--step) * 1.1);
+    grid-template-columns: 1fr;
+    align-items: start;
+    align-content: center;
+    flex: 1;
+  }
+
+  @media (min-width: 860px) {
+    .play { grid-template-columns: minmax(0, 1fr) 236px; align-items: center; }
+    .rail { position: sticky; top: var(--step); }
+  }
+
+  .board-wrap {
+    position: relative;
+    width: 100%;
+    max-width: min(100%, 68dvh);
+    margin-inline: auto;
+    aspect-ratio: 1;
+  }
+  @media (min-width: 860px) { .board-wrap { max-width: min(100%, 74dvh); } }
+
+  svg.board { width: 100%; height: 100%; display: block; touch-action: none; overflow: visible; }
+
+  /* ---------- Pièces ---------- */
+  .hole-shadow { fill: var(--hole-lo); }
+  .hole-rim { fill: none; stroke: rgba(255,255,255,.16); stroke-width: 2.5; }
+
+  .hit {
+    fill: transparent;
+    cursor: default;
+    outline: none;
+  }
+  .hit.has-peg { cursor: grab; }
+  .hit.can-drop { cursor: pointer; }
+  .hit:focus-visible {
+    stroke: var(--brass);
+    stroke-width: 4;
+    stroke-dasharray: 7 6;
+  }
+
+  .peg {
+    transition: transform .26s cubic-bezier(.34,.9,.36,1);
+    pointer-events: none;
+  }
+  .peg .body {
+    transition: transform .26s cubic-bezier(.34,.9,.36,1), opacity .22s ease;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .peg.selected .body { transform: scale(1.06); }
+  .peg.lift .body { transform: scale(1.14); }
+  .peg.gone .body { transform: scale(.1); opacity: 0; }
+  .peg.dragging { transition: none; }
+  .peg.dragging .body { transform: scale(1.1); }
+
+  .marker { pointer-events: none; }
+  .target-ring {
+    fill: none;
+    stroke: var(--jade);
+    stroke-width: 5;
+    opacity: .95;
+  }
+  .target-dot { fill: var(--jade); opacity: .8; }
+  .select-ring {
+    fill: none;
+    stroke: var(--brass);
+    stroke-width: 5.5;
+    stroke-dasharray: 13 9;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: spin 9s linear infinite;
+  }
+  .hint-ring { fill: none; stroke: var(--brass); stroke-width: 2.5; opacity: .55; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes breathe { 50% { transform: scale(1.1); opacity: .6; } }
+  .target-ring { transform-box: fill-box; transform-origin: center; animation: breathe 1.9s ease-in-out infinite; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .peg, .peg .body { transition-duration: .01ms; }
+    .select-ring, .target-ring { animation: none; }
+  }
+
+  /* ---------- Tableau de bord ---------- */
+  .rail { display: flex; flex-direction: column; gap: calc(var(--step) * .9); }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--panel-edge);
+    border: 1px solid var(--panel-edge);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .stat { background: var(--panel); padding: .6rem .7rem .68rem; }
+  .stat dt {
+    font-size: .66rem;
+    font-weight: 600;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 .12rem;
+  }
+  .stat dd {
+    margin: 0;
+    font-family: "Bricolage Grotesque", Archivo, sans-serif;
+    font-weight: 700;
+    font-size: clamp(1.28rem, 1rem + 1vw, 1.7rem);
+    line-height: 1.05;
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat dd small { font-size: .58em; font-weight: 500; color: var(--ink-faint); letter-spacing: 0; }
+
+  .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
+  @media (min-width: 860px) { .controls { grid-template-columns: 1fr; } }
+
+  .btn {
+    appearance: none;
+    font: inherit;
+    font-weight: 500;
+    font-size: .88rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .45rem;
+    padding: .62rem .8rem;
+    border-radius: 11px;
+    border: 1px solid var(--panel-edge);
+    background: var(--panel);
+    color: var(--ink);
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: transform .12s ease, border-color .18s ease, color .18s ease;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--ink-faint); }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn:disabled { opacity: .42; cursor: not-allowed; box-shadow: none; }
+  .btn:focus-visible { outline: 2.5px solid var(--brass); outline-offset: 2px; }
+  .btn[aria-pressed="true"] { border-color: var(--brass); color: var(--brass); }
+  .btn svg { width: 16px; height: 16px; flex: none; }
+
+  /* ---------- Message ---------- */
+  .verdict {
+    border: 1px solid var(--panel-edge);
+    border-radius: var(--radius);
+    background: var(--panel);
+    padding: .72rem .85rem;
+    box-shadow: var(--shadow);
+    display: none;
+  }
+  .verdict[data-show="true"] { display: block; }
+  .verdict h2 {
+    font-family: "Bricolage Grotesque", Archivo, sans-serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -.015em;
+    margin: 0 0 .12rem;
+  }
+  .verdict p { margin: 0; font-size: .84rem; color: var(--ink-soft); }
+  .verdict[data-tone="win"] h2 { color: var(--jade-ink); }
+  .verdict[data-tone="stuck"] h2 { color: var(--alert); }
+
+  /* ---------- Règle ---------- */
+  details.rules {
+    border-top: 1px solid var(--panel-edge);
+    padding-top: calc(var(--step) * .9);
+  }
+  details.rules summary {
+    cursor: pointer;
+    font-size: .82rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+  }
+  details.rules summary::-webkit-details-marker { display: none; }
+  details.rules summary::before {
+    content: "";
+    width: 7px; height: 7px;
+    border-right: 1.8px solid currentColor;
+    border-bottom: 1.8px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform .2s ease;
+  }
+  details.rules[open] summary::before { transform: rotate(45deg); }
+  details.rules summary:focus-visible { outline: 2.5px solid var(--brass); outline-offset: 3px; border-radius: 4px; }
+  .rules-body {
+    max-width: 62ch;
+    margin-top: .7rem;
+    font-size: .88rem;
+    color: var(--ink-soft);
+    display: grid;
+    gap: .5rem;
+  }
+  .rules-body strong { color: var(--ink); font-weight: 600; }
+  .rules-body ul { margin: 0; padding-left: 1.1rem; display: grid; gap: .3rem; }
+  kbd {
+    font: inherit;
+    font-size: .8em;
+    background: var(--ground-deep);
+    border: 1px solid var(--panel-edge);
+    border-radius: 5px;
+    padding: .05em .35em;
+  }
+
+  .sr {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+</style>
+
+<div class="shell">
+  <header>
+    <div class="wordmark">
+      <h1>Solitaire Octogone</h1>
+      <span class="eyebrow" id="setupLabel">37 trous &middot; 36 pions</span>
+    </div>
+    <div class="settings">
+      <div class="segmented" role="group" aria-label="Forme du plateau">
+        <button type="button" data-variant="octogone" aria-pressed="true">Octogone 37</button>
+        <button type="button" data-variant="croix" aria-pressed="false">Croix 33</button>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="diagToggle">
+        <span class="track" aria-hidden="true"></span>
+        Diagonales
+      </label>
+    </div>
+  </header>
+
+  <div class="play">
+    <div class="board-wrap">
+      <svg class="board" id="board" viewBox="-60 -60 820 820" role="application"
+           aria-label="Plateau de solitaire. Flèches pour déplacer la sélection, Entrée pour choisir un pion puis sa case d'arrivée.">
+        <defs>
+          <linearGradient id="woodFace" x1="0" y1="0" x2=".35" y2="1">
+            <stop offset="0%" stop-color="var(--wood-hi)"/>
+            <stop offset="52%" stop-color="var(--wood)"/>
+            <stop offset="100%" stop-color="var(--wood-lo)"/>
+          </linearGradient>
+          <radialGradient id="holeGrad" cx=".38" cy=".3" r=".85">
+            <stop offset="0%" stop-color="var(--hole-hi)"/>
+            <stop offset="62%" stop-color="var(--hole-lo)"/>
+            <stop offset="100%" stop-color="var(--hole-lo)"/>
+          </radialGradient>
+          <radialGradient id="pegGrad" cx=".34" cy=".28" r=".92">
+            <stop offset="0%" stop-color="var(--peg-hi)"/>
+            <stop offset="45%" stop-color="var(--peg)"/>
+            <stop offset="100%" stop-color="var(--peg-lo)"/>
+          </radialGradient>
+          <filter id="woodGrain" x="-5%" y="-5%" width="110%" height="110%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.006 0.14" numOctaves="4" seed="17" result="n"/>
+            <feColorMatrix in="n" type="saturate" values="0" result="g"/>
+            <feComponentTransfer in="g">
+              <feFuncA type="linear" slope="1.15" intercept="-.1"/>
+            </feComponentTransfer>
+          </filter>
+          <filter id="pegShadow" x="-45%" y="-45%" width="190%" height="200%">
+            <feDropShadow dx="0" dy="7" stdDeviation="6" flood-color="#1a0e05" flood-opacity=".45"/>
+          </filter>
+          <clipPath id="plateClip"><path id="plateClipPath" d=""/></clipPath>
+        </defs>
+
+        <path id="plateEdge" d="" fill="var(--wood-edge)" stroke="var(--wood-edge)" stroke-width="26" stroke-linejoin="round" transform="translate(0,14)"/>
+        <g clip-path="url(#plateClip)">
+          <path id="plateFace" d="" fill="url(#woodFace)" stroke="url(#woodFace)" stroke-width="26" stroke-linejoin="round"/>
+          <rect x="-120" y="-120" width="940" height="940" filter="url(#woodGrain)" style="mix-blend-mode:multiply" opacity="var(--grain)"/>
+          <rect x="-120" y="-120" width="940" height="940" fill="none"/>
+        </g>
+        <path id="plateLip" d="" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="3" stroke-linejoin="round"/>
+
+        <g id="holeLayer"></g>
+        <g id="markerLayer"></g>
+        <g id="pegLayer"></g>
+        <g id="hitLayer"></g>
+      </svg>
+    </div>
+
+    <div class="rail">
+      <dl class="stats">
+        <div class="stat"><dt>Pions</dt><dd id="statPegs">36</dd></div>
+        <div class="stat"><dt>Temps</dt><dd id="statTime">0:00</dd></div>
+        <div class="stat"><dt>Record</dt><dd id="statBest">&mdash;</dd></div>
+      </dl>
+
+      <div class="verdict" id="verdict" data-show="false" role="status">
+        <h2 id="verdictTitle"></h2>
+        <p id="verdictBody"></p>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="undoBtn" type="button" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h11a5 5 0 0 1 0 10H8"/><path d="M7 4 3 8l4 4"/></svg>
+          Annuler
+        </button>
+        <button class="btn" id="restartBtn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 6"/><path d="M20 5v6h-6"/></svg>
+          Recommencer
+        </button>
+        <button class="btn" id="hintBtn" type="button" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.5.4.8 1 .9 1.6h5.4c.1-.6.4-1.2.9-1.6A6 6 0 0 0 12 3Z"/></svg>
+          Indices
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <details class="rules">
+    <summary>Règle du jeu</summary>
+    <div class="rules-body">
+      <p>Au départ, tous les trous sont occupés <strong>sauf celui du centre</strong>. Un pion saute par-dessus un pion voisin pour atterrir dans le trou vide juste derrière&nbsp;: le pion enjambé est retiré du plateau.</p>
+      <ul>
+        <li>Les sauts se font en <strong>ligne droite</strong>, horizontalement ou verticalement. L'option <em>Diagonales</em> ouvre quatre directions de plus&nbsp;: c'est nettement plus facile.</li>
+        <li>Un saut est toujours <strong>de deux cases</strong>, et la case d'arrivée doit être vide.</li>
+        <li>Le but&nbsp;: finir avec <strong>un seul pion</strong>. Le laisser au centre, c'est la partie parfaite.</li>
+      </ul>
+      <p><strong>Pour jouer&nbsp;:</strong> touchez un pion puis sa case d'arrivée, ou faites-le glisser. Au clavier, déplacez la sélection avec les <kbd>flèches</kbd> et validez avec <kbd>Entrée</kbd>&nbsp;; <kbd>Échap</kbd> désélectionne, <kbd>Ctrl</kbd>+<kbd>Z</kbd> annule le dernier coup.</p>
+    </div>
+  </details>
+</div>
+
+<p class="sr" id="live" role="status" aria-live="polite"></p>
+
+<script>
+(function () {
+  'use strict';
+
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var N = 7, CELL = 100, PAD = 40;
+  var B_MIN = -PAD, B_MAX = N * CELL + PAD;   /* -40 .. 740 */
+  var STORE = 'solitaire-octogone.v1';
+
+  /* ---------------- Plateaux ---------------- */
+
+  function octagonPath(inset) {
+    var a = B_MIN + inset, b = B_MAX - inset;
+    var k = (b - a) / (2 + Math.SQRT2);
+    return 'M' + (a + k) + ',' + a +
+           'L' + (b - k) + ',' + a +
+           'L' + b + ',' + (a + k) +
+           'L' + b + ',' + (b - k) +
+           'L' + (b - k) + ',' + b +
+           'L' + (a + k) + ',' + b +
+           'L' + a + ',' + (b - k) +
+           'L' + a + ',' + (a + k) + 'Z';
+  }
+
+  function crossPath(inset) {
+    var a = B_MIN + inset, b = B_MAX - inset;
+    var p = 160 + inset, q = 540 - inset;
+    return 'M' + p + ',' + a + 'L' + q + ',' + a + 'L' + q + ',' + p +
+           'L' + b + ',' + p + 'L' + b + ',' + q + 'L' + q + ',' + q +
+           'L' + q + ',' + b + 'L' + p + ',' + b + 'L' + p + ',' + q +
+           'L' + a + ',' + q + 'L' + a + ',' + p + 'L' + p + ',' + p + 'Z';
+  }
+
+  var VARIANTS = {
+    octogone: {
+      label: '37 trous · 36 pions',
+      valid: function (r, c) {
+        return (r + c >= 2) && (r + (6 - c) >= 2) && ((6 - r) + c >= 2) && ((6 - r) + (6 - c) >= 2);
+      },
+      plate: octagonPath
+    },
+    croix: {
+      label: '33 trous · 32 pions',
+      valid: function (r, c) { return (r >= 2 && r <= 4) || (c >= 2 && c <= 4); },
+      plate: crossPath
+    }
+  };
+
+  var ORTHO = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  var DIAG = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+  var CENTER = 3 * N + 3;
+
+  /* ---------------- État ---------------- */
+
+  var variant = 'octogone';
+  var diagonals = false;
+  var cells = [];                 /* null = pas de trou, 0 = vide, 1 = pion */
+  var pegEls = new Map();
+  var history = [];
+  var selected = null;
+  var focusIdx = CENTER;
+  var hints = false;
+  var finished = false;
+  var elapsed = 0, tickId = null, running = false;
+  var records = {};
+
+  var $ = function (id) { return document.getElementById(id); };
+  var svg = $('board');
+  var holeLayer = $('holeLayer'), markerLayer = $('markerLayer');
+  var pegLayer = $('pegLayer'), hitLayer = $('hitLayer');
+  var live = $('live');
+
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var HOP = reduceMotion ? 0 : 260;
+
+  function rowOf(i) { return Math.floor(i / N); }
+  function colOf(i) { return i % N; }
+  function px(i) { return colOf(i) * CELL + CELL / 2; }
+  function py(i) { return rowOf(i) * CELL + CELL / 2; }
+  function recordKey() { return variant + (diagonals ? '|diag' : '|ortho'); }
+
+  /* ---------------- Règles ---------------- */
+
+  function dirs() { return diagonals ? ORTHO.concat(DIAG) : ORTHO; }
+
+  function movesFrom(i) {
+    var out = [];
+    if (cells[i] !== 1) return out;
+    var r = rowOf(i), c = colOf(i), d = dirs();
+    for (var k = 0; k < d.length; k++) {
+      var mr = r + d[k][0], mc = c + d[k][1];
+      var tr = r + 2 * d[k][0], tc = c + 2 * d[k][1];
+      if (tr < 0 || tr >= N || tc < 0 || tc >= N) continue;
+      var over = mr * N + mc, to = tr * N + tc;
+      if (cells[over] === 1 && cells[to] === 0) out.push({ from: i, over: over, to: to });
+    }
+    return out;
+  }
+
+  function anyMove() {
+    for (var i = 0; i < cells.length; i++) if (cells[i] === 1 && movesFrom(i).length) return true;
+    return false;
+  }
+
+  function pegCount() {
+    var n = 0;
+    for (var i = 0; i < cells.length; i++) if (cells[i] === 1) n++;
+    return n;
+  }
+
+  /* ---------------- Construction du plateau ---------------- */
+
+  function buildPlate() {
+    var plate = VARIANTS[variant].plate;
+    $('plateFace').setAttribute('d', plate(13));
+    $('plateEdge').setAttribute('d', plate(13));
+    $('plateLip').setAttribute('d', plate(17));
+    $('plateClipPath').setAttribute('d', plate(0));
+  }
+
+  function makePeg(i) {
+    var g = document.createElementNS(SVGNS, 'g');
+    g.setAttribute('class', 'peg');
+    g.style.transform = 'translate(' + px(i) + 'px,' + py(i) + 'px)';
+
+    var body = document.createElementNS(SVGNS, 'g');
+    body.setAttribute('class', 'body');
+    body.setAttribute('filter', 'url(#pegShadow)');
+
+    var disc = document.createElementNS(SVGNS, 'circle');
+    disc.setAttribute('r', 32);
+    disc.setAttribute('fill', 'url(#pegGrad)');
+
+    var rim = document.createElementNS(SVGNS, 'circle');
+    rim.setAttribute('r', 31);
+    rim.setAttribute('fill', 'none');
+    rim.setAttribute('stroke', 'rgba(0,0,0,.35)');
+    rim.setAttribute('stroke-width', 2);
+
+    var shine = document.createElementNS(SVGNS, 'ellipse');
+    shine.setAttribute('cx', -8); shine.setAttribute('cy', -12);
+    shine.setAttribute('rx', 13); shine.setAttribute('ry', 8);
+    shine.setAttribute('fill', 'rgba(255,255,255,.26)');
+    shine.setAttribute('transform', 'rotate(-28,-8,-12)');
+
+    body.appendChild(disc); body.appendChild(rim); body.appendChild(shine);
+    g.appendChild(body);
+    pegLayer.appendChild(g);
+    pegEls.set(i, g);
+    return g;
+  }
+
+  function renderStatic() {
+    holeLayer.textContent = '';
+    hitLayer.textContent = '';
+    for (var i = 0; i < cells.length; i++) {
+      if (cells[i] === null) continue;
+
+      var hole = document.createElementNS(SVGNS, 'circle');
+      hole.setAttribute('cx', px(i)); hole.setAttribute('cy', py(i));
+      hole.setAttribute('r', 35);
+      hole.setAttribute('fill', 'url(#holeGrad)');
+      holeLayer.appendChild(hole);
+
+      var rim = document.createElementNS(SVGNS, 'path');
+      rim.setAttribute('class', 'hole-rim');
+      rim.setAttribute('d', arcPath(px(i), py(i), 36, 22, 158));
+      holeLayer.appendChild(rim);
+
+      var hit = document.createElementNS(SVGNS, 'circle');
+      hit.setAttribute('class', 'hit');
+      hit.setAttribute('cx', px(i)); hit.setAttribute('cy', py(i));
+      hit.setAttribute('r', 48);
+      hit.setAttribute('data-idx', i);
+      hit.setAttribute('tabindex', i === focusIdx ? '0' : '-1');
+      hit.setAttribute('role', 'button');
+      hitLayer.appendChild(hit);
+    }
+  }
+
+  function arcPath(cx, cy, r, fromDeg, toDeg) {
+    var a = fromDeg * Math.PI / 180, b = toDeg * Math.PI / 180;
+    return 'M' + (cx + r * Math.cos(a)) + ',' + (cy + r * Math.sin(a)) +
+           'A' + r + ',' + r + ' 0 0 1 ' + (cx + r * Math.cos(b)) + ',' + (cy + r * Math.sin(b));
+  }
+
+  function reset(keepTime) {
+    cells = new Array(N * N).fill(null);
+    for (var r = 0; r < N; r++) {
+      for (var c = 0; c < N; c++) {
+        if (VARIANTS[variant].valid(r, c)) cells[r * N + c] = 1;
+      }
+    }
+    cells[CENTER] = 0;
+    history = [];
+    selected = null;
+    finished = false;
+    focusIdx = CENTER;
+    if (!keepTime) { elapsed = 0; }
+    stopClock();
+    buildPlate();
+    renderStatic();
+    resetPegs();
+    refresh();
+  }
+
+  function resetPegs() {
+    pegLayer.textContent = '';
+    pegEls.clear();
+    for (var i = 0; i < cells.length; i++) if (cells[i] === 1) makePeg(i);
+  }
+
+  /* ---------------- Coups ---------------- */
+
+  function play(m) {
+    if (finished) return;
+    cells[m.from] = 0; cells[m.over] = 0; cells[m.to] = 1;
+    history.push(m);
+
+    var peg = pegEls.get(m.from);
+    pegEls.delete(m.from);
+    pegEls.set(m.to, peg);
+    peg.classList.remove('dragging');
+    peg.style.transition = '';
+    peg.style.transform = 'translate(' + px(m.to) + 'px,' + py(m.to) + 'px)';
+    peg.classList.add('lift');
+    window.setTimeout(function () { peg.classList.remove('lift'); }, HOP);
+
+    var eaten = pegEls.get(m.over);
+    pegEls.delete(m.over);
+    if (eaten) {
+      eaten.classList.add('gone');
+      window.setTimeout(function () { eaten.remove(); }, HOP);
+    }
+
+    selected = null;
+    focusIdx = m.to;
+    buzz(14);
+    startClock();
+    refresh();
+    announce('Saut joué. ' + pegCount() + ' pions restants.');
+  }
+
+  function undo() {
+    if (!history.length) return;
+    var m = history.pop();
+    cells[m.from] = 1; cells[m.over] = 1; cells[m.to] = 0;
+
+    var peg = pegEls.get(m.to);
+    pegEls.delete(m.to);
+    pegEls.set(m.from, peg);
+    peg.style.transform = 'translate(' + px(m.from) + 'px,' + py(m.from) + 'px)';
+
+    var back = makePeg(m.over);
+    back.classList.add('gone');
+    /* reflow forcé, puis retour à l'échelle normale */
+    void back.getBoundingClientRect();
+    back.classList.remove('gone');
+
+    selected = null;
+    finished = false;
+    focusIdx = m.from;
+    refresh();
+    announce('Coup annulé. ' + pegCount() + ' pions restants.');
+  }
+
+  /* ---------------- Rendu dynamique ---------------- */
+
+  function refresh() {
+    markerLayer.textContent = '';
+
+    var targets = selected === null ? [] : movesFrom(selected);
+
+    pegEls.forEach(function (el) { el.classList.remove('selected'); });
+    if (selected !== null) {
+      markerLayer.appendChild(ring(selected, 44, 'select-ring'));
+      var sel = pegEls.get(selected);
+      if (sel) sel.classList.add('selected');
+    }
+
+    targets.forEach(function (m) {
+      markerLayer.appendChild(ring(m.to, 28, 'target-ring'));
+      var dot = document.createElementNS(SVGNS, 'circle');
+      dot.setAttribute('class', 'marker target-dot');
+      dot.setAttribute('cx', px(m.to)); dot.setAttribute('cy', py(m.to));
+      dot.setAttribute('r', 8);
+      markerLayer.appendChild(dot);
+    });
+
+    if (hints && selected === null) {
+      for (var i = 0; i < cells.length; i++) {
+        if (cells[i] === 1 && movesFrom(i).length) markerLayer.appendChild(ring(i, 39, 'hint-ring'));
+      }
+    }
+
+    var hitNodes = hitLayer.children;
+    for (var k = 0; k < hitNodes.length; k++) {
+      var node = hitNodes[k];
+      var idx = +node.getAttribute('data-idx');
+      var drop = targets.some(function (m) { return m.to === idx; });
+      node.setAttribute('class', 'hit' + (cells[idx] === 1 ? ' has-peg' : '') + (drop ? ' can-drop' : ''));
+      node.setAttribute('tabindex', idx === focusIdx ? '0' : '-1');
+      node.setAttribute('aria-label', describe(idx, drop));
+    }
+
+    var pegs = pegCount();
+    $('statPegs').textContent = pegs;
+    $('undoBtn').disabled = history.length === 0;
+
+    var key = recordKey();
+    if (history.length && (records[key] === undefined || pegs < records[key])) {
+      records[key] = pegs;
+      save();
+    }
+    $('statBest').innerHTML = records[key] === undefined
+      ? '&mdash;'
+      : records[key] + ' <small>pion' + (records[key] > 1 ? 's' : '') + '</small>';
+
+    checkEnd(pegs);
+    save();
+  }
+
+  function ring(i, r, cls) {
+    var c = document.createElementNS(SVGNS, 'circle');
+    c.setAttribute('class', 'marker ' + cls);
+    c.setAttribute('cx', px(i)); c.setAttribute('cy', py(i));
+    c.setAttribute('r', r);
+    return c;
+  }
+
+  function describe(idx, drop) {
+    var pos = 'ligne ' + (rowOf(idx) + 1) + ', colonne ' + (colOf(idx) + 1);
+    if (drop) return "Case d'arrivée libre, " + pos;
+    if (cells[idx] === 1) return (selected === idx ? 'Pion sélectionné, ' : 'Pion, ') + pos;
+    return 'Trou vide, ' + pos;
+  }
+
+  function checkEnd(pegs) {
+    var v = $('verdict');
+    if (pegs === 1) {
+      finished = true; stopClock();
+      show(v, 'win',
+        cells[CENTER] === 1 ? 'Partie parfaite' : 'Gagné',
+        cells[CENTER] === 1
+          ? "Un seul pion, et il est au centre. C'est la fin la plus propre du solitaire."
+          : 'Un seul pion sur le plateau. Reste à le faire finir au centre.');
+      announce('Gagné, un seul pion restant.');
+    } else if (!anyMove()) {
+      finished = true; stopClock();
+      show(v, 'stuck', 'Bloqué à ' + pegs + ' pions',
+        'Plus aucun saut possible. Annulez quelques coups pour tenter une autre suite.');
+      announce('Bloqué avec ' + pegs + ' pions.');
+    } else {
+      v.setAttribute('data-show', 'false');
+    }
+  }
+
+  function show(el, tone, title, body) {
+    el.setAttribute('data-show', 'true');
+    el.setAttribute('data-tone', tone);
+    $('verdictTitle').textContent = title;
+    $('verdictBody').textContent = body;
+  }
+
+  function announce(msg) { live.textContent = msg; }
+
+  function buzz(ms) {
+    try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {}
+  }
+
+  /* ---------------- Chronomètre ---------------- */
+
+  function startClock() {
+    if (running || finished) return;
+    running = true;
+    tickId = window.setInterval(function () { elapsed++; paintClock(); }, 1000);
+  }
+  function stopClock() {
+    running = false;
+    if (tickId) { window.clearInterval(tickId); tickId = null; }
+    paintClock();
+  }
+  function paintClock() {
+    var m = Math.floor(elapsed / 60), s = elapsed % 60;
+    $('statTime').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  /* ---------------- Selection ---------------- */
+
+  function pick(idx) {
+    if (finished) return;
+    if (selected !== null) {
+      var m = movesFrom(selected).filter(function (x) { return x.to === idx; })[0];
+      if (m) { play(m); return; }
+      if (idx === selected) { selected = null; focusIdx = idx; refresh(); return; }
+    }
+    if (cells[idx] === 1 && movesFrom(idx).length) {
+      selected = idx; focusIdx = idx; refresh();
+      announce(describe(idx, false));
+    } else if (cells[idx] === 1) {
+      selected = null; focusIdx = idx; refresh();
+      announce('Ce pion ne peut sauter nulle part.');
+    } else {
+      selected = null; focusIdx = idx; refresh();
+    }
+  }
+
+  /* ---------------- Pointeur : appui et glisser ---------------- */
+
+  var drag = null;
+
+  function toUser(evt) {
+    var ctm = svg.getScreenCTM();
+    if (!ctm) return { x: 0, y: 0 };
+    var inv = ctm.inverse();
+    var p = svg.createSVGPoint ? svg.createSVGPoint() : new DOMPoint();
+    p.x = evt.clientX; p.y = evt.clientY;
+    var out = p.matrixTransform ? p.matrixTransform(inv) : new DOMPoint(evt.clientX, evt.clientY).matrixTransform(inv);
+    return { x: out.x, y: out.y };
+  }
+
+  hitLayer.addEventListener('pointerdown', function (e) {
+    if (!e.target.hasAttribute || !e.target.hasAttribute('data-idx') || finished) return;
+    var idx = +e.target.getAttribute('data-idx');
+    e.preventDefault();
+    drag = { idx: idx, id: e.pointerId, start: toUser(e), moved: false, peg: null, armed: false };
+    /* Sélectionner dès l'appui : le pion suit le doigt s'il glisse. */
+    if (cells[idx] === 1 && movesFrom(idx).length && selected !== idx) {
+      selected = idx; focusIdx = idx; drag.armed = true; refresh();
+      announce(describe(idx, false));
+    }
+    try { hitLayer.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+
+  hitLayer.addEventListener('pointermove', function (e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    var p = toUser(e);
+    if (!drag.moved) {
+      if (Math.hypot(p.x - drag.start.x, p.y - drag.start.y) < 16) return;
+      if (cells[drag.idx] !== 1 || !movesFrom(drag.idx).length) { drag = null; return; }
+      drag.moved = true;
+      drag.peg = pegEls.get(drag.idx);
+      if (drag.peg) drag.peg.classList.add('dragging');
+    }
+    if (drag.peg) drag.peg.style.transform = 'translate(' + p.x + 'px,' + p.y + 'px)';
+  });
+
+  function endDrag(e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    var d = drag; drag = null;
+    try { hitLayer.releasePointerCapture(e.pointerId); } catch (err) {}
+
+    /* Simple appui : si la sélection vient d'être posée, ne pas la reprendre. */
+    if (!d.moved) { if (!d.armed) pick(d.idx); return; }
+
+    if (d.peg) d.peg.classList.remove('dragging');
+    var p = toUser(e);
+    var best = null, bestDist = Infinity;
+    movesFrom(d.idx).forEach(function (m) {
+      var dist = Math.hypot(p.x - px(m.to), p.y - py(m.to));
+      if (dist < bestDist) { bestDist = dist; best = m; }
+    });
+    if (best && bestDist < 70) {
+      play(best);
+    } else if (d.peg) {
+      d.peg.style.transform = 'translate(' + px(d.idx) + 'px,' + py(d.idx) + 'px)';
+    }
+  }
+
+  hitLayer.addEventListener('pointerup', endDrag);
+  hitLayer.addEventListener('pointercancel', function (e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    var d = drag; drag = null;
+    if (d.peg) {
+      d.peg.classList.remove('dragging');
+      d.peg.style.transform = 'translate(' + px(d.idx) + 'px,' + py(d.idx) + 'px)';
+    }
+  });
+
+  /* ---------------- Clavier ---------------- */
+
+  var STEPS = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
+
+  hitLayer.addEventListener('focusin', function (e) {
+    if (e.target.hasAttribute && e.target.hasAttribute('data-idx')) focusIdx = +e.target.getAttribute('data-idx');
+  });
+
+  hitLayer.addEventListener('keydown', function (e) {
+    if (!e.target.hasAttribute || !e.target.hasAttribute('data-idx')) return;
+    var idx = +e.target.getAttribute('data-idx');
+
+    if (STEPS[e.key]) {
+      e.preventDefault();
+      var r = rowOf(idx), c = colOf(idx), d = STEPS[e.key];
+      for (var step = 1; step < N; step++) {
+        var nr = r + d[0] * step, nc = c + d[1] * step;
+        if (nr < 0 || nr >= N || nc < 0 || nc >= N) break;
+        if (cells[nr * N + nc] !== null) { moveFocus(nr * N + nc); break; }
+      }
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      pick(idx);
+      moveFocus(focusIdx);
+    } else if (e.key === 'Escape') {
+      selected = null; refresh();
+    }
+  });
+
+  function moveFocus(idx) {
+    focusIdx = idx;
+    var node = hitLayer.querySelector('[data-idx="' + idx + '"]');
+    if (node) {
+      for (var k = 0; k < hitLayer.children.length; k++) hitLayer.children[k].setAttribute('tabindex', '-1');
+      node.setAttribute('tabindex', '0');
+      node.focus();
+    }
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+  });
+
+  /* ---------------- Commandes ---------------- */
+
+  $('undoBtn').addEventListener('click', undo);
+
+  $('restartBtn').addEventListener('click', function () {
+    reset(false);
+    announce('Nouvelle partie.');
+  });
+
+  $('hintBtn').addEventListener('click', function () {
+    hints = !hints;
+    this.setAttribute('aria-pressed', hints ? 'true' : 'false');
+    refresh();
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-variant]'), function (btn) {
+    btn.addEventListener('click', function () {
+      variant = btn.getAttribute('data-variant');
+      Array.prototype.forEach.call(document.querySelectorAll('[data-variant]'), function (b) {
+        b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+      });
+      $('setupLabel').textContent = VARIANTS[variant].label;
+      reset(false);
+    });
+  });
+
+  $('diagToggle').addEventListener('change', function () {
+    diagonals = this.checked;
+    selected = null;
+    refresh();
+  });
+
+  /* ---------------- Sauvegarde ---------------- */
+
+  function save() {
+    try {
+      window.localStorage.setItem(STORE, JSON.stringify({
+        variant: variant,
+        diagonals: diagonals,
+        cells: cells,
+        history: history.map(function (m) { return [m.from, m.over, m.to]; }),
+        elapsed: elapsed,
+        hints: hints,
+        records: records
+      }));
+    } catch (e) {}
+  }
+
+  function load() {
+    var raw = null;
+    try { raw = window.localStorage.getItem(STORE); } catch (e) { return false; }
+    if (!raw) return false;
+    var data;
+    try { data = JSON.parse(raw); } catch (e) { return false; }
+    if (!data || !VARIANTS[data.variant] || !Array.isArray(data.cells) || data.cells.length !== N * N) return false;
+
+    records = (data.records && typeof data.records === 'object') ? data.records : {};
+    variant = data.variant;
+    diagonals = !!data.diagonals;
+    hints = !!data.hints;
+    elapsed = typeof data.elapsed === 'number' ? data.elapsed : 0;
+    cells = data.cells.map(function (v) { return v === null ? null : (v ? 1 : 0); });
+    history = (data.history || []).map(function (m) { return { from: m[0], over: m[1], to: m[2] }; });
+
+    $('diagToggle').checked = diagonals;
+    $('hintBtn').setAttribute('aria-pressed', hints ? 'true' : 'false');
+    $('setupLabel').textContent = VARIANTS[variant].label;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-variant]'), function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-variant') === variant ? 'true' : 'false');
+    });
+
+    selected = null;
+    finished = false;
+    focusIdx = CENTER;
+    buildPlate();
+    renderStatic();
+    resetPegs();
+    paintClock();
+    refresh();
+    return true;
+  }
+
+  /* ---------------- Démarrage ---------------- */
+
+  if (!load()) reset(false);
+  paintClock();
+
+  window.addEventListener('beforeunload', save);
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { save(); }
+  });
+})();
+</script>
+<!--ARTIFACT-END-->
+</body>
+</html>
