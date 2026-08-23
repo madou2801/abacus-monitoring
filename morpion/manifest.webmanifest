@@ -1,0 +1,15 @@
+{
+  "name": "Morpion",
+  "short_name": "Morpion",
+  "description": "Morpion : 3 × 3 classique ou 5 en ligne, à deux ou contre la machine.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#151916",
+  "theme_color": "#26332C",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
