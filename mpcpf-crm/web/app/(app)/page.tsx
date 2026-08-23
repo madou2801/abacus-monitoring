@@ -22,22 +22,31 @@ function tally<T extends string>(rows: { [k: string]: any }[], key: string): Rec
   return out;
 }
 
+// Rend chaque requête tolérante : un échec (réseau/timeout/cold-start) ne doit PAS
+// crasher tout le tableau de bord — on dégrade sur un résultat vide.
+function safe<T>(p: PromiseLike<T>): Promise<T> {
+  return Promise.resolve(p).then(
+    (r) => r,
+    () => ({ data: null, count: null } as unknown as T),
+  );
+}
+
 export default async function Dashboard() {
   const db = crm();
   const [benef, inv, companies, ae, review, todayRes, lateTasks, transfersRes] = await Promise.all([
-    db.from("beneficiaries").select("pipeline_stage"),
-    db.from("invoices").select("status, amount_cents"),
-    db.from("companies").select("id", { count: "exact", head: true }),
-    db.from("auto_ecoles").select("id", { count: "exact", head: true }),
-    db.from("beneficiaries").select("id", { count: "exact", head: true }).eq("ae_match_needs_review", true),
-    db.from("vw_intake_today").select("*").maybeSingle(),
-    db.from("tasks").select("id", { count: "exact", head: true })
-      .eq("status", "open").lte("due_at", new Date().toISOString()),
+    safe(db.from("beneficiaries").select("pipeline_stage")),
+    safe(db.from("invoices").select("status, amount_cents")),
+    safe(db.from("companies").select("id", { count: "exact", head: true })),
+    safe(db.from("auto_ecoles").select("id", { count: "exact", head: true })),
+    safe(db.from("beneficiaries").select("id", { count: "exact", head: true }).eq("ae_match_needs_review", true)),
+    safe(db.from("vw_intake_today").select("*").maybeSingle()),
+    safe(db.from("tasks").select("id", { count: "exact", head: true })
+      .eq("status", "open").lte("due_at", new Date().toISOString())),
     // Transferts conseiller des dernières 48 h = appelants à rappeler (notification CRM).
-    db.from("calls").select("id, from_number, started_at")
+    safe(db.from("calls").select("id, from_number, started_at")
       .ilike("disconnection_reason", "%transfer%")
       .gte("started_at", new Date(Date.now() - 48 * 3600 * 1000).toISOString())
-      .order("started_at", { ascending: false }),
+      .order("started_at", { ascending: false })),
   ]);
   const today = (todayRes.data ?? {}) as any;
   const transfers = (transfersRes.data ?? []) as { id: string; from_number: string | null; started_at: string | null }[];

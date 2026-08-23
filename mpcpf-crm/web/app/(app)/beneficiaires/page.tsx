@@ -60,10 +60,13 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
   if (jour === "demandes") query = query.gte("date_creation", startOfTodayParisISO());
   if (jour === "valides") query = query.gte("date_inscription", startOfTodayParisISO());
 
+  // Tolérance : un échec réseau/timeout d'une requête ne doit pas crasher la liste.
+  const safe = <T,>(p: PromiseLike<T>): Promise<T> =>
+    Promise.resolve(p).then((r) => r, () => ({ data: null, count: null } as unknown as T));
   const [rowsRes, aesRes, staffRes] = await Promise.all([
-    query,
-    db.from("auto_ecoles").select("id, raison_sociale, nom"),
-    db.from("app_users").select("email").eq("active", true).order("email"),
+    safe(query),
+    safe(db.from("auto_ecoles").select("id, raison_sociale, nom")),
+    safe(db.from("app_users").select("email").eq("active", true).order("email")),
   ]);
   const aeName = new Map((aesRes.data ?? []).map((a: any) => [a.id, a.raison_sociale ?? a.nom]));
   const list = rowsRes.data ?? [];
