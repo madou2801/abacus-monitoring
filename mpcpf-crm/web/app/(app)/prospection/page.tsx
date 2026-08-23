@@ -8,6 +8,16 @@ const BASE =
   process.env.NEXT_PUBLIC_FINANCEMENTS_BASE ?? "https://financements.abacus-rh.com";
 const STATS_URL = `${BASE}/stats`;
 const LIST_URL = `${BASE}/stats/list`;
+const COMPANY_URL = `${BASE}/stats/company`;
+
+type CompanyDetail = {
+  found: boolean;
+  siren?: string;
+  company?: Record<string, string>;
+  signals?: string[];
+  contacts?: { kind: string; value: string; generique?: boolean; confidence?: number; mx_valid?: boolean; source?: string; url?: string }[];
+  aids?: { opco_code?: string; dispositif?: string; taux_ou_montant?: string; plafond?: string; cible_effectif?: string; conditions?: string; annee?: string }[];
+};
 
 type Stats = {
   generated_at: string;
@@ -96,6 +106,21 @@ export default function Page() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [page, setPage] = useState(0);
   const [copied, setCopied] = useState(false);
+
+  // Fiche société (drill-down au clic sur une ligne)
+  const [detail, setDetail] = useState<CompanyDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailErr, setDetailErr] = useState<string | null>(null);
+
+  function openCompany(siren: string) {
+    if (!siren) return;
+    setDetail(null); setDetailErr(null); setDetailLoading(true);
+    fetch(`${COMPANY_URL}?siren=${encodeURIComponent(siren)}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((d: CompanyDetail) => setDetail(d))
+      .catch((e) => setDetailErr(String(e?.message || e)))
+      .finally(() => setDetailLoading(false));
+  }
 
   useEffect(() => {
     fetch(STATS_URL, { cache: "no-store" })
@@ -309,9 +334,15 @@ export default function Page() {
                 <tbody>
                   {pageRows.map((r, i) => {
                     const globalIdx = filteredRows.indexOf(r);
+                    const hasSiren = !!(r.siren && r.siren.trim());
                     return (
-                      <tr key={page * PAGE_SIZE + i} className="border-t border-slate-50 hover:bg-slate-50">
-                        <td className="px-3 py-2">
+                      <tr
+                        key={page * PAGE_SIZE + i}
+                        onClick={() => hasSiren && openCompany(r.siren)}
+                        className={`border-t border-slate-50 hover:bg-blue-50/50 ${hasSiren ? "cursor-pointer" : ""}`}
+                        title={hasSiren ? "Voir la fiche société" : undefined}
+                      >
+                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={selected.has(globalIdx)}
@@ -341,6 +372,118 @@ export default function Page() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* --- Fiche société (drawer) --- */}
+      {(detailLoading || detail || detailErr) && (
+        <div className="fixed inset-0 z-50 flex justify-end" onClick={() => { setDetail(null); setDetailErr(null); }}>
+          <div className="absolute inset-0 bg-slate-900/30" />
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative h-full w-full max-w-md overflow-y-auto bg-white p-6 shadow-2xl"
+          >
+            <div className="mb-4 flex items-start justify-between">
+              <h3 className="text-lg font-bold text-slate-900">
+                {detail?.company?.raison_sociale || (detailLoading ? "Chargement…" : "Fiche société")}
+              </h3>
+              <button onClick={() => { setDetail(null); setDetailErr(null); }} className="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+
+            {detailErr && <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-700">Erreur : {detailErr}</div>}
+            {detailLoading && <div className="text-sm text-slate-400">Chargement de la fiche…</div>}
+            {detail && !detail.found && !detailLoading && (
+              <div className="text-sm text-slate-500">Aucune fiche trouvée pour ce SIREN.</div>
+            )}
+
+            {detail?.found && detail.company && (
+              <div className="space-y-5 text-sm">
+                {/* Signaux */}
+                {detail.signals && detail.signals.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {detail.signals.map((s) => (
+                      <span key={s} className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">{s}</span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Identité */}
+                <div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Identité</div>
+                  <dl className="grid grid-cols-3 gap-x-3 gap-y-1.5">
+                    {[
+                      ["SIREN", detail.company.siren],
+                      ["SIRET siège", detail.company.siret_siege],
+                      ["NAF", detail.company.naf],
+                      ["Effectif", detail.company.effectif],
+                      ["Adresse", detail.company.adresse],
+                      ["Département", detail.company.departement],
+                      ["OPCO", detail.company.opco],
+                      ["IDCC", detail.company.idcc],
+                      ["Domaine web", detail.company.domain],
+                      ["Source", detail.company.source],
+                      ["Collecté le", detail.company.fetched_at],
+                    ].filter(([, v]) => v).map(([k, v]) => (
+                      <div key={k} className="contents">
+                        <dt className="text-slate-400">{k}</dt>
+                        <dd className="col-span-2 text-slate-800">{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+
+                {/* Contacts */}
+                <div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Contacts ({detail.contacts?.length ?? 0})
+                  </div>
+                  {(!detail.contacts || detail.contacts.length === 0) && <div className="text-slate-400">Aucun contact.</div>}
+                  <div className="space-y-2">
+                    {detail.contacts?.map((ct, j) => (
+                      <div key={j} className="rounded-lg border border-slate-100 p-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-slate-800">{ct.value}</span>
+                          <span className="text-[11px] text-slate-400">{ct.kind}{ct.generique ? " · générique" : ""}</span>
+                        </div>
+                        <div className="mt-0.5 flex flex-wrap gap-2 text-[11px] text-slate-400">
+                          {ct.confidence != null && <span>confiance {Math.round((ct.confidence || 0) * 100)}%</span>}
+                          {ct.mx_valid != null && <span>{ct.mx_valid ? "MX ✓" : "MX ✗"}</span>}
+                          {ct.source && <span>{ct.source}</span>}
+                          {ct.url && <a href={ct.url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">source</a>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Aides éligibles */}
+                <div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Aides / barèmes OPCO ({detail.aids?.length ?? 0})
+                  </div>
+                  {(!detail.aids || detail.aids.length === 0) && (
+                    <div className="text-slate-400">
+                      Aucun barème OPCO rattaché{detail.company.opco ? "" : " (OPCO inconnu)"}.
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    {detail.aids?.map((a, j) => (
+                      <div key={j} className="rounded-lg border border-slate-100 p-2.5">
+                        <div className="font-medium text-slate-800">{a.dispositif}</div>
+                        <div className="mt-0.5 flex flex-wrap gap-2 text-[11px] text-slate-500">
+                          {a.taux_ou_montant && <span>💶 {a.taux_ou_montant}</span>}
+                          {a.plafond && <span>plafond {a.plafond}</span>}
+                          {a.cible_effectif && <span>{a.cible_effectif}</span>}
+                          {a.annee && <span>({a.annee})</span>}
+                        </div>
+                        {a.conditions && <div className="mt-1 text-[11px] text-slate-400">{a.conditions}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
