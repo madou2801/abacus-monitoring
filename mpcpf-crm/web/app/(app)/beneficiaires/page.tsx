@@ -11,23 +11,36 @@ type SP = {
 
 const PAGE_SIZE = 50;
 
-// Minuit aujourd'hui à Paris, en ISO avec offset — pour aligner les filtres
-// « du jour » sur les compteurs du dashboard (vw_intake_today, Europe/Paris).
+// Minuit aujourd'hui à Paris, exprimé en UTC ISO (suffixe Z) — pour aligner les
+// filtres « du jour » sur les compteurs du dashboard (vw_intake_today, Europe/Paris).
+// Calcul robuste via formatToParts (pas de parsing de chaîne d'heure localisée, qui
+// pouvait valoir NaN selon l'ICU/Node → date invalide → toISOString() throw).
 function startOfTodayParisISO(): string {
-  const now = new Date();
-  const ymd = now.toLocaleDateString("fr-CA", { timeZone: "Europe/Paris" }); // YYYY-MM-DD
-  // Offset mesuré à midi (stable, loin du changement d'heure).
-  const parisHourAtNoonUtc = Number(
-    new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", hour12: false })
-      .format(new Date(`${ymd}T12:00:00Z`)),
-  );
-  const offset = parisHourAtNoonUtc - 12;
-  // Minuit Paris exprimé en UTC (suffixe Z), PAS avec l'offset "+02:00" : dans
-  // l'URL PostgREST le "+" est décodé en espace → timestamp invalide → 400 →
-  // liste "du jour" toujours vide. Le format Z évite ce piège.
-  const d = new Date(`${ymd}T00:00:00Z`);
-  d.setUTCHours(d.getUTCHours() - offset);
-  return d.toISOString();
+  try {
+    const ymd = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Paris" }); // "YYYY-MM-DD"
+    const base = new Date(`${ymd}T00:00:00Z`); // instant de référence
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Europe/Paris", hour12: false,
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit",
+    })
+      .formatToParts(base)
+      .reduce<Record<string, string>>((acc, p) => {
+        if (p.type !== "literal") acc[p.type] = p.value;
+        return acc;
+      }, {});
+    const hh = parts.hour === "24" ? 0 : Number(parts.hour);
+    const wall = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), hh, Number(parts.minute), Number(parts.second));
+    const offsetMs = wall - base.getTime(); // Paris est en avance de offsetMs sur UTC
+    const midnight = new Date(base.getTime() - offsetMs);
+    if (!Number.isNaN(midnight.getTime())) return midnight.toISOString();
+  } catch {
+    /* repli ci-dessous */
+  }
+  // Repli sûr : minuit UTC du jour (ne throw jamais).
+  const f = new Date();
+  f.setUTCHours(0, 0, 0, 0);
+  return f.toISOString();
 }
 
 export default async function Page({ searchParams }: { searchParams: SP }) {
