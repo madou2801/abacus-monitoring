@@ -29,6 +29,10 @@ export type Lead = {
   dispositif: string | null;
   email: string | null;
   created_at: string | null;
+  nom: string | null;
+  profils: Array<{ metier?: string; domaine?: string }> | null;
+  source: string | null;
+  statut: string | null;
 };
 export type Send = { id: number; email: string | null; statut: string | null; ts: string | null };
 
@@ -81,6 +85,33 @@ export default function Dashboard({
   const [sortKey, setSortKey] = useState<"score" | "offres" | "entreprise">("score");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selected, setSelected] = useState<Prospect | null>(null);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+
+  function exportCsv() {
+    const cols: [string, (p: Prospect) => string][] = [
+      ["entreprise", (p) => p.entreprise ?? ""],
+      ["departement", (p) => p.departement ?? ""],
+      ["code_postal", (p) => p.code_postal ?? ""],
+      ["commune", (p) => p.commune ?? ""],
+      ["score", (p) => String(p.score_max ?? "")],
+      ["nb_offres", (p) => String(p.nb_offres ?? "")],
+      ["secteur", (p) => p.secteurs?.[0] ?? ""],
+      ["email", (p) => p.email_principal ?? ""],
+      ["tous_emails", (p) => (p.tous_emails ?? []).join(" | ")],
+      ["siren", (p) => p.siren ?? ""],
+    ];
+    const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+    const csv =
+      "﻿" +
+      [cols.map((c) => c[0]).join(";"), ...filtered.map((p) => cols.map((c) => esc(c[1](p))).join(";"))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `recrutup_prospects_${filtered.length}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const total = prospects.length;
   const withEmail = prospects.filter((p) => p.has_email).length;
@@ -169,7 +200,7 @@ export default function Dashboard({
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
         <KpiBtn label="Entreprises détectées" value={total} sub="qui recrutent en IDF" active={filter.type === "all"} onClick={() => setFilter({ type: "all" })} />
         <KpiBtn label="Avec email" value={withEmail} sub={`${mxValid} MX-valides`} active={filter.type === "email"} onClick={() => setFilter({ type: "email" })} />
-        <Kpi label="Offres suivies" value={totalOffres} sub="postes en tension" />
+        <KpiBtn label="Offres suivies" value={totalOffres} sub="trier par volume" active={sortKey === "offres"} onClick={() => { setFilter({ type: "all" }); setSortKey("offres"); setSortDir("desc"); }} />
         <KpiBtn label="Comptes chauds" value={chaud} sub="score ≥ 85" active={filter.type === "hot"} onClick={() => setFilter({ type: "hot" })} />
         <Kpi label="Leads entrants" value={leads.length} sub="formulaire landing" />
         <Kpi label="Emails envoyés" value={sent} sub={bounced ? `${bounced} en échec` : "campagne gatée"} />
@@ -259,7 +290,10 @@ export default function Dashboard({
               <button type="button" onClick={() => setFilter({ type: "all" })} className="ml-2 rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-200">✕ réinitialiser</button>
             ) : null}
           </div>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher entreprise / ville / email…" className="w-64 rounded-lg border border-slate-300 px-3 py-1.5 text-sm" />
+          <div className="flex items-center gap-2">
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher entreprise / ville / email…" className="w-64 rounded-lg border border-slate-300 px-3 py-1.5 text-sm" />
+            <button type="button" onClick={exportCsv} className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark">⬇ Exporter CSV</button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -305,7 +339,7 @@ export default function Dashboard({
               </thead>
               <tbody>
                 {leads.slice(0, 50).map((l) => (
-                  <tr key={l.id} className="border-b border-slate-100">
+                  <tr key={l.id} className="cursor-pointer border-b border-slate-100 hover:bg-slate-50" onClick={() => setSelectedLead(l)}>
                     <td className="py-2 pr-3 text-slate-500">{fmtDate(l.created_at)}</td>
                     <td className="py-2 pr-3 font-medium text-slate-800">{l.societe ?? "—"}</td>
                     <td className="py-2 pr-3 text-slate-600">{l.ville ?? "—"}</td>
@@ -355,6 +389,45 @@ export default function Dashboard({
                   {!(selected.tous_emails ?? []).length && !selected.email_principal ? <span className="text-slate-400">—</span> : null}
                 </dd>
               </div>
+            </dl>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Drawer détail lead */}
+      {selectedLead ? (
+        <div className="fixed inset-0 z-50 flex justify-end" onClick={() => setSelectedLead(null)}>
+          <div className="absolute inset-0 bg-slate-900/30" />
+          <div className="relative z-10 h-full w-full max-w-md overflow-y-auto bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-start justify-between">
+              <h2 className="text-lg font-bold text-slate-900">{selectedLead.societe ?? "Lead"}</h2>
+              <button type="button" onClick={() => setSelectedLead(null)} className="rounded bg-slate-100 px-2 py-1 text-sm text-slate-600 hover:bg-slate-200">✕</button>
+            </div>
+            <dl className="flex flex-col gap-3 text-sm">
+              <Row k="Reçu le" v={fmtDate(selectedLead.created_at)} />
+              <Row k="Contact" v={selectedLead.nom ?? "—"} />
+              <Row k="Email" v={selectedLead.email ?? "—"} />
+              <Row k="Localisation" v={`${selectedLead.ville ?? "—"} (${selectedLead.code_postal ?? "—"})`} />
+              <Row k="Dispositif" v={selectedLead.dispositif ?? "—"} />
+              <Row k="Statut" v={selectedLead.statut ?? "—"} />
+              <Row k="Source" v={selectedLead.source ?? "—"} />
+              <div>
+                <dt className="text-xs uppercase text-slate-400">Profils recherchés ({selectedLead.nb_profils ?? 0})</dt>
+                <dd className="mt-1 flex flex-col gap-1">
+                  {(selectedLead.profils ?? []).length ? (
+                    (selectedLead.profils ?? []).map((p, i) => (
+                      <span key={i} className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-700">
+                        {p.metier ?? "—"}{p.domaine ? ` · ${p.domaine}` : ""}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-slate-400">—</span>
+                  )}
+                </dd>
+              </div>
+              {selectedLead.email ? (
+                <a href={`mailto:${selectedLead.email}`} className="mt-2 inline-block rounded-lg bg-brand px-3 py-2 text-center text-sm font-medium text-white hover:bg-brand-dark">Répondre par email</a>
+              ) : null}
             </dl>
           </div>
         </div>

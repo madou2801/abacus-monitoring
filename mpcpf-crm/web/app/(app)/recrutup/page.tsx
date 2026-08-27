@@ -23,7 +23,7 @@ async function load() {
 
     const l = await c
       .from("recrutup_leads")
-      .select("id,societe,ville,code_postal,nb_profils,dispositif,email,created_at")
+      .select("id,societe,ville,code_postal,nb_profils,dispositif,email,created_at,nom,profils,source,statut")
       .order("created_at", { ascending: false })
       .limit(200);
     if (l.error) throw new Error(l.error.message);
