@@ -21,7 +21,7 @@ type Prospect = {
 };
 type Lead = {
   id: number;
-  entreprise: string | null;
+  societe: string | null;
   ville: string | null;
   code_postal: string | null;
   nb_profils: number | null;
@@ -54,7 +54,7 @@ async function load() {
 
     const l = await c
       .from("recrutup_leads")
-      .select("id,entreprise,ville,code_postal,nb_profils,dispositif,email,created_at")
+      .select("id,societe,ville,code_postal,nb_profils,dispositif,email,created_at")
       .order("created_at", { ascending: false })
       .limit(100);
     if (l.error) throw new Error(l.error.message);
@@ -362,7 +362,7 @@ export default async function RecrutupPage() {
                 {leads.slice(0, 30).map((l) => (
                   <tr key={l.id} className="border-b border-slate-100">
                     <td className="py-2 pr-3 text-slate-500">{fmtDate(l.created_at)}</td>
-                    <td className="py-2 pr-3 font-medium text-slate-800">{l.entreprise ?? "—"}</td>
+                    <td className="py-2 pr-3 font-medium text-slate-800">{l.societe ?? "—"}</td>
                     <td className="py-2 pr-3 text-slate-600">{l.ville ?? "—"}</td>
                     <td className="py-2 pr-3 tabular-nums text-slate-600">{l.nb_profils ?? "—"}</td>
                     <td className="py-2 pr-3 text-slate-500">{l.dispositif ?? "—"}</td>
