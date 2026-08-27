@@ -29,7 +29,7 @@ async function load() {
     if (l.error) throw new Error(l.error.message);
     leads = (l.data as Lead[]) ?? [];
 
-    const s = await c.from("recrutup_sends").select("id,email,statut,ts").order("ts", { ascending: false }).limit(2000);
+    const s = await c.from("recrutup_sends").select("id,email,statut,sent_at").order("sent_at", { ascending: false }).limit(2000);
     if (s.error) sendsTableExists = false;
     else sends = (s.data as Send[]) ?? [];
   } catch (e) {

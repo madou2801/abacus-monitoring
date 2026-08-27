@@ -34,7 +34,7 @@ export type Lead = {
   source: string | null;
   statut: string | null;
 };
-export type Send = { id: number; email: string | null; statut: string | null; ts: string | null };
+export type Send = { id: number; email: string | null; statut: string | null; sent_at: string | null };
 
 type Filter = { type: "all" | "email" | "hot" | "dept" | "secteur"; value?: string };
 
