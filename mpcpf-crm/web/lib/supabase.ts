@@ -62,6 +62,21 @@ export function gaia() {
   });
 }
 
+// Client service_role sur le schéma REF de la base GAIA (oezaby) — lecture du programme
+// Recrut'up (vue v_recrutup_prospects, tables recrutup_leads / recrutup_sends). Même projet
+// que gaia(), schéma différent. SERVEUR UNIQUEMENT : la clé ne touche jamais le navigateur.
+export function ref() {
+  const url = process.env.GAIA_SUPABASE_URL;
+  const key = process.env.GAIA_SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error("GAIA_SUPABASE_URL / GAIA_SUPABASE_SERVICE_ROLE_KEY manquants (voir .env.local / Vercel)");
+  }
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    db: { schema: "ref" },
+  });
+}
+
 export function euros(cents?: number | null): string {
   if (cents == null) return "—";
   return (cents / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
