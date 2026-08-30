@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+cas_bodacc.csv
+veille_complete.xlsx
