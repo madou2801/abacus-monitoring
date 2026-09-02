@@ -13,6 +13,7 @@ const LINKS = [
   { href: "/entreprises", label: "Entreprises", icon: "🏢" },
   { href: "/prospection", label: "Prospection", icon: "🎯" },
   { href: "/recrutup", label: "Recrut'up", icon: "🚀" },
+  { href: "/academy", label: "ABACUS Academy", icon: "🎓" },
   { href: "/financements", label: "Assistant financements", icon: "💶" },
   { href: "/suivi-sites", label: "Suivi des sites", icon: "📈" },
   { href: "/auto-ecoles", label: "Auto-écoles", icon: "🏫" },
