@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 type SP = {
   q?: string; stage?: string; financeur?: string; review?: string;
   owner?: string; page?: string; canal?: string; jour?: string;
+  doublons?: string;
 };
 
 const PAGE_SIZE = 50;
@@ -54,6 +55,7 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
   const owner = (searchParams.owner ?? "").trim().replace(/[,()*]/g, "");
   const canal = (searchParams.canal ?? "").trim().replace(/[,()*]/g, "");
   const jour = searchParams.jour === "demandes" || searchParams.jour === "valides" ? searchParams.jour : "";
+  const showDup = searchParams.doublons === "1";
   const page = Math.max(1, parseInt(searchParams.page ?? "1", 10) || 1);
 
   let query = db
@@ -79,6 +81,8 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
   if (canal) query = query.eq("canal", canal);
   if (jour === "demandes") query = query.gte("date_creation", startOfTodayParisISO());
   if (jour === "valides") query = query.gte("date_inscription", startOfTodayParisISO());
+  // Masquage par défaut : on cache les fiches marquées doublon (duplicate_of) ou test (is_test).
+  if (!showDup) query = query.is("duplicate_of", null).eq("is_test", false);
 
   // Tolérance : un échec réseau/timeout d'une requête ne doit pas crasher la liste.
   const safe = <T,>(p: PromiseLike<T>): Promise<T> =>
@@ -103,6 +107,7 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
     if (owner) sp.set("owner", owner);
     if (canal) sp.set("canal", canal);
     if (jour) sp.set("jour", jour);
+    if (showDup) sp.set("doublons", "1");
     if (p > 1) sp.set("page", String(p));
     const s = sp.toString();
     return `/beneficiaires${s ? `?${s}` : ""}`;
@@ -169,6 +174,9 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
         </label>
         <label className="flex items-center gap-2 pb-1.5 text-xs text-slate-600">
           <input type="checkbox" name="review" value="1" defaultChecked={review} /> Matching à confirmer
+        </label>
+        <label className="flex items-center gap-2 pb-1.5 text-xs text-slate-600">
+          <input type="checkbox" name="doublons" value="1" defaultChecked={showDup} /> Inclure doublons &amp; tests
         </label>
         <button className="rounded-md bg-brand px-4 py-1.5 text-sm font-medium text-white">Filtrer</button>
         <Link href="/beneficiaires" className="pb-1.5 text-sm text-slate-500 hover:underline">Réinitialiser</Link>
