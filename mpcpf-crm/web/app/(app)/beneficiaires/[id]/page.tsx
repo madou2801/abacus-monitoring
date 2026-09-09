@@ -34,6 +34,19 @@ export default async function Page({ params }: { params: { id: string } }) {
   const me = await getStaffUser();
   const isAdmin = me?.role === "admin";
 
+  // Regroupement « 1 personne / N dossiers » : le dossier « maître » + toutes les
+  // fiches rattachées via duplicate_of. Non destructif : chaque dossier reste entier.
+  const maitreId = b.duplicate_of ?? b.id;
+  const isDuplicate = !!b.duplicate_of;
+  const dossiersRes = await db
+    .from("beneficiaries")
+    .select("id, first_name, last_name, pipeline_stage, date_creation, intitule_formation, financeur, duplicate_of")
+    .or(`id.eq.${maitreId},duplicate_of.eq.${maitreId}`)
+    .order("date_creation", { ascending: false });
+  const dossiers = (dossiersRes.data ?? []) as any[];
+  const maitre = dossiers.find((d: any) => d.id === maitreId);
+  const maitreName = maitre ? ([maitre.first_name, maitre.last_name].filter(Boolean).join(" ") || "le bénéficiaire principal") : "le bénéficiaire principal";
+
   const [coRes, aeRes, tlRes, qRes, iRes, notesRes, tasksRes, staffRes, wextRes] = await Promise.all([
     b.company_id ? db.from("companies").select("*").eq("id", b.company_id).maybeSingle() : Promise.resolve({ data: null }),
     b.auto_ecole_id ? db.from("auto_ecoles").select("raison_sociale, nom, email, telephone, ville").eq("id", b.auto_ecole_id).maybeSingle() : Promise.resolve({ data: null }),
@@ -90,6 +103,43 @@ export default async function Page({ params }: { params: { id: string } }) {
           </div>
         )}
       </div>
+
+      {isDuplicate && (
+        <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Ce dossier est rattaché au bénéficiaire principal{" "}
+          <Link href={`/beneficiaires/${maitreId}`} className="font-semibold underline">{maitreName}</Link>.
+          {" "}Retrouvez tous ses dossiers ci-dessous.
+        </div>
+      )}
+      {dossiers.length > 1 && (
+        <div className="mb-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase text-slate-500">
+            Dossiers de ce bénéficiaire ({dossiers.length})
+          </div>
+          <table className="w-full text-sm">
+            <tbody className="divide-y divide-slate-100">
+              {dossiers.map((d: any) => (
+                <tr key={d.id} className={d.id === id ? "bg-brand/5" : "hover:bg-slate-50"}>
+                  <td className="px-4 py-2">
+                    <Link href={`/beneficiaires/${d.id}`} className="font-medium text-brand hover:underline">
+                      {d.intitule_formation ?? "Dossier sans formation"}
+                    </Link>
+                    {!d.duplicate_of && <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] text-emerald-700">principal</span>}
+                    {d.id === id && <span className="ml-2 rounded bg-brand/10 px-1.5 py-0.5 text-[10px] text-brand">ouvert</span>}
+                  </td>
+                  <td className="px-4 py-2">
+                    <span className={`rounded px-2 py-0.5 text-xs font-medium ${STAGE_COLOR[d.pipeline_stage] ?? "bg-slate-100"}`}>
+                      {STAGE_LABEL[d.pipeline_stage] ?? d.pipeline_stage}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2 text-slate-600">{FINANCEUR_LABEL[d.financeur] ?? "—"}</td>
+                  <td className="px-4 py-2 text-xs text-slate-500">{dateFr(d.date_creation)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Colonne infos */}
