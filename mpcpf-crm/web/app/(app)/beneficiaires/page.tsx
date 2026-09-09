@@ -64,7 +64,14 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
     )
     .order("date_creation", { ascending: false, nullsFirst: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
-  if (q) query = query.or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`);
+  // Recherche multi-mots : chaque mot doit apparaître dans le prénom, le nom OU
+  // l'email (mots combinés en ET via des .or() successifs). Ainsi « Fofana Amady »
+  // comme « Amady Fofana » remontent la fiche, même si prénom et nom sont séparés.
+  if (q) {
+    for (const word of q.split(/\s+/).filter(Boolean)) {
+      query = query.or(`first_name.ilike.%${word}%,last_name.ilike.%${word}%,email.ilike.%${word}%`);
+    }
+  }
   if (stage) query = query.eq("pipeline_stage", stage);
   if (financeur) query = query.eq("financeur", financeur);
   if (review) query = query.eq("ae_match_needs_review", true);
