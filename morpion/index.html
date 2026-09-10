@@ -1,0 +1,1096 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Morpion : 3 × 3 classique ou 5 en ligne, à deux ou contre la machine.">
+<meta name="theme-color" content="#26332C">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<script>
+  window.addEventListener('load', function () {
+    try {
+      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+        navigator.serviceWorker.register('sw.js').catch(function () {});
+      }
+    } catch (e) {}
+  });
+</script>
+</head>
+<body>
+<!--ARTIFACT-START-->
+<title>Morpion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap">
+<style>
+  /* ---------- Jetons de style ---------- */
+  :root {
+    color-scheme: light dark;
+
+    --ground:      #DEE2DC;
+    --ground-deep: #CBD1CA;
+    --panel:       #F1F3EF;
+    --panel-edge:  #C6CCC4;
+    --ink:         #1B221D;
+    --ink-soft:    #58635B;
+    --ink-faint:   #88948B;
+
+    /* L'ardoise est un objet : elle garde sa couleur dans les deux thèmes. */
+    --slate-hi:    #33443A;
+    --slate:       #26332C;
+    --slate-lo:    #1B2620;
+    --frame:       #6E5433;
+    --frame-hi:    #8C6C44;
+
+    --chalk:       #EDEAE0;
+    --chalk-soft:  rgba(237,234,224,.42);
+    --x-mark:      #F0CE72;
+    --o-mark:      #82C3DA;
+
+    --accent:      #5E9E86;
+    --accent-ink:  #3F7A63;
+    --alert:       #C4705A;
+
+    --shadow:      0 1px 2px rgba(27,34,29,.06), 0 8px 28px -12px rgba(27,34,29,.3);
+    --radius:      14px;
+    --step:        clamp(.62rem, .35rem + .9vw, .95rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #151916;
+      --ground-deep: #0E110F;
+      --panel:       #1E2420;
+      --panel-edge:  #303A34;
+      --ink:         #E6EBE7;
+      --ink-soft:    #99A69E;
+      --ink-faint:   #6C7A72;
+
+      --accent:      #6FBC9E;
+      --accent-ink:  #96D6BC;
+
+      --shadow:      0 1px 2px rgba(0,0,0,.5), 0 14px 40px -14px rgba(0,0,0,.75);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #151916;
+    --ground-deep: #0E110F;
+    --panel:       #1E2420;
+    --panel-edge:  #303A34;
+    --ink:         #E6EBE7;
+    --ink-soft:    #99A69E;
+    --ink-faint:   #6C7A72;
+
+    --accent:      #6FBC9E;
+    --accent-ink:  #96D6BC;
+
+    --shadow:      0 1px 2px rgba(0,0,0,.5), 0 14px 40px -14px rgba(0,0,0,.75);
+  }
+
+  /* ---------- Base ---------- */
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background: radial-gradient(120% 80% at 50% 0%, var(--ground) 0%, var(--ground-deep) 100%);
+    color: var(--ink);
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+  }
+
+  .shell {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: calc(var(--step) * 1.6) var(--step) calc(var(--step) * 2.4);
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--step) * 1.15);
+    min-height: 100dvh;
+  }
+
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .wordmark { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+
+  h1 {
+    font-family: "Bricolage Grotesque", Archivo, sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 800;
+    font-size: clamp(1.45rem, 1.05rem + 1.9vw, 2.3rem);
+    letter-spacing: -.022em;
+    line-height: 1;
+    margin: 0;
+  }
+
+  .eyebrow {
+    font-size: .72rem; font-weight: 600; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .settings { display: flex; align-items: flex-end; gap: .45rem .5rem; flex-wrap: wrap; }
+  .field { position: relative; display: inline-grid; gap: .16rem; }
+  .field[hidden] { display: none; }
+  .field > span {
+    font-size: .63rem; font-weight: 600; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--ink-faint); padding-left: .15rem;
+  }
+  .field select {
+    appearance: none; font: inherit; font-size: .84rem; font-weight: 500;
+    color: var(--ink); background: var(--panel);
+    border: 1px solid var(--panel-edge); border-radius: 10px;
+    padding: .4rem 1.85rem .4rem .68rem; cursor: pointer;
+    transition: border-color .18s ease;
+  }
+  .field select:hover { border-color: var(--ink-faint); }
+  .field select:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+  .field::after {
+    content: ""; position: absolute; right: .68rem; bottom: .85rem;
+    width: 6px; height: 6px;
+    border-right: 1.7px solid var(--ink-faint); border-bottom: 1.7px solid var(--ink-faint);
+    transform: rotate(45deg); pointer-events: none;
+  }
+
+  .play {
+    display: grid; gap: calc(var(--step) * 1.1);
+    grid-template-columns: 1fr; align-items: start; align-content: center; flex: 1;
+  }
+  @media (min-width: 880px) {
+    .play { grid-template-columns: minmax(0, 1fr) 244px; align-items: center; }
+  }
+
+  .board-col { display: grid; gap: .5rem; justify-items: center; width: 100%; }
+
+  .pace { display: flex; align-items: center; gap: .55rem; width: 100%; max-width: min(100%, 68dvh); }
+  .pace[hidden] { display: none; }
+  .pace-label {
+    font-size: .68rem; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--ink-faint); white-space: nowrap;
+  }
+  .pace-track { flex: 1; height: 9px; border-radius: 999px; background: var(--panel-edge); overflow: hidden; }
+  .pace-fill { height: 100%; width: 100%; border-radius: 999px; background: var(--accent); }
+  .pace[data-state="warn"] .pace-fill { background: var(--x-mark); }
+  .pace[data-state="danger"] .pace-fill { background: var(--alert); }
+  .pace-num {
+    font-family: "Bricolage Grotesque", Archivo, sans-serif;
+    font-weight: 700; font-size: 1rem; font-variant-numeric: tabular-nums;
+    min-width: 3.4ch; text-align: right; color: var(--ink-soft);
+  }
+  .pace[data-state="danger"] .pace-num { color: var(--alert); }
+
+  .board-wrap { position: relative; width: 100%; max-width: min(100%, 68dvh); margin-inline: auto; aspect-ratio: 1; }
+  svg.board { width: 100%; height: 100%; display: block; touch-action: manipulation; }
+
+  .cell-hit { fill: transparent; cursor: pointer; outline: none; }
+  .cell-hit.taken { cursor: default; }
+  .cell-hit:focus-visible { fill: rgba(237,234,224,.14); }
+
+  .mark {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: url(#chalk);
+    stroke-dasharray: var(--len);
+    stroke-dashoffset: 0;
+  }
+  .mark.draw { animation: write .34s ease-out both; }
+  @keyframes write { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } }
+
+  .mark-x { stroke: var(--x-mark); }
+  .mark-o { stroke: var(--o-mark); }
+  .preview { opacity: .3; }
+
+  .strike {
+    fill: none; stroke: var(--chalk); stroke-width: 9; stroke-linecap: round;
+    filter: url(#chalk);
+    stroke-dasharray: var(--len);
+    animation: write .5s .1s ease-out both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mark.draw, .strike { animation-duration: .01ms; }
+  }
+
+  .rail { display: flex; flex-direction: column; gap: calc(var(--step) * .9); }
+
+  .turn {
+    display: flex; align-items: center; gap: .62rem;
+    background: var(--panel); border: 1px solid var(--panel-edge);
+    border-radius: var(--radius); padding: .62rem .75rem; box-shadow: var(--shadow);
+  }
+  .turn-mark { width: 26px; height: 26px; flex: none; }
+  .turn-text { display: grid; gap: .04rem; }
+  .turn-text b {
+    font-family: "Bricolage Grotesque", Archivo, sans-serif;
+    font-size: 1rem; font-weight: 700; letter-spacing: -.01em; line-height: 1.15;
+  }
+  .turn-text span { font-size: .74rem; color: var(--ink-faint); }
+
+  .score {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px;
+    background: var(--panel-edge); border: 1px solid var(--panel-edge);
+    border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow);
+  }
+  .score div { background: var(--panel); padding: .58rem .6rem .64rem; text-align: center; }
+  .score dt {
+    font-size: .64rem; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--ink-faint); margin: 0 0 .1rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .score dd {
+    margin: 0; font-family: "Bricolage Grotesque", Archivo, sans-serif;
+    font-weight: 700; font-size: 1.5rem; line-height: 1.05;
+    letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+  }
+  .score .sx dd { color: #B98A16; }
+  .score .so dd { color: #2C7E9C; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .score .sx dd { color: var(--x-mark); }
+    :root:not([data-theme="light"]) .score .so dd { color: var(--o-mark); }
+  }
+  :root[data-theme="dark"] .score .sx dd { color: var(--x-mark); }
+  :root[data-theme="dark"] .score .so dd { color: var(--o-mark); }
+
+  .verdict {
+    border: 1px solid var(--panel-edge); border-radius: var(--radius);
+    background: var(--panel); padding: .72rem .85rem; box-shadow: var(--shadow); display: none;
+  }
+  .verdict[data-show="true"] { display: block; }
+  .verdict h2 {
+    font-family: "Bricolage Grotesque", Archivo, sans-serif;
+    font-size: 1.05rem; font-weight: 700; letter-spacing: -.015em; margin: 0 0 .12rem;
+  }
+  .verdict p { margin: 0; font-size: .84rem; color: var(--ink-soft); }
+
+  .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
+  @media (min-width: 880px) { .controls { grid-template-columns: 1fr; } }
+
+  .btn {
+    appearance: none; font: inherit; font-weight: 500; font-size: .88rem;
+    display: inline-flex; align-items: center; justify-content: center; gap: .45rem;
+    padding: .62rem .8rem; border-radius: 11px;
+    border: 1px solid var(--panel-edge); background: var(--panel); color: var(--ink);
+    cursor: pointer; box-shadow: var(--shadow);
+    transition: transform .12s ease, border-color .18s ease, color .18s ease;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--ink-faint); }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn:disabled { opacity: .42; cursor: not-allowed; box-shadow: none; }
+  .btn:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+  .btn svg { width: 16px; height: 16px; flex: none; }
+
+  details.rules { border-top: 1px solid var(--panel-edge); padding-top: calc(var(--step) * .9); }
+  details.rules summary {
+    cursor: pointer; font-size: .82rem; font-weight: 600; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--ink-faint);
+    list-style: none; display: flex; align-items: center; gap: .4rem;
+  }
+  details.rules summary::-webkit-details-marker { display: none; }
+  details.rules summary::before {
+    content: ""; width: 7px; height: 7px;
+    border-right: 1.8px solid currentColor; border-bottom: 1.8px solid currentColor;
+    transform: rotate(-45deg); transition: transform .2s ease;
+  }
+  details.rules[open] summary::before { transform: rotate(45deg); }
+  details.rules summary:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  .rules-body { max-width: 62ch; margin-top: .7rem; font-size: .88rem; color: var(--ink-soft); display: grid; gap: .5rem; }
+  .rules-body strong { color: var(--ink); font-weight: 600; }
+  .rules-body ul { margin: 0; padding-left: 1.1rem; display: grid; gap: .3rem; }
+  kbd { font: inherit; font-size: .8em; background: var(--ground-deep); border: 1px solid var(--panel-edge); border-radius: 5px; padding: .05em .35em; }
+
+  .sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+</style>
+
+<div class="shell">
+  <header>
+    <div class="wordmark">
+      <h1>Morpion</h1>
+      <span class="eyebrow" id="setupLabel">3 &times; 3 &middot; align&eacute; 3</span>
+    </div>
+    <div class="settings">
+      <label class="field">
+        <span>Adversaire</span>
+        <select id="modeSel">
+          <option value="duo">&Agrave; deux, m&ecirc;me &eacute;cran</option>
+          <option value="ia">Contre la machine</option>
+        </select>
+      </label>
+      <label class="field" id="levelField" hidden>
+        <span>Niveau</span>
+        <select id="levelSel">
+          <option value="facile">Facile</option>
+          <option value="moyen" selected>Moyen</option>
+          <option value="fort">Fort</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Grille</span>
+        <select id="boardSel">
+          <option value="3">3 &times; 3 &mdash; align&eacute; 3</option>
+          <option value="11">11 &times; 11 &mdash; align&eacute; 5</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Rythme</span>
+        <select id="paceSel">
+          <option value="libre">Sans limite</option>
+          <option value="enfant">Enfant &mdash; 12 s</option>
+          <option value="debutant">D&eacute;butant &mdash; 8 s</option>
+          <option value="joueur">Joueur &mdash; 5 s</option>
+          <option value="pro">Pro &mdash; 3 s</option>
+        </select>
+      </label>
+    </div>
+  </header>
+
+  <div class="play">
+    <div class="board-col">
+      <div class="pace" id="pace" hidden>
+        <span class="pace-label" id="paceLabel">Pr&ecirc;t</span>
+        <div class="pace-track" role="timer" aria-label="Temps restant pour jouer ce coup">
+          <div class="pace-fill" id="paceFill"></div>
+        </div>
+        <span class="pace-num" id="paceNum">&mdash;</span>
+      </div>
+      <div class="board-wrap">
+        <svg class="board" id="board" role="application"
+             aria-label="Grille de morpion. Fl&egrave;ches pour d&eacute;placer la s&eacute;lection, Entr&eacute;e pour marquer la case.">
+          <defs>
+            <linearGradient id="slate" x1="0" y1="0" x2=".2" y2="1">
+              <stop offset="0%" stop-color="var(--slate-hi)"/>
+              <stop offset="55%" stop-color="var(--slate)"/>
+              <stop offset="100%" stop-color="var(--slate-lo)"/>
+            </linearGradient>
+            <linearGradient id="frame" x1="0" y1="0" x2=".3" y2="1">
+              <stop offset="0%" stop-color="var(--frame-hi)"/>
+              <stop offset="100%" stop-color="var(--frame)"/>
+            </linearGradient>
+            <filter id="chalk" filterUnits="userSpaceOnUse" x="-60" y="-60" width="500" height="500">
+              <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" seed="4" result="n"/>
+              <feDisplacementMap in="SourceGraphic" in2="n" scale="3.2" xChannelSelector="R" yChannelSelector="G"/>
+            </filter>
+            <filter id="dust" x="0%" y="0%" width="100%" height="100%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.02 0.06" numOctaves="3" seed="11" result="n"/>
+              <feColorMatrix in="n" type="saturate" values="0"/>
+            </filter>
+          </defs>
+
+          <rect id="frameRect" fill="url(#frame)" rx="16"/>
+          <rect id="slateRect" fill="url(#slate)" rx="6"/>
+          <rect id="dustRect" filter="url(#dust)" opacity=".07" style="mix-blend-mode:screen"/>
+          <g id="gridLayer"></g>
+          <g id="markLayer"></g>
+          <g id="previewLayer"></g>
+          <g id="strikeLayer"></g>
+          <g id="hitLayer"></g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="rail">
+      <div class="turn">
+        <svg class="turn-mark" id="turnMark" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
+        <span class="turn-text">
+          <b id="turnName">Croix</b>
+          <span id="turnHint">&Agrave; vous de jouer</span>
+        </span>
+      </div>
+
+      <dl class="score">
+        <div class="sx"><dt id="scoreXLabel">Croix</dt><dd id="scoreX">0</dd></div>
+        <div><dt>Nulles</dt><dd id="scoreD">0</dd></div>
+        <div class="so"><dt id="scoreOLabel">Rond</dt><dd id="scoreO">0</dd></div>
+      </dl>
+
+      <div class="verdict" id="verdict" data-show="false" role="status">
+        <h2 id="verdictTitle"></h2>
+        <p id="verdictBody"></p>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="undoBtn" type="button" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h11a5 5 0 0 1 0 10H8"/><path d="M7 4 3 8l4 4"/></svg>
+          Annuler
+        </button>
+        <button class="btn" id="newBtn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 6"/><path d="M20 5v6h-6"/></svg>
+          Nouvelle manche
+        </button>
+        <button class="btn" id="resetBtn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6 7l1 13h10l1-13"/></svg>
+          Remettre &agrave; z&eacute;ro
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <details class="rules">
+    <summary>R&egrave;gle du jeu</summary>
+    <div class="rules-body">
+      <p>Chacun son tour, on marque une case libre. Le premier qui aligne le nombre de signes demand&eacute; &mdash; en ligne, en colonne ou en diagonale &mdash; gagne la manche.</p>
+      <ul>
+        <li><strong>3 &times; 3&nbsp;:</strong> le morpion classique. Trois signes align&eacute;s suffisent. Entre deux joueurs qui ne se trompent jamais, la partie est toujours nulle&nbsp;: c'est un jeu r&eacute;solu.</li>
+        <li><strong>11 &times; 11&nbsp;:</strong> le morpion du papier quadrill&eacute;, cinq signes &agrave; aligner. Beaucoup plus ouvert, et bien plus difficile &agrave; nulle.</li>
+        <li><strong>Contre la machine&nbsp;:</strong> en 3 &times; 3, le niveau <em>Fort</em> calcule la partie enti&egrave;re et ne peut pas perdre &mdash; au mieux vous ferez match nul.</li>
+        <li><strong>Croix commence</strong> la premi&egrave;re manche, puis c'est le perdant de la pr&eacute;c&eacute;dente qui ouvre.</li>
+      </ul>
+      <p><strong>Pour jouer&nbsp;:</strong> touchez une case libre. Au clavier, les <kbd>fl&egrave;ches</kbd> d&eacute;placent la s&eacute;lection et <kbd>Entr&eacute;e</kbd> marque&nbsp;; <kbd>Ctrl</kbd>+<kbd>Z</kbd> annule.</p>
+    </div>
+  </details>
+</div>
+
+<p class="sr" id="live" role="status" aria-live="polite"></p>
+
+<script>
+(function () {
+  'use strict';
+
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var CELL = 100;
+  var STORE = 'morpion.v1';
+
+  var BOARDS = {
+    '3':  { n: 3,  align: 3, label: '3 × 3 · aligné 3' },
+    '11': { n: 11, align: 5, label: '11 × 11 · aligné 5' }
+  };
+  var PACES = { libre: 0, enfant: 12, debutant: 8, joueur: 5, pro: 3 };
+
+  var boardKey = '3', mode = 'duo', level = 'moyen', pace = 'libre';
+  var N = 3, ALIGN = 3;
+  var cells = null;
+  var history = [];
+  var turn = 1;               /* 1 = croix, 2 = rond */
+  var opener = 1;
+  var winner = 0;             /* 0, 1, 2, 3 = nulle */
+  var winCells = [];
+  var busy = false;
+  var score = { 1: 0, 2: 0, d: 0 };
+  var focusIdx = 0;
+  var windows = [];
+
+  var deadline = 0, leftMs = 0, rafId = null, ticking = false;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var svg = $('board');
+  var gridLayer = $('gridLayer'), markLayer = $('markLayer');
+  var previewLayer = $('previewLayer'), strikeLayer = $('strikeLayer'), hitLayer = $('hitLayer');
+  var live = $('live');
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function cx(c) { return c * CELL + CELL / 2; }
+  function name(p) {
+    if (mode === 'ia') return p === 1 ? 'Vous' : 'La machine';
+    return p === 1 ? 'Croix' : 'Rond';
+  }
+  function isHuman(p) { return mode === 'duo' || p === 1; }
+  function toMove() { return history.length % 2 === 0 ? opener : 3 - opener; }
+
+  /* ---------------- Moteur ---------------- */
+
+  var DIRS = [[0, 1], [1, 0], [1, 1], [1, -1]];
+
+  function buildWindows() {
+    windows = [];
+    for (var r = 0; r < N; r++) {
+      for (var c = 0; c < N; c++) {
+        for (var d = 0; d < DIRS.length; d++) {
+          var rr = r + DIRS[d][0] * (ALIGN - 1), cc = c + DIRS[d][1] * (ALIGN - 1);
+          if (rr < 0 || rr >= N || cc < 0 || cc >= N) continue;
+          var w = [];
+          for (var k = 0; k < ALIGN; k++) w.push((r + DIRS[d][0] * k) * N + (c + DIRS[d][1] * k));
+          windows.push(w);
+        }
+      }
+    }
+  }
+
+  function lineAt(idx) {
+    var p = cells[idx];
+    if (!p) return null;
+    var r = Math.floor(idx / N), c = idx % N;
+    for (var d = 0; d < DIRS.length; d++) {
+      var dr = DIRS[d][0], dc = DIRS[d][1];
+      var line = [idx], k, rr, cc;
+      for (k = 1; k < ALIGN; k++) {
+        rr = r + dr * k; cc = c + dc * k;
+        if (rr < 0 || rr >= N || cc < 0 || cc >= N || cells[rr * N + cc] !== p) break;
+        line.push(rr * N + cc);
+      }
+      for (k = 1; k < ALIGN; k++) {
+        rr = r - dr * k; cc = c - dc * k;
+        if (rr < 0 || rr >= N || cc < 0 || cc >= N || cells[rr * N + cc] !== p) break;
+        line.unshift(rr * N + cc);
+      }
+      if (line.length >= ALIGN) return line;
+    }
+    return null;
+  }
+
+  function emptyCells() {
+    var out = [];
+    for (var i = 0; i < cells.length; i++) if (!cells[i]) out.push(i);
+    return out;
+  }
+
+  /* Cases jouables : tout le plateau en 3 × 3, le voisinage des signes en 11 × 11. */
+  function candidates() {
+    if (N <= 5) return emptyCells();
+    var near = [], seen = new Uint8Array(N * N), any = false;
+    for (var i = 0; i < cells.length; i++) {
+      if (!cells[i]) continue;
+      any = true;
+      var r = Math.floor(i / N), c = i % N;
+      for (var dr = -2; dr <= 2; dr++) {
+        for (var dc = -2; dc <= 2; dc++) {
+          var rr = r + dr, cc = c + dc;
+          if (rr < 0 || rr >= N || cc < 0 || cc >= N) continue;
+          var j = rr * N + cc;
+          if (!cells[j] && !seen[j]) { seen[j] = 1; near.push(j); }
+        }
+      }
+    }
+    if (!any) return [Math.floor(N / 2) * N + Math.floor(N / 2)];
+    return near;
+  }
+
+  var WEIGHT = { 1: 5, 2: 50, 3: 500, 4: 10000 };
+
+  function evaluate(me) {
+    var opp = 3 - me, s = 0;
+    for (var i = 0; i < windows.length; i++) {
+      var w = windows[i], a = 0, b = 0;
+      for (var k = 0; k < ALIGN; k++) {
+        var v = cells[w[k]];
+        if (v === me) a++; else if (v === opp) b++;
+      }
+      if (a && b) continue;
+      if (a) s += WEIGHT[Math.min(a, 4)] || a;
+      if (b) s -= (WEIGHT[Math.min(b, 4)] || b) * 1.15;
+    }
+    return s;
+  }
+
+  var WIN = 1000000;
+
+  function negamax(depth, alpha, beta, me, list) {
+    var moves = list || candidates();
+    if (!moves.length) return 0;
+
+    for (var i = 0; i < moves.length; i++) {
+      cells[moves[i]] = me;
+      var w = lineAt(moves[i]);
+      cells[moves[i]] = 0;
+      if (w) return WIN - (50 - depth);
+    }
+    if (depth === 0) return evaluate(me);
+
+    /* On ne garde que les meilleures cases : sans cela, 11 × 11 explose. */
+    if (N > 5 && moves.length > 12) {
+      var scored = moves.map(function (i) {
+        cells[i] = me;
+        var v = evaluate(me);
+        cells[i] = 0;
+        return { i: i, v: v };
+      });
+      scored.sort(function (a, b) { return b.v - a.v; });
+      moves = scored.slice(0, 12).map(function (o) { return o.i; });
+    }
+
+    var best = -Infinity;
+    for (var j = 0; j < moves.length; j++) {
+      cells[moves[j]] = me;
+      var v2 = -negamax(depth - 1, -beta, -alpha, 3 - me, null);
+      cells[moves[j]] = 0;
+      if (v2 > best) best = v2;
+      if (best > alpha) alpha = best;
+      if (alpha >= beta) break;
+    }
+    return best;
+  }
+
+  function chooseMove(me) {
+    var moves = candidates();
+    if (!moves.length) return -1;
+    var i, w;
+
+    /* Victoire immédiate, puis parade : jamais ratées, quel que soit le niveau. */
+    for (i = 0; i < moves.length; i++) {
+      cells[moves[i]] = me; w = lineAt(moves[i]); cells[moves[i]] = 0;
+      if (w) return moves[i];
+    }
+    var block = -1;
+    for (i = 0; i < moves.length; i++) {
+      cells[moves[i]] = 3 - me; w = lineAt(moves[i]); cells[moves[i]] = 0;
+      if (w) { block = moves[i]; break; }
+    }
+    if (block >= 0 && (level !== 'facile' || Math.random() > 0.4)) return block;
+    if (level === 'facile') return moves[(Math.random() * moves.length) | 0];
+
+    var depth = N <= 5
+      ? (level === 'fort' ? 9 : 3)
+      : (level === 'fort' ? 3 : 1);
+
+    var best = [], bestV = -Infinity;
+    for (i = 0; i < moves.length; i++) {
+      cells[moves[i]] = me;
+      var v = -negamax(depth - 1, -Infinity, Infinity, 3 - me, null);
+      cells[moves[i]] = 0;
+      if (v > bestV) { bestV = v; best = [moves[i]]; }
+      else if (v === bestV) best.push(moves[i]);
+    }
+    return best[(Math.random() * best.length) | 0];
+  }
+
+  /* ---------------- Rendu ---------------- */
+
+  function geometry() {
+    var span = N * CELL;
+    svg.setAttribute('viewBox', '-46 -46 ' + (span + 92) + ' ' + (span + 92));
+
+    var chalk = document.getElementById('chalk');
+    chalk.setAttribute('x', -60); chalk.setAttribute('y', -60);
+    chalk.setAttribute('width', span + 120); chalk.setAttribute('height', span + 120);
+
+    var f = $('frameRect');
+    f.setAttribute('x', -46); f.setAttribute('y', -46);
+    f.setAttribute('width', span + 92); f.setAttribute('height', span + 92);
+    [['slateRect', -26], ['dustRect', -26]].forEach(function (pair) {
+      var el = $(pair[0]);
+      el.setAttribute('x', pair[1]); el.setAttribute('y', pair[1]);
+      el.setAttribute('width', span - 2 * pair[1]); el.setAttribute('height', span - 2 * pair[1]);
+    });
+
+    gridLayer.textContent = '';
+    var from = N === 3 ? -10 : 0, to = N === 3 ? span + 10 : span;
+    var first = N === 3 ? 1 : 0, last = N === 3 ? N - 1 : N;
+    for (var i = first; i <= last; i++) {
+      gridLayer.appendChild(chalkLine(i * CELL, from, i * CELL, to));
+      gridLayer.appendChild(chalkLine(from, i * CELL, to, i * CELL));
+    }
+
+    hitLayer.textContent = '';
+    for (var r = 0; r < N; r++) {
+      for (var c = 0; c < N; c++) {
+        var hit = document.createElementNS(SVGNS, 'rect');
+        hit.setAttribute('class', 'cell-hit');
+        hit.setAttribute('x', c * CELL); hit.setAttribute('y', r * CELL);
+        hit.setAttribute('width', CELL); hit.setAttribute('height', CELL);
+        hit.setAttribute('data-idx', r * N + c);
+        hit.setAttribute('role', 'button');
+        hit.setAttribute('tabindex', r * N + c === focusIdx ? '0' : '-1');
+        hitLayer.appendChild(hit);
+      }
+    }
+  }
+
+  function chalkLine(x1, y1, x2, y2) {
+    var l = document.createElementNS(SVGNS, 'line');
+    l.setAttribute('x1', x1); l.setAttribute('y1', y1);
+    l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+    l.setAttribute('stroke', 'var(--chalk-soft)');
+    l.setAttribute('stroke-width', N === 3 ? 7 : 3);
+    l.setAttribute('stroke-linecap', 'round');
+    l.setAttribute('filter', 'url(#chalk)');
+    return l;
+  }
+
+  function markShape(p) {
+    var g = document.createElementNS(SVGNS, 'g');
+    var s = N === 3 ? 30 : 28;
+    var sw = N === 3 ? 10 : 9;
+    if (p === 1) {
+      [[-s, -s, s, s], [-s, s, s, -s]].forEach(function (d) {
+        var l = document.createElementNS(SVGNS, 'path');
+        l.setAttribute('d', 'M' + d[0] + ',' + d[1] + 'L' + d[2] + ',' + d[3]);
+        l.setAttribute('class', 'mark mark-x');
+        l.setAttribute('stroke-width', sw);
+        g.appendChild(l);
+      });
+    } else {
+      var a0 = 0.42, a1 = Math.PI * 2 - 0.16;
+      var arc = document.createElementNS(SVGNS, 'path');
+      arc.setAttribute('d',
+        'M' + (s * Math.cos(a0)).toFixed(1) + ',' + (s * Math.sin(a0)).toFixed(1) +
+        'A' + s + ',' + s + ' 0 1 1 ' + (s * Math.cos(a1)).toFixed(1) + ',' + (s * Math.sin(a1)).toFixed(1));
+      arc.setAttribute('class', 'mark mark-o');
+      arc.setAttribute('stroke-width', sw);
+      g.appendChild(arc);
+    }
+    return g;
+  }
+
+  function drawMark(idx, p, animate) {
+    var g = markShape(p);
+    g.setAttribute('transform', 'translate(' + cx(idx % N) + ',' + cx(Math.floor(idx / N)) + ')');
+    g.setAttribute('data-idx', idx);
+    markLayer.appendChild(g);
+    Array.prototype.forEach.call(g.children, function (path, k) {
+      var len = path.getTotalLength ? path.getTotalLength() : 100;
+      path.style.setProperty('--len', len);
+      if (animate && !reduceMotion) {
+        path.style.animationDelay = (k * 110) + 'ms';
+        path.classList.add('draw');
+      }
+    });
+    return animate && !reduceMotion ? (p === 1 ? 450 : 340) : 0;
+  }
+
+  function drawStrike() {
+    strikeLayer.textContent = '';
+    if (winCells.length < 2) return;
+    var a = winCells[0], b = winCells[winCells.length - 1];
+    var x1 = cx(a % N), y1 = cx(Math.floor(a / N));
+    var x2 = cx(b % N), y2 = cx(Math.floor(b / N));
+    var dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1;
+    var ex = dx / len * 34, ey = dy / len * 34;
+    var path = document.createElementNS(SVGNS, 'path');
+    path.setAttribute('class', 'strike');
+    path.setAttribute('d', 'M' + (x1 - ex) + ',' + (y1 - ey) + 'L' + (x2 + ex) + ',' + (y2 + ey));
+    strikeLayer.appendChild(path);
+    path.style.setProperty('--len', path.getTotalLength ? path.getTotalLength() : 400);
+  }
+
+  function paintPreview(idx) {
+    previewLayer.textContent = '';
+    if (idx === null || winner || busy || cells[idx] || !isHuman(turn)) return;
+    var g = markShape(turn);
+    g.setAttribute('transform', 'translate(' + cx(idx % N) + ',' + cx(Math.floor(idx / N)) + ')');
+    g.setAttribute('class', 'preview');
+    previewLayer.appendChild(g);
+  }
+
+  function paintTurnMark() {
+    var m = $('turnMark');
+    m.textContent = '';
+    var who = winner === 1 || winner === 2 ? winner : turn;
+    var g = markShape(who);
+    Array.prototype.forEach.call(g.children, function (path) { path.setAttribute('filter', 'none'); });
+    m.appendChild(g);
+  }
+
+  function refresh() {
+    paintTurnMark();
+    $('turnName').textContent = winner ? (winner === 3 ? 'Match nul' : name(winner)) : name(turn);
+    $('turnHint').textContent = winner
+      ? (winner === 3 ? 'Grille pleine, personne ne gagne' : 'gagne la manche')
+      : (isHuman(turn) ? 'À vous de jouer' : 'réfléchit…');
+
+    $('scoreXLabel').textContent = name(1);
+    $('scoreOLabel').textContent = name(2);
+    $('scoreX').textContent = score[1];
+    $('scoreO').textContent = score[2];
+    $('scoreD').textContent = score.d;
+    $('undoBtn').disabled = !history.length || busy;
+    $('setupLabel').textContent = BOARDS[boardKey].label;
+
+    for (var k = 0; k < hitLayer.children.length; k++) {
+      var node = hitLayer.children[k];
+      var i = +node.getAttribute('data-idx');
+      node.setAttribute('class', 'cell-hit' + (cells[i] ? ' taken' : ''));
+      node.setAttribute('tabindex', i === focusIdx ? '0' : '-1');
+      node.setAttribute('aria-label', 'Ligne ' + (Math.floor(i / N) + 1) + ', colonne ' + (i % N + 1) + ', ' +
+        (cells[i] === 1 ? 'croix' : cells[i] === 2 ? 'rond' : 'libre'));
+    }
+    save();
+  }
+
+  function hideVerdict() {
+    $('verdict').setAttribute('data-show', 'false');
+    $('verdictTitle').textContent = '';
+    $('verdictBody').textContent = '';
+  }
+
+  function show(title, body) {
+    $('verdict').setAttribute('data-show', 'true');
+    $('verdictTitle').textContent = title;
+    $('verdictBody').textContent = body;
+  }
+
+  function announce(m) { live.textContent = m; }
+  function buzz(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
+
+  /* ---------------- Déroulement ---------------- */
+
+  function newRound() {
+    N = BOARDS[boardKey].n; ALIGN = BOARDS[boardKey].align;
+    cells = new Int8Array(N * N);
+    history = [];
+    winner = 0; winCells = []; busy = false;
+    turn = opener;
+    focusIdx = Math.floor(N / 2) * N + Math.floor(N / 2);
+    buildWindows();
+    geometry();
+    markLayer.textContent = '';
+    strikeLayer.textContent = '';
+    previewLayer.textContent = '';
+    hideVerdict();
+    stopCountdown();
+    refresh();
+    maybeMachine();
+  }
+
+  function place(idx) {
+    if (winner || busy || cells[idx]) return;
+    var p = turn;
+    cells[idx] = p;
+    history.push(idx);
+    previewLayer.textContent = '';
+    var wait = drawMark(idx, p, true);
+    busy = true;
+    refresh();
+    buzz(10);
+
+    window.setTimeout(function () {
+      busy = false;
+      var line = lineAt(idx);
+      if (line) {
+        winner = p; winCells = line;
+        score[p]++;
+        opener = 3 - p;
+        drawStrike();
+        stopCountdown();
+        show(name(p) + ' gagne la manche',
+          ALIGN + ' signes alignés. La manche suivante sera ouverte par ' + name(3 - p).toLowerCase() + '.');
+        announce(name(p) + ' gagne la manche.');
+        buzz([30, 50, 90]);
+      } else if (!emptyCells().length) {
+        winner = 3; score.d++;
+        opener = 3 - opener;
+        stopCountdown();
+        show('Match nul', 'La grille est pleine et personne n’a aligné ' + ALIGN + ' signes.');
+        announce('Match nul.');
+      } else {
+        turn = 3 - p;
+        restartCountdown();
+        maybeMachine();
+      }
+      refresh();
+    }, wait + 20);
+  }
+
+  function maybeMachine() {
+    if (winner || mode !== 'ia' || turn !== 2) return;
+    busy = true;
+    refresh();
+    window.setTimeout(function () {
+      var i = chooseMove(2);
+      busy = false;
+      if (i >= 0) place(i);
+    }, 240);
+  }
+
+  function undo() {
+    if (!history.length || busy) return;
+    if (winner === 1 || winner === 2) { score[winner]--; opener = 3 - opener; }
+    else if (winner === 3) { score.d--; opener = 3 - opener; }
+    winner = 0; winCells = [];
+    strikeLayer.textContent = '';
+    hideVerdict();
+
+    do {
+      var i = history.pop();
+      cells[i] = 0;
+      var node = markLayer.querySelector('[data-idx="' + i + '"]');
+      if (node) node.remove();
+      turn = toMove();
+    } while (mode === 'ia' && turn !== 1 && history.length);
+
+    stopCountdown();
+    refresh();
+    announce('Coup annulé.');
+  }
+
+  /* ---------------- Chrono du coup ---------------- */
+
+  function limitMs() { return PACES[pace] * 1000; }
+
+  function paintCountdown(left) {
+    var total = limitMs();
+    var ratio = total ? Math.max(0, Math.min(1, left / total)) : 1;
+    $('paceFill').style.width = (ratio * 100).toFixed(2) + '%';
+    $('paceNum').textContent = (Math.max(0, left) / 1000).toFixed(1).replace('.', ',') + ' s';
+    $('pace').setAttribute('data-state', ratio > 0.5 ? 'ok' : ratio > 0.25 ? 'warn' : 'danger');
+  }
+
+  function stopCountdown() {
+    ticking = false;
+    if (rafId) { window.cancelAnimationFrame(rafId); rafId = null; }
+    var bar = $('pace');
+    if (!limitMs()) { bar.hidden = true; return; }
+    bar.hidden = false;
+    $('paceLabel').textContent = winner ? 'Fini' : 'Prêt';
+    $('paceFill').style.width = '100%';
+    $('paceNum').textContent = PACES[pace].toFixed(1).replace('.', ',') + ' s';
+    bar.setAttribute('data-state', 'ok');
+  }
+
+  function restartCountdown() {
+    if (!limitMs() || winner || !isHuman(turn)) { stopCountdown(); return; }
+    leftMs = limitMs();
+    deadline = Date.now() + leftMs;
+    runCountdown();
+  }
+
+  function runCountdown() {
+    $('pace').hidden = false;
+    $('paceLabel').textContent = name(turn);
+    ticking = true;
+    if (rafId) window.cancelAnimationFrame(rafId);
+    var step = function () {
+      if (!ticking) return;
+      var left = deadline - Date.now();
+      paintCountdown(left);
+      if (left <= 0) { timeUp(); return; }
+      rafId = window.requestAnimationFrame(step);
+    };
+    step();
+  }
+
+  function pauseCountdown() {
+    if (!ticking) return;
+    leftMs = Math.max(0, deadline - Date.now());
+    ticking = false;
+    if (rafId) { window.cancelAnimationFrame(rafId); rafId = null; }
+  }
+
+  function resumeCountdown() {
+    if (ticking || !limitMs() || winner || !isHuman(turn) || leftMs <= 0) return;
+    deadline = Date.now() + leftMs;
+    runCountdown();
+  }
+
+  function timeUp() {
+    ticking = false;
+    if (rafId) { window.cancelAnimationFrame(rafId); rafId = null; }
+    var loser = turn, won = 3 - turn;
+    winner = won; score[won]++; opener = loser;
+    paintCountdown(0);
+    $('paceLabel').textContent = 'Fini';
+    show('Temps écoulé',
+      name(loser) + ' n’a pas joué dans les ' + PACES[pace] + ' secondes. ' + name(won) + ' remporte la manche.');
+    announce('Temps écoulé, ' + name(won) + ' gagne.');
+    buzz([40, 60, 120]);
+    refresh();
+  }
+
+  /* ---------------- Entrées ---------------- */
+
+  hitLayer.addEventListener('pointermove', function (e) {
+    if (!e.target.hasAttribute || !e.target.hasAttribute('data-idx')) return;
+    paintPreview(+e.target.getAttribute('data-idx'));
+  });
+  hitLayer.addEventListener('pointerleave', function () { previewLayer.textContent = ''; });
+
+  hitLayer.addEventListener('click', function (e) {
+    if (!e.target.hasAttribute || !e.target.hasAttribute('data-idx')) return;
+    var i = +e.target.getAttribute('data-idx');
+    focusIdx = i;
+    if (isHuman(turn)) place(i);
+  });
+
+  hitLayer.addEventListener('focusin', function (e) {
+    if (e.target.hasAttribute && e.target.hasAttribute('data-idx')) {
+      focusIdx = +e.target.getAttribute('data-idx');
+      paintPreview(focusIdx);
+    }
+  });
+
+  function moveFocus(i) {
+    focusIdx = i;
+    var node = hitLayer.querySelector('[data-idx="' + i + '"]');
+    if (node) {
+      for (var k = 0; k < hitLayer.children.length; k++) hitLayer.children[k].setAttribute('tabindex', '-1');
+      node.setAttribute('tabindex', '0');
+      node.focus();
+    }
+  }
+
+  var STEPS = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
+
+  hitLayer.addEventListener('keydown', function (e) {
+    if (!e.target.hasAttribute || !e.target.hasAttribute('data-idx')) return;
+    var i = +e.target.getAttribute('data-idx');
+    if (STEPS[e.key]) {
+      e.preventDefault();
+      var r = Math.floor(i / N) + STEPS[e.key][0], c = (i % N) + STEPS[e.key][1];
+      if (r < 0 || r >= N || c < 0 || c >= N) return;
+      moveFocus(r * N + c);
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (isHuman(turn)) place(focusIdx);
+    }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+  });
+
+  /* ---------------- Commandes ---------------- */
+
+  $('undoBtn').addEventListener('click', undo);
+  $('newBtn').addEventListener('click', function () { newRound(); announce('Nouvelle manche.'); });
+  $('resetBtn').addEventListener('click', function () {
+    score = { 1: 0, 2: 0, d: 0 }; opener = 1; newRound(); announce('Score remis à zéro.');
+  });
+  $('modeSel').addEventListener('change', function () {
+    mode = this.value;
+    $('levelField').hidden = mode !== 'ia';
+    score = { 1: 0, 2: 0, d: 0 }; opener = 1; newRound();
+  });
+  $('levelSel').addEventListener('change', function () { level = this.value; save(); });
+  $('boardSel').addEventListener('change', function () { boardKey = this.value; newRound(); });
+  $('paceSel').addEventListener('change', function () {
+    pace = this.value;
+    if (history.length && !winner) restartCountdown(); else stopCountdown();
+    save();
+  });
+
+  /* ---------------- Sauvegarde ---------------- */
+
+  function save() {
+    try {
+      window.localStorage.setItem(STORE, JSON.stringify({
+        boardKey: boardKey, mode: mode, level: level, pace: pace, score: score, opener: opener
+      }));
+    } catch (e) {}
+  }
+
+  function load() {
+    var raw = null;
+    try { raw = window.localStorage.getItem(STORE); } catch (e) { return; }
+    if (!raw) return;
+    var d;
+    try { d = JSON.parse(raw); } catch (e) { return; }
+    if (d.boardKey && BOARDS[d.boardKey]) boardKey = d.boardKey;
+    if (d.mode === 'duo' || d.mode === 'ia') mode = d.mode;
+    if (d.level) level = d.level;
+    if (d.pace && PACES[d.pace] !== undefined) pace = d.pace;
+    if (d.score) score = { 1: d.score[1] | 0, 2: d.score[2] | 0, d: d.score.d | 0 };
+    if (d.opener === 1 || d.opener === 2) opener = d.opener;
+  }
+
+  /* ---------------- Démarrage ---------------- */
+
+  load();
+  $('modeSel').value = mode;
+  $('levelSel').value = level;
+  $('boardSel').value = boardKey;
+  $('paceSel').value = pace;
+  $('levelField').hidden = mode !== 'ia';
+  newRound();
+
+  window.addEventListener('beforeunload', save);
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { pauseCountdown(); save(); } else { resumeCountdown(); }
+  });
+})();
+</script>
+<!--ARTIFACT-END-->
+</body>
+</html>
