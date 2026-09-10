@@ -561,9 +561,11 @@
       <label class="field">
         <span>Plateau</span>
         <select id="variantSel">
-          <option value="octogone">Octogone &mdash; 37 trous</option>
+          <option value="octogone">Octogone fran&ccedil;ais &mdash; 37 trous</option>
           <option value="croix">Croix anglaise &mdash; 33 trous</option>
-          <option value="enfant">Enfant &mdash; 21 trous</option>
+          <option value="triangle">Triangle &mdash; 15 trous</option>
+          <option value="petit">Petit octogone &mdash; 21 trous</option>
+          <option value="decouverte">D&eacute;couverte &mdash; 9 pions</option>
         </select>
       </label>
       <label class="field">
@@ -701,12 +703,19 @@
         un d&eacute;part au centre ne peut <em>math&eacute;matiquement pas</em> descendre en dessous de
         <strong>deux pions</strong>&nbsp;&mdash; c'est une propri&eacute;t&eacute; du plateau, d&eacute;montr&eacute;e
         par Reiss en 1857, pas une question d'habilet&eacute;. Deux pions, c'est donc la partie parfaite.
-        La croix anglaise, elle, se termine bien sur un pion unique au centre. Le petit plateau enfant a besoin
-        des diagonales pour &ecirc;tre gagnable&nbsp;: elles s'activent toutes seules quand on le choisit.</p>
+        La croix anglaise, elle, se termine bien sur un pion unique au centre, et le triangle sur une bille unique &mdash;
+        qu'on peut m&ecirc;me ramener dans le trou laiss&eacute; vide au d&eacute;part. Le petit octogone a besoin
+        des diagonales pour &ecirc;tre gagnable&nbsp;: elles s'activent toutes seules quand on le choisit.
+        Tous ces minimums ont &eacute;t&eacute; calcul&eacute;s, pas suppos&eacute;s.</p>
+      <p><strong>Les cinq plateaux&nbsp;:</strong> l'<em>octogone fran&ccedil;ais</em> &agrave; 37 trous, celui des jeux en bois&nbsp;;
+        la <em>croix anglaise</em> &agrave; 33 trous, la plus r&eacute;pandue&nbsp;; le <em>triangle</em> &agrave; 15 trous, o&ugrave; les billes
+        sautent dans six directions et qui se termine toujours sur une bille unique &mdash; c'est le meilleur plateau pour d&eacute;buter&nbsp;;
+        le <em>petit octogone</em> &agrave; 21 trous&nbsp;; et <em>D&eacute;couverte</em>, o&ugrave; neuf pions seulement sont pos&eacute;s au centre
+        du grand plateau, juste pour prendre le geste en main.</p>
       <p><strong>Rythme&nbsp;:</strong> sans limite par d&eacute;faut. Les autres r&eacute;glages donnent un temps fixe
         pour chaque coup&nbsp;&mdash; 12&nbsp;s en enfant, 8&nbsp;s en d&eacute;butant, 5&nbsp;s en joueur, 3&nbsp;s en pro.
         Le compte &agrave; rebours part au premier coup et repart &agrave; z&eacute;ro apr&egrave;s chaque saut&nbsp;;
-        s'il arrive au bout, la partie s'arr&ecirc;te. Le plateau <em>Enfant</em> n'a que 21 trous, une partie bien plus courte.</p>
+        s'il arrive au bout, la partie s'arr&ecirc;te.</p>
       <p><strong>Pour jouer&nbsp;:</strong> touchez un pion puis sa case d'arrivée, ou faites-le glisser. Au clavier, déplacez la sélection avec les <kbd>flèches</kbd> et validez avec <kbd>Entrée</kbd>&nbsp;; <kbd>Échap</kbd> désélectionne, <kbd>Ctrl</kbd>+<kbd>Z</kbd> annule le dernier coup.</p>
       <p><strong>Couleurs&nbsp;:</strong> quatre essences pr&ecirc;tes &agrave; l'emploi, ou <em>Sur mesure</em> pour choisir
         vous-m&ecirc;me la teinte du plateau, celle des pions et celle des rep&egrave;res. Le choix est retenu d'une partie &agrave; l'autre.</p>
@@ -722,28 +731,23 @@
 
   var SVGNS = 'http://www.w3.org/2000/svg';
   var CELL = 100, PAD = 40;
-  var STORE = 'solitaire-octogone.v2';
+  var ROW = CELL * Math.sqrt(3) / 2;   /* hauteur de rangée du maillage triangulaire */
+  var STORE = 'solitaire-octogone.v3';
 
-  /* ---------------- Plateaux ---------------- */
+  var ORTHO = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  var DIAG = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+  /* Le triangle a ses six directions propres : la case d'à-côté y est toujours à une longueur. */
+  var TRI = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [-1, -1]];
 
-  function octaValid(n, cut) {
-    var m = n - 1;
-    return function (r, c) {
-      return (r + c >= cut) && (r + (m - c) >= cut) && ((m - r) + c >= cut) && ((m - r) + (m - c) >= cut);
-    };
-  }
+  /* ---------------- Contours de plateau ---------------- */
 
   function octagonPath(n, inset) {
     var a = -PAD + inset, b = n * CELL + PAD - inset;
     var k = (b - a) / (2 + Math.SQRT2);
-    return 'M' + (a + k) + ',' + a +
-           'L' + (b - k) + ',' + a +
-           'L' + b + ',' + (a + k) +
-           'L' + b + ',' + (b - k) +
-           'L' + (b - k) + ',' + b +
-           'L' + (a + k) + ',' + b +
-           'L' + a + ',' + (b - k) +
-           'L' + a + ',' + (a + k) + 'Z';
+    return 'M' + (a + k) + ',' + a + 'L' + (b - k) + ',' + a +
+           'L' + b + ',' + (a + k) + 'L' + b + ',' + (b - k) +
+           'L' + (b - k) + ',' + b + 'L' + (a + k) + ',' + b +
+           'L' + a + ',' + (b - k) + 'L' + a + ',' + (a + k) + 'Z';
   }
 
   function crossPath(n, inset) {
@@ -755,31 +759,118 @@
            'L' + a + ',' + q + 'L' + a + ',' + p + 'L' + p + ',' + p + 'Z';
   }
 
+  /* Triangle équilatéral circonscrit aux trous : on écarte les sommets depuis le
+     centre de gravité, de sorte que chaque côté s'éloigne de la marge voulue. */
+  function triangleGeom(rows, inset) {
+    var L = (rows - 1) * CELL, h = (rows - 1) * ROW;
+    var gy = 2 * h / 3;
+    var margin = 62 - inset;
+    var k = 1 + 3 * margin / h;
+    return {
+      ax: 0, ay: gy + (0 - gy) * k,
+      bx: -L * k / 2, by: gy + (h - gy) * k,
+      cx: L * k / 2, cy: gy + (h - gy) * k
+    };
+  }
+
+  function trianglePath(rows, inset) {
+    var g = triangleGeom(rows, inset);
+    return 'M' + g.ax.toFixed(1) + ',' + g.ay.toFixed(1) +
+           'L' + g.cx.toFixed(1) + ',' + g.cy.toFixed(1) +
+           'L' + g.bx.toFixed(1) + ',' + g.by.toFixed(1) + 'Z';
+  }
+
+  /* ---------------- Construction des plateaux ---------------- */
+
+  function squareBoard(n, valid, plate, fill) {
+    return function (diagonals) {
+      var cells = [], map = {}, r, c;
+      for (r = 0; r < n; r++) {
+        for (c = 0; c < n; c++) {
+          if (!valid(r, c)) continue;
+          map[r + ',' + c] = cells.length;
+          cells.push({ r: r, c: c, x: c * CELL + CELL / 2, y: r * CELL + CELL / 2 });
+        }
+      }
+      var mid = (n - 1) / 2;
+      var perfect = map[mid + ',' + mid];
+      var state = cells.map(function (cell, i) {
+        return fill ? (fill(cell.r, cell.c) ? 1 : 0) : (i === perfect ? 0 : 1);
+      });
+      return {
+        cells: cells,
+        moves: linkMoves(cells, map, diagonals ? ORTHO.concat(DIAG) : ORTHO),
+        state: state,
+        perfect: fill ? -1 : perfect,
+        plate: function (inset) { return plate(n, inset); },
+        view: [-60, -60, n * CELL + 120, n * CELL + 120]
+      };
+    };
+  }
+
+  function triangleBoard(rows) {
+    return function () {
+      var cells = [], map = {}, r, c;
+      for (r = 0; r < rows; r++) {
+        for (c = 0; c <= r; c++) {
+          map[r + ',' + c] = cells.length;
+          cells.push({ r: r, c: c, x: (c - r / 2) * CELL, y: r * ROW });
+        }
+      }
+      var g = triangleGeom(rows, 0);
+      var pad = 16;
+      return {
+        cells: cells,
+        moves: linkMoves(cells, map, TRI),
+        state: cells.map(function (cell, i) { return i === 0 ? 0 : 1; }),
+        perfect: 0,                       /* le sommet : le trou laissé vide au départ */
+        plate: function (inset) { return trianglePath(rows, inset); },
+        view: [g.bx - pad, g.ay - pad, (g.cx - g.bx) + 2 * pad, (g.by - g.ay) + 2 * pad]
+      };
+    };
+  }
+
+  function linkMoves(cells, map, dirs) {
+    var moves = [];
+    cells.forEach(function (cell, i) {
+      dirs.forEach(function (d) {
+        var over = map[(cell.r + d[0]) + ',' + (cell.c + d[1])];
+        var to = map[(cell.r + 2 * d[0]) + ',' + (cell.c + 2 * d[1])];
+        if (over !== undefined && to !== undefined) moves.push([i, over, to]);
+      });
+    });
+    return moves;
+  }
+
+  function octaValid(n, cut) {
+    var m = n - 1;
+    return function (r, c) {
+      return (r + c >= cut) && (r + (m - c) >= cut) && ((m - r) + c >= cut) && ((m - r) + (m - c) >= cut);
+    };
+  }
+  function crossValid(r, c) { return (r >= 2 && r <= 4) || (c >= 2 && c <= 4); }
+  function blockFill(r, c) { return r >= 2 && r <= 4 && c >= 2 && c <= 4; }
+
   var VARIANTS = {
-    octogone: {
-      n: 7, label: '37 trous · 36 pions',
-      valid: octaValid(7, 2),
-      plate: function (i) { return octagonPath(7, i); }
-    },
-    croix: {
-      n: 7, label: '33 trous · 32 pions',
-      valid: function (r, c) { return (r >= 2 && r <= 4) || (c >= 2 && c <= 4); },
-      plate: function (i) { return crossPath(7, i); }
-    },
-    enfant: {
-      n: 5, label: '21 trous · 20 pions',
-      valid: octaValid(5, 1),
-      plate: function (i) { return octagonPath(5, i); }
-    }
+    octogone:   { label: '37 trous · 36 pions', tri: false, build: squareBoard(7, octaValid(7, 2), octagonPath, null) },
+    croix:      { label: '33 trous · 32 pions', tri: false, build: squareBoard(7, crossValid, crossPath, null) },
+    triangle:   { label: '15 trous · 14 billes', tri: true,  build: triangleBoard(5) },
+    petit:      { label: '21 trous · 20 pions', tri: false, build: squareBoard(5, octaValid(5, 1), octagonPath, null) },
+    decouverte: { label: '33 trous · 9 pions au centre', tri: false, build: squareBoard(7, crossValid, crossPath, blockFill) }
   };
 
-  var PACES = {
-    libre:    { secs: 0 },
-    enfant:   { secs: 12 },
-    debutant: { secs: 8 },
-    joueur:   { secs: 5 },
-    pro:      { secs: 3 }
+  /* Minimum de pions réellement atteignable, établi hors ligne : invariant de Reiss
+     sur GF(4) pour l'impossibilité, recherche exhaustive ou solution explicite pour
+     l'atteignabilité. L'octogone 37 depuis le centre ne descend pas à un seul pion. */
+  var OBJECTIFS = {
+    'octogone|ortho': 2, 'octogone|diag': 1,
+    'croix|ortho': 1,    'croix|diag': 1,
+    'triangle|ortho': 1, 'triangle|diag': 1,
+    'petit|ortho': 4,    'petit|diag': 1,
+    'decouverte|ortho': 2, 'decouverte|diag': 1
   };
+
+  var PACES = { libre: { secs: 0 }, enfant: { secs: 12 }, debutant: { secs: 8 }, joueur: { secs: 5 }, pro: { secs: 3 } };
 
   var PALETTES = {
     hetre:   null,
@@ -789,32 +880,14 @@
     perso:   { board: '#ce9f63', peg: '#8e3e22', accent: '#35825f' }
   };
 
-  var ORTHO = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-  var DIAG = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
-
-  /* Minimum de pions réellement atteignable en partant du trou central.
-     Établi hors ligne : invariant de Reiss sur GF(4) pour l'impossibilité,
-     recherche exhaustive (plateau 21) ou solution explicite pour l'atteignabilité.
-     L'octogone 37 depuis le centre ne peut PAS descendre à un seul pion. */
-  var OBJECTIFS = {
-    'octogone|ortho': 2,
-    'octogone|diag': 1,
-    'croix|ortho': 1,
-    'croix|diag': 1,
-    'enfant|ortho': 4,
-    'enfant|diag': 1
-  };
-
   /* ---------------- État ---------------- */
 
-  var variant = 'octogone';
-  var pace = 'libre';
-  var palette = 'hetre';
+  var variant = 'octogone', pace = 'libre', palette = 'hetre';
   var custom = { board: '#ce9f63', peg: '#8e3e22', accent: '#35825f' };
   var diagonals = false;
 
-  var N = 7;                      /* côté de la grille du plateau courant */
-  var cells = [];                 /* null = pas de trou, 0 = vide, 1 = pion */
+  var board = null;               /* géométrie et coups du plateau courant */
+  var cells = [];                 /* 0 vide, 1 pion */
   var pegEls = new Map();
   var history = [];
   var selected = null;
@@ -835,37 +908,31 @@
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var HOP = reduceMotion ? 0 : 260;
 
-  function rowOf(i) { return Math.floor(i / N); }
-  function colOf(i) { return i % N; }
-  function px(i) { return colOf(i) * CELL + CELL / 2; }
-  function py(i) { return rowOf(i) * CELL + CELL / 2; }
-  function center() { var m = (N - 1) / 2; return m * N + m; }
+  function px(i) { return board.cells[i].x; }
+  function py(i) { return board.cells[i].y; }
+  function isTri() { return VARIANTS[variant].tri; }
   function recordKey() { return variant + '|' + (diagonals ? 'diag' : 'ortho') + '|' + pace; }
   function limitMs() { return PACES[pace].secs * 1000; }
-  function objective() { return OBJECTIFS[variant + (diagonals ? '|diag' : '|ortho')] || 1; }
+  function objective() { return OBJECTIFS[variant + (diagonals && !isTri() ? '|diag' : '|ortho')] || 1; }
   function pions(n) { return n + ' pion' + (n > 1 ? 's' : ''); }
   function started() { return history.length > 0; }
 
   /* ---------------- Règles ---------------- */
 
-  function dirs() { return diagonals ? ORTHO.concat(DIAG) : ORTHO; }
-
   function movesFrom(i) {
     var out = [];
     if (cells[i] !== 1) return out;
-    var r = rowOf(i), c = colOf(i), d = dirs();
-    for (var k = 0; k < d.length; k++) {
-      var mr = r + d[k][0], mc = c + d[k][1];
-      var tr = r + 2 * d[k][0], tc = c + 2 * d[k][1];
-      if (tr < 0 || tr >= N || tc < 0 || tc >= N) continue;
-      var over = mr * N + mc, to = tr * N + tc;
-      if (cells[over] === 1 && cells[to] === 0) out.push({ from: i, over: over, to: to });
-    }
+    board.moves.forEach(function (m) {
+      if (m[0] === i && cells[m[1]] === 1 && cells[m[2]] === 0) out.push({ from: m[0], over: m[1], to: m[2] });
+    });
     return out;
   }
 
   function anyMove() {
-    for (var i = 0; i < cells.length; i++) if (cells[i] === 1 && movesFrom(i).length) return true;
+    for (var k = 0; k < board.moves.length; k++) {
+      var m = board.moves[k];
+      if (cells[m[0]] === 1 && cells[m[1]] === 1 && cells[m[2]] === 0) return true;
+    }
     return false;
   }
 
@@ -917,17 +984,12 @@
     return hsl2hex(p[0], p[1] + (ds || 0), p[2] + dl);
   }
 
-  function activeColors() {
-    return palette === 'perso' ? custom : PALETTES[palette];
-  }
+  function activeColors() { return palette === 'perso' ? custom : PALETTES[palette]; }
 
   function applyPalette() {
     var root = document.documentElement.style;
     var c = activeColors();
-    if (!c) {
-      TINTED.forEach(function (k) { root.removeProperty(k); });
-      return;
-    }
+    if (!c) { TINTED.forEach(function (k) { root.removeProperty(k); }); return; }
     var w = hex2hsl(c.board);
     root.setProperty('--wood-hi', tint(c.board, 9, -2));
     root.setProperty('--wood', c.board);
@@ -945,18 +1007,19 @@
   /* ---------------- Construction du plateau ---------------- */
 
   function buildPlate() {
-    var plate = VARIANTS[variant].plate;
-    var span = N * CELL + 120;
-    svg.setAttribute('viewBox', '-60 -60 ' + span + ' ' + span);
-    $('plateFace').setAttribute('d', plate(13));
-    $('plateEdge').setAttribute('d', plate(13));
-    $('plateLip').setAttribute('d', plate(17));
-    $('plateClipPath').setAttribute('d', plate(0));
+    var v = board.view;
+    svg.setAttribute('viewBox', v.join(' '));
+    $('plateFace').setAttribute('d', board.plate(13));
+    $('plateEdge').setAttribute('d', board.plate(13));
+    $('plateLip').setAttribute('d', board.plate(17));
+    $('plateClipPath').setAttribute('d', board.plate(0));
 
-    var grainSpan = N * CELL + 240;
-    Array.prototype.forEach.call(svg.querySelectorAll('.grain-plate'), function (r) {
-      r.setAttribute('width', grainSpan);
-      r.setAttribute('height', grainSpan);
+    /* Le triangle n'est pas carré : la boîte suit le contour réel du plateau. */
+    svg.parentNode.style.aspectRatio = v[2] + ' / ' + v[3];
+
+    Array.prototype.forEach.call(svg.querySelectorAll('.grain-plate'), function (rect) {
+      rect.setAttribute('x', v[0] - 60); rect.setAttribute('y', v[1] - 60);
+      rect.setAttribute('width', v[2] + 120); rect.setAttribute('height', v[3] + 120);
     });
   }
 
@@ -1002,8 +1065,6 @@
     holeLayer.textContent = '';
     hitLayer.textContent = '';
     for (var i = 0; i < cells.length; i++) {
-      if (cells[i] === null) continue;
-
       var hole = document.createElementNS(SVGNS, 'circle');
       hole.setAttribute('cx', px(i)); hole.setAttribute('cy', py(i));
       hole.setAttribute('r', 35);
@@ -1018,7 +1079,7 @@
       var hit = document.createElementNS(SVGNS, 'circle');
       hit.setAttribute('class', 'hit');
       hit.setAttribute('cx', px(i)); hit.setAttribute('cy', py(i));
-      hit.setAttribute('r', 48);
+      hit.setAttribute('r', 46);
       hit.setAttribute('data-idx', i);
       hit.setAttribute('tabindex', i === focusIdx ? '0' : '-1');
       hit.setAttribute('role', 'button');
@@ -1032,26 +1093,32 @@
     for (var i = 0; i < cells.length; i++) if (cells[i] === 1) makePeg(i);
   }
 
+  function firstEmpty() {
+    for (var i = 0; i < cells.length; i++) if (cells[i] === 0) return i;
+    return 0;
+  }
+
   function reset() {
-    N = VARIANTS[variant].n;
-    cells = new Array(N * N).fill(null);
-    for (var r = 0; r < N; r++) {
-      for (var c = 0; c < N; c++) {
-        if (VARIANTS[variant].valid(r, c)) cells[r * N + c] = 1;
-      }
-    }
-    cells[center()] = 0;
+    board = VARIANTS[variant].build(diagonals);
+    cells = board.state.slice();
     history = [];
     selected = null;
     finished = false;
-    focusIdx = center();
+    focusIdx = board.perfect >= 0 ? board.perfect : firstEmpty();
     elapsed = 0;
     stopClock();
     stopCountdown();
-    updateSetupLabel();
     buildPlate();
     renderStatic();
     resetPegs();
+    refresh();
+  }
+
+  /* Recalcule les coups quand l'option diagonales change, sans toucher à la position. */
+  function relink() {
+    var keep = cells.slice();
+    board = VARIANTS[variant].build(diagonals);
+    cells = keep;
     refresh();
   }
 
@@ -1126,16 +1193,21 @@
     return c;
   }
 
+  function place(idx) {
+    var cell = board.cells[idx];
+    return isTri()
+      ? 'rangée ' + (cell.r + 1) + ', position ' + (cell.c + 1)
+      : 'ligne ' + (cell.r + 1) + ', colonne ' + (cell.c + 1);
+  }
+
   function describe(idx, drop) {
-    var pos = 'ligne ' + (rowOf(idx) + 1) + ', colonne ' + (colOf(idx) + 1);
-    if (drop) return "Case d'arrivée libre, " + pos;
-    if (cells[idx] === 1) return (selected === idx ? 'Pion sélectionné, ' : 'Pion, ') + pos;
-    return 'Trou vide, ' + pos;
+    if (drop) return "Case d'arrivée libre, " + place(idx);
+    if (cells[idx] === 1) return (selected === idx ? 'Pion sélectionné, ' : 'Pion, ') + place(idx);
+    return 'Trou vide, ' + place(idx);
   }
 
   function refresh() {
     markerLayer.textContent = '';
-
     var targets = selected === null ? [] : movesFrom(selected);
 
     pegEls.forEach(function (el) { el.classList.remove('selected'); });
@@ -1177,9 +1249,7 @@
     $('undoBtn').disabled = history.length === 0;
 
     var key = recordKey();
-    if (started() && (records[key] === undefined || pegs < records[key])) {
-      records[key] = pegs;
-    }
+    if (started() && (records[key] === undefined || pegs < records[key])) records[key] = pegs;
     $('statBest').innerHTML = records[key] === undefined
       ? '&mdash;'
       : records[key] + ' <small>pion' + (records[key] > 1 ? 's' : '') + '</small>';
@@ -1208,25 +1278,25 @@
         '. Annulez quelques coups pour tenter une autre suite.');
       announce('Bloqué avec ' + pions(pegs) + '.');
     } else if (pegs === 1) {
-      show('win',
-        cells[center()] === 1 ? 'Partie parfaite' : 'Gagné',
-        cells[center()] === 1
-          ? "Un seul pion, et il est au centre. C'est la fin la plus propre du solitaire."
-          : 'Un seul pion sur le plateau. Reste à le faire finir au centre.');
+      var home = board.perfect >= 0 && cells[board.perfect] === 1;
+      show('win', home ? 'Partie parfaite' : 'Gagné',
+        home
+          ? (isTri()
+              ? 'Une seule bille, et elle est revenue dans le trou du départ. On ne fait pas mieux.'
+              : "Un seul pion, et il est au centre. C'est la fin la plus propre du solitaire.")
+          : (board.perfect >= 0
+              ? 'Un seul pion sur le plateau. Reste à le faire finir dans le trou du départ.'
+              : 'Un seul pion sur le plateau. Rien à redire.'));
       announce('Gagné, un seul pion restant.');
     } else {
       show('win', 'Partie parfaite',
-        pions(pegs) + ', c\u2019est le minimum possible sur ce plateau en partant du centre. ' +
-        'Personne ne fera mieux.');
+        pions(pegs) + ', c’est le minimum possible sur ce plateau. Personne ne fera mieux.');
       announce('Partie parfaite, ' + pions(pegs) + '.');
     }
   }
 
   function announce(msg) { live.textContent = msg; }
-
-  function buzz(ms) {
-    try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {}
-  }
+  function buzz(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
 
   /* ---------------- Chronomètre total ---------------- */
 
@@ -1249,11 +1319,10 @@
 
   function paintCountdown(left) {
     var total = limitMs();
-    var bar = $('pace');
     var ratio = total ? clamp(left / total, 0, 1) : 1;
     $('paceFill').style.width = (ratio * 100).toFixed(2) + '%';
     $('paceNum').textContent = (Math.max(0, left) / 1000).toFixed(1).replace('.', ',') + ' s';
-    bar.setAttribute('data-state', ratio > 0.5 ? 'ok' : ratio > 0.25 ? 'warn' : 'danger');
+    $('pace').setAttribute('data-state', ratio > 0.5 ? 'ok' : ratio > 0.25 ? 'warn' : 'danger');
   }
 
   function stopCountdown() {
@@ -1276,8 +1345,7 @@
   }
 
   function runCountdown() {
-    var bar = $('pace');
-    bar.hidden = false;
+    $('pace').hidden = false;
     $('paceLabel').textContent = 'Ce coup';
     ticking = true;
     if (rafId) window.cancelAnimationFrame(rafId);
@@ -1400,11 +1468,8 @@
       var dist = Math.hypot(p.x - px(m.to), p.y - py(m.to));
       if (dist < bestDist) { bestDist = dist; best = m; }
     });
-    if (best && bestDist < 70) {
-      play(best);
-    } else if (d.peg) {
-      d.peg.style.transform = 'translate(' + px(d.idx) + 'px,' + py(d.idx) + 'px)';
-    }
+    if (best && bestDist < 70) play(best);
+    else if (d.peg) d.peg.style.transform = 'translate(' + px(d.idx) + 'px,' + py(d.idx) + 'px)';
   }
 
   hitLayer.addEventListener('pointerup', endDrag);
@@ -1420,13 +1485,31 @@
 
   /* ---------------- Clavier ---------------- */
 
-  var STEPS = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
+  /* Le maillage triangulaire n'a ni lignes ni colonnes alignées : on cherche
+     le trou le plus proche dans la direction demandée, ce qui marche partout. */
+  function neighbourIn(idx, dx, dy) {
+    var a = board.cells[idx], best = -1, bestScore = Infinity;
+    for (var i = 0; i < board.cells.length; i++) {
+      if (i === idx) continue;
+      var vx = board.cells[i].x - a.x, vy = board.cells[i].y - a.y;
+      var len = Math.hypot(vx, vy);
+      if (!len) continue;
+      var dot = (vx * dx + vy * dy) / len;
+      if (dot < 0.5) continue;
+      var score = len / dot;
+      if (score < bestScore) { bestScore = score; best = i; }
+    }
+    return best;
+  }
+
+  var STEPS = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
 
   hitLayer.addEventListener('focusin', function (e) {
     if (e.target.hasAttribute && e.target.hasAttribute('data-idx')) focusIdx = +e.target.getAttribute('data-idx');
   });
 
   function moveFocus(idx) {
+    if (idx < 0) return;
     focusIdx = idx;
     var node = hitLayer.querySelector('[data-idx="' + idx + '"]');
     if (node) {
@@ -1439,15 +1522,9 @@
   hitLayer.addEventListener('keydown', function (e) {
     if (!e.target.hasAttribute || !e.target.hasAttribute('data-idx')) return;
     var idx = +e.target.getAttribute('data-idx');
-
     if (STEPS[e.key]) {
       e.preventDefault();
-      var r = rowOf(idx), c = colOf(idx), d = STEPS[e.key];
-      for (var step = 1; step < N; step++) {
-        var nr = r + d[0] * step, nc = c + d[1] * step;
-        if (nr < 0 || nr >= N || nc < 0 || nc >= N) break;
-        if (cells[nr * N + nc] !== null) { moveFocus(nr * N + nc); break; }
-      }
+      moveFocus(neighbourIn(idx, STEPS[e.key][0], STEPS[e.key][1]));
     } else if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       pick(idx);
@@ -1464,26 +1541,31 @@
   /* ---------------- Commandes ---------------- */
 
   $('undoBtn').addEventListener('click', undo);
-
-  $('restartBtn').addEventListener('click', function () {
-    reset();
-    announce('Nouvelle partie.');
-  });
-
+  $('restartBtn').addEventListener('click', function () { reset(); announce('Nouvelle partie.'); });
   $('hintBtn').addEventListener('click', function () {
     hints = !hints;
     this.setAttribute('aria-pressed', hints ? 'true' : 'false');
     refresh();
   });
 
+  function syncDiagToggle() {
+    var t = $('diagToggle');
+    t.disabled = isTri();
+    t.closest('.toggle').style.opacity = isTri() ? '.45' : '';
+    t.closest('.toggle').title = isTri()
+      ? 'Le triangle a déjà ses six directions de saut.'
+      : '';
+  }
+
   $('variantSel').addEventListener('change', function () {
     variant = this.value;
     /* Sans les diagonales, le petit plateau plafonne à quatre pions : on les active. */
-    if (variant === 'enfant' && !diagonals) {
+    if (variant === 'petit' && !diagonals) {
       diagonals = true;
       $('diagToggle').checked = true;
-      announce('Diagonales activées : sans elles, le plateau enfant ne peut pas descendre sous quatre pions.');
+      announce('Diagonales activées : sans elles, le petit plateau ne peut pas descendre sous quatre pions.');
     }
+    syncDiagToggle();
     reset();
   });
 
@@ -1523,7 +1605,7 @@
   $('diagToggle').addEventListener('change', function () {
     diagonals = this.checked;
     selected = null;
-    refresh();
+    relink();
   });
 
   function syncSwatches() {
@@ -1541,17 +1623,10 @@
   function save() {
     try {
       window.localStorage.setItem(STORE, JSON.stringify({
-        variant: variant,
-        pace: pace,
-        palette: palette,
-        custom: custom,
-        diagonals: diagonals,
-        cells: cells,
+        variant: variant, pace: pace, palette: palette, custom: custom,
+        diagonals: diagonals, cells: cells,
         history: history.map(function (m) { return [m.from, m.over, m.to]; }),
-        elapsed: elapsed,
-        hints: hints,
-        finished: finished,
-        records: records
+        elapsed: elapsed, hints: hints, records: records
       }));
     } catch (e) {}
   }
@@ -1564,24 +1639,23 @@
     try { data = JSON.parse(raw); } catch (e) { return false; }
     if (!data || !VARIANTS[data.variant] || !Array.isArray(data.cells)) return false;
 
-    var n = VARIANTS[data.variant].n;
-    if (data.cells.length !== n * n) return false;
-
     records = (data.records && typeof data.records === 'object') ? data.records : {};
     variant = data.variant;
-    N = n;
     pace = PACES[data.pace] ? data.pace : 'libre';
     palette = PALETTES[data.palette] !== undefined ? data.palette : 'hetre';
     if (data.custom && data.custom.board) custom = data.custom;
     diagonals = !!data.diagonals;
     hints = !!data.hints;
     elapsed = typeof data.elapsed === 'number' ? data.elapsed : 0;
-    cells = data.cells.map(function (v) { return v === null ? null : (v ? 1 : 0); });
-    history = (data.history || []).map(function (m) { return { from: m[0], over: m[1], to: m[2] }; });
 
+    board = VARIANTS[variant].build(diagonals);
+    if (data.cells.length !== board.cells.length) return false;
+
+    cells = data.cells.map(function (v) { return v ? 1 : 0; });
+    history = (data.history || []).map(function (m) { return { from: m[0], over: m[1], to: m[2] }; });
     selected = null;
     finished = false;
-    focusIdx = center();
+    focusIdx = board.perfect >= 0 ? board.perfect : firstEmpty();
     return true;
   }
 
@@ -1595,10 +1669,10 @@
   $('diagToggle').checked = diagonals;
   $('hintBtn').setAttribute('aria-pressed', hints ? 'true' : 'false');
   syncSwatches();
+  syncDiagToggle();
   applyPalette();
 
   if (restored) {
-    $('setupLabel').textContent = VARIANTS[variant].label;
     buildPlate();
     renderStatic();
     resetPegs();
