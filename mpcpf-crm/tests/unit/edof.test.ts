@@ -11,6 +11,9 @@ import {
   pickCityRow,
   cpfTrackedUrl,
   cpfLinkEmailHtml,
+  matchFormationToGroup,
+  groupeForCode,
+  normalizeTxt,
 } from "../../web/lib/edof.ts";
 
 test("mapping catalogue → formation_numero EDOF : cas nominaux", () => {
@@ -92,4 +95,44 @@ test("cpfLinkEmailHtml : contient le lien tracké, échappe le message et n'inje
   assert.match(html, /Noa/);
   assert.doesNotMatch(html, /<script>/); // le message est échappé
   assert.match(html, /&lt;script&gt;/);
+});
+
+test("normalizeTxt : insensible casse + accents (Boîte ≡ boite)", () => {
+  assert.equal(normalizeTxt("Boîte Auto"), "boite auto");
+  assert.equal(normalizeTxt("PERMIS Bé"), "permis be");
+  assert.equal(normalizeTxt(null), "");
+});
+
+test("matchFormationToGroup : code catalogue exact → forfait résolu direct", () => {
+  assert.deepEqual(matchFormationToGroup("B_18H"), { groupeKey: "permis_b_auto", code: "B_18H" });
+  assert.deepEqual(matchFormationToGroup("b_man25"), { groupeKey: "permis_b_man", code: "B_MAN25" });
+  assert.deepEqual(matchFormationToGroup("CODE_ETM"), { groupeKey: "code", code: "CODE_ETM" });
+});
+
+test("matchFormationToGroup : texte libre → famille (+ forfait si dérivable)", () => {
+  // Famille seule (pas d'indice horaire) → code null (l'appelant retombe sur le défaut).
+  assert.deepEqual(matchFormationToGroup("Permis B (voiture)"), { groupeKey: "permis_b_auto", code: null });
+  // Indice horaire + accent (« Boîte » ≡ « boite »).
+  assert.deepEqual(matchFormationToGroup("Permis B boîte auto 18h"), { groupeKey: "permis_b_auto", code: "B_18H" });
+  assert.deepEqual(matchFormationToGroup("Permis B manuelle 20h"), { groupeKey: "permis_b_man", code: "B_MAN20" });
+  assert.deepEqual(matchFormationToGroup("Permis C"), { groupeKey: "poids_lourd", code: "C" });
+  assert.deepEqual(matchFormationToGroup("permis d"), { groupeKey: "poids_lourd", code: "D" });
+  assert.deepEqual(matchFormationToGroup("Permis BE remorque"), { groupeKey: "permis_be", code: "BE_20H" });
+  assert.deepEqual(matchFormationToGroup("Code de la route"), { groupeKey: "code", code: "CODE_ETG" });
+});
+
+test("matchFormationToGroup : « permis de conduire » ne doit PAS être classé DE", () => {
+  // Piège : le « de » de « permis de conduire » ≠ catégorie DE.
+  assert.equal(matchFormationToGroup("Permis de conduire B")?.groupeKey, "permis_b_auto");
+  const generique = matchFormationToGroup("Permis de conduire");
+  assert.notEqual(generique?.groupeKey, "poids_lourd");
+  assert.notEqual(generique?.code, "DE");
+});
+
+test("matchFormationToGroup / groupeForCode : non-permis → null", () => {
+  assert.equal(matchFormationToGroup("CACES R489"), null);
+  assert.equal(matchFormationToGroup(""), null);
+  assert.equal(matchFormationToGroup(null), null);
+  assert.equal(groupeForCode("B_18H")?.key, "permis_b_auto");
+  assert.equal(groupeForCode("INEXISTANT"), null);
 });

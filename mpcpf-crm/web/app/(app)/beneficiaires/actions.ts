@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 import { crm, pub } from "@/lib/supabase";
 import { getStaffUser } from "@/lib/auth";
 import { sendEmail } from "@/lib/gmail";
-import { cpfLinkEmailHtml, cpfTrackedUrl, type EdofUrlRow } from "@/lib/edof";
+import {
+  cpfLinkEmailHtml, cpfTrackedUrl, matchFormationToGroup, PERMIS_GROUPES,
+  resolveEdofFormationNumero, pickCityRow, type EdofUrlRow,
+} from "@/lib/edof";
 
 type Result = { ok: boolean; error?: string; id?: string; message?: string };
 
@@ -280,12 +283,82 @@ export async function createKairosDevis(beneficiaryId: string): Promise<Result> 
   }
 }
 
-// ---- Lien d'inscription CPF (moncompteformation.gouv.fr) — bouton manuel ----
-// Recrée la brique perdue (spec V4). Le staff cherche le lien exact dans public.urls_cpf
-// (489 liens permis × villes), pré-filtré sur le département du bénéficiaire, puis l'envoie
-// par email (avec suivi du clic via campaign-tracker) + trace de l'envoi (note + événement).
+// ---- Lien d'inscription CPF (moncompteformation.gouv.fr) — sélecteur guidé ----
+// Recrée la brique perdue (spec V4), version « guidée » : au lieu d'une recherche texte
+// libre dans public.urls_cpf (sensible aux accents + tronquée à 80), on part de la
+// formation DÉJÀ indiquée sur la fiche → famille permis → forfait → lien exact (ville
+// selon le CP). Envoi par email (suivi du clic via campaign-tracker) + trace.
+
+export type EdofForfait = { code: string; label: string; tarifCpf: number | null };
+export type EdofGroupe = { key: string; label: string; defaut: string; forfaits: EdofForfait[] };
+export type EdofFormationChoice = { key: string; rawLabel: string; groupeKey: string | null; presetCode: string | null };
+export type EdofOptions = { ok: boolean; error?: string; hasEmail: boolean; formations: EdofFormationChoice[]; groupes: EdofGroupe[] };
+
+// Familles/forfaits présentables avec le tarif LIVE du catalogue (public.catalogue_formations)
+// — aucun tarif figé en dur côté CRM (évite la dérive, ex. FCO 1500→850).
+async function buildEdofGroupes(): Promise<EdofGroupe[]> {
+  const codes = PERMIS_GROUPES.flatMap((g) => g.forfaits.map((f) => f.code));
+  const { data } = await pub()
+    .from("catalogue_formations")
+    .select("code, tarif_cpf")
+    .in("code", codes);
+  const byCode = new Map<string, number | null>();
+  for (const r of (data ?? []) as Array<{ code: string; tarif_cpf: number | null }>) {
+    byCode.set(r.code, r.tarif_cpf ?? null);
+  }
+  return PERMIS_GROUPES.map((g) => ({
+    key: g.key,
+    label: g.label,
+    defaut: g.defaut,
+    forfaits: g.forfaits.map((f) => {
+      const tarif = byCode.get(f.code) ?? null;
+      return { code: f.code, label: tarif ? `${f.label} — ${tarif} €` : f.label, tarifCpf: tarif };
+    }),
+  }));
+}
+
+// Options du sélecteur guidé : formations déjà présentes sur la fiche (tous les dossiers
+// « 1 personne / N dossiers »), pré-mappées vers famille + forfait, et la liste complète
+// des familles/forfaits (tarifs live) pour permettre une correction manuelle.
+export async function getEdofOptions(beneficiaryId: string): Promise<EdofOptions> {
+  const base: EdofOptions = { ok: false, hasEmail: false, formations: [], groupes: [] };
+  const staff = await getStaffUser();
+  if (!staff) return { ...base, error: "Non autorisé" };
+
+  const { data: b } = await crm()
+    .from("vw_beneficiary_enriched")
+    .select("id, duplicate_of, intitule_formation, email")
+    .eq("id", beneficiaryId)
+    .maybeSingle();
+  if (!b) return { ...base, error: "Bénéficiaire introuvable" };
+
+  const bb = b as { id: string; duplicate_of: string | null; intitule_formation: string | null; email: string | null };
+  const hasEmail = !!String(bb.email ?? "").trim();
+  const maitreId = bb.duplicate_of ?? bb.id;
+  const { data: dossiers } = await crm()
+    .from("beneficiaries")
+    .select("id, intitule_formation")
+    .or(`id.eq.${maitreId},duplicate_of.eq.${maitreId}`);
+
+  const seen = new Set<string>();
+  const formations: EdofFormationChoice[] = [];
+  const sources = [bb.intitule_formation, ...((dossiers ?? []) as Array<{ intitule_formation: string | null }>).map((d) => d.intitule_formation)];
+  for (const raw of sources) {
+    const s = String(raw ?? "").trim();
+    if (!s) continue;
+    const k = s.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    const m = matchFormationToGroup(s);
+    formations.push({ key: `f${formations.length}`, rawLabel: s, groupeKey: m?.groupeKey ?? null, presetCode: m?.code ?? null });
+  }
+
+  const groupes = await buildEdofGroupes();
+  return { ok: true, hasEmail, formations, groupes };
+}
 
 // Recherche des liens EDOF pour la modale (intitulé / n° formation / ville).
+// Conservée comme repli manuel (le sélecteur guidé ci-dessus est le chemin nominal).
 export async function searchEdofLinks(q: string, cp?: string): Promise<EdofUrlRow[]> {
   const staff = await getStaffUser();
   if (!staff) return [];
@@ -310,7 +383,80 @@ export async function searchEdofLinks(q: string, cp?: string): Promise<EdofUrlRo
   return rows;
 }
 
-// Envoi du lien EDOF choisi : email HTML + note de traçabilité + événement cpf_sent.
+// Cœur d'envoi partagé (repli manuel hérité + sélecteur guidé) : email HTML + note de
+// traçabilité + événement cpf_sent. `row` = la ligne urls_cpf déjà résolue (ville incluse).
+async function deliverEdofLink(
+  beneficiaryId: string,
+  actorEmail: string,
+  benefEmail: string,
+  prenom: string,
+  detailBenef: string,
+  row: { url: string; intitule: string | null; ville: string | null },
+  message?: string,
+): Promise<Result> {
+  const tracked = cpfTrackedUrl(beneficiaryId, String(row.url));
+  const detail = (detailBenef || row.intitule || "").trim();
+  const html = cpfLinkEmailHtml(prenom.trim(), detail, String(row.intitule ?? ""), String(row.ville ?? ""), tracked, message);
+
+  const sent = await sendEmail({
+    to: benefEmail,
+    subject: `Votre lien d'inscription CPF — ${detail || "votre formation"} — MonPermisCPF`,
+    html,
+  });
+  if (!sent.ok) return { ok: false, error: sent.error || "Échec de l'envoi de l'email." };
+
+  // Traçabilité (best-effort, non bloquant) : note sur la fiche + événement d'envoi.
+  await crm().from("notes").insert({
+    beneficiary_id: beneficiaryId,
+    author_email: actorEmail,
+    content: `Lien d'inscription CPF envoyé — ${row.intitule ?? ""} (${row.ville ?? ""}) → ${benefEmail}`,
+  });
+  try {
+    await pub().from("campaign_events").insert({
+      send_id: beneficiaryId,
+      event_type: "cpf_sent",
+      target_url: String(row.url),
+    });
+  } catch { /* trace best-effort */ }
+
+  revalidateBenef(beneficiaryId);
+  return { ok: true, message: "Lien d'inscription CPF envoyé." };
+}
+
+// Envoi GUIDÉ : à partir d'un CODE catalogue (forfait choisi), résout le n° EDOF puis la
+// ville (selon le CP du bénéficiaire) et envoie. Chemin nominal du sélecteur guidé.
+export async function sendEdofByCode(beneficiaryId: string, code: string, message?: string): Promise<Result> {
+  const staff = await getStaffUser();
+  if (!staff) return { ok: false, error: "Non autorisé" };
+
+  const fn = resolveEdofFormationNumero(code);
+  if (!fn) return { ok: false, error: "Ce forfait n'a pas de lien d'inscription CPF." };
+
+  const { data: b } = await crm()
+    .from("vw_beneficiary_enriched")
+    .select("email, first_name, intitule_formation, code_postal")
+    .eq("id", beneficiaryId)
+    .maybeSingle();
+  if (!b) return { ok: false, error: "Bénéficiaire introuvable" };
+  const bb = b as { email: string | null; first_name: string | null; intitule_formation: string | null; code_postal: string | null };
+  const email = String(bb.email ?? "").trim();
+  if (!email) return { ok: false, error: "Renseignez l'email du bénéficiaire avant d'envoyer le lien." };
+
+  const { data: rows } = await pub()
+    .from("urls_cpf")
+    .select("id,intitule,ville,url,actif,code_postal,formation_numero")
+    .eq("formation_numero", fn)
+    .eq("actif", true);
+  const row = pickCityRow(
+    (rows ?? []) as Array<{ code_postal: string | null; url: string; intitule: string | null; ville: string | null }>,
+    bb.code_postal,
+  );
+  if (!row) return { ok: false, error: "Aucun lien d'inscription actif pour ce forfait." };
+
+  return deliverEdofLink(beneficiaryId, staff.email, email, String(bb.first_name ?? ""), String(bb.intitule_formation ?? ""), row, message);
+}
+
+// Envoi par urlId (repli manuel hérité, via searchEdofLinks). Conservé pour compat.
 export async function sendEdofLink(
   beneficiaryId: string,
   urlId: number,
@@ -325,7 +471,8 @@ export async function sendEdofLink(
     .eq("id", beneficiaryId)
     .maybeSingle();
   if (!b) return { ok: false, error: "Bénéficiaire introuvable" };
-  const email = String(b.email ?? "").trim();
+  const bb = b as { email: string | null; first_name: string | null; intitule_formation: string | null };
+  const email = String(bb.email ?? "").trim();
   if (!email) return { ok: false, error: "Renseignez l'email du bénéficiaire avant d'envoyer le lien." };
 
   const { data: u } = await pub()
@@ -333,34 +480,8 @@ export async function sendEdofLink(
     .select("id,intitule,ville,url,actif")
     .eq("id", urlId)
     .maybeSingle();
-  if (!u || (u as any).actif === false) return { ok: false, error: "Lien EDOF introuvable ou inactif." };
+  const uu = u as { intitule: string | null; ville: string | null; url: string; actif: boolean } | null;
+  if (!uu || uu.actif === false) return { ok: false, error: "Lien EDOF introuvable ou inactif." };
 
-  const tracked = cpfTrackedUrl(beneficiaryId, String((u as any).url));
-  const prenom = String(b.first_name ?? "").trim();
-  const detail = String(b.intitule_formation ?? (u as any).intitule ?? "").trim();
-  const html = cpfLinkEmailHtml(prenom, detail, String((u as any).intitule ?? ""), String((u as any).ville ?? ""), tracked, message);
-
-  const sent = await sendEmail({
-    to: email,
-    subject: `Votre lien d'inscription CPF — ${detail || "votre formation"} — MonPermisCPF`,
-    html,
-  });
-  if (!sent.ok) return { ok: false, error: sent.error || "Échec de l'envoi de l'email." };
-
-  // Traçabilité (best-effort, non bloquant) : note sur la fiche + événement d'envoi.
-  await crm().from("notes").insert({
-    beneficiary_id: beneficiaryId,
-    author_email: staff.email,
-    content: `Lien d'inscription CPF envoyé — ${(u as any).intitule} (${(u as any).ville}) → ${email}`,
-  });
-  try {
-    await pub().from("campaign_events").insert({
-      send_id: beneficiaryId,
-      event_type: "cpf_sent",
-      target_url: String((u as any).url),
-    });
-  } catch { /* trace best-effort */ }
-
-  revalidateBenef(beneficiaryId);
-  return { ok: true, message: "Lien d'inscription CPF envoyé." };
+  return deliverEdofLink(beneficiaryId, staff.email, email, String(bb.first_name ?? ""), String(bb.intitule_formation ?? ""), uu, message);
 }

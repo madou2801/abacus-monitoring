@@ -193,8 +193,6 @@ export default async function Page({ params }: { params: { id: string } }) {
 
           <EdofLinkButton
             beneficiaryId={id}
-            defaultQuery={b.intitule_formation}
-            cp={b.code_postal}
             hasEmail={!!(b.email && String(b.email).trim())}
           />
 

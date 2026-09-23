@@ -38,6 +38,117 @@ export type EdofUrlRow = {
   actif: boolean;
 };
 
+// ---- Sélecteur guidé « formation → forfait » (bouton lien EDOF de la fiche) ----
+// Au lieu d'une recherche texte libre dans urls_cpf (sensible aux accents + tronquée),
+// on part de la formation déjà indiquée par le bénéficiaire : on la mappe vers une
+// FAMILLE permis, puis on propose ses FORFAITS (codes catalogue ayant un lien EDOF).
+// Le tarif exact est ajouté à l'exécution depuis public.catalogue_formations (pas de
+// duplication ici) ; seuls le libellé court et le forfait par défaut sont figés.
+export type ForfaitDef = { code: string; label: string };
+export type PermisGroupeDef = { key: string; label: string; defaut: string; forfaits: ForfaitDef[] };
+
+export const PERMIS_GROUPES: PermisGroupeDef[] = [
+  {
+    key: "permis_b_auto", label: "Permis B — boîte automatique", defaut: "B",
+    forfaits: [
+      { code: "B", label: "13 h" }, { code: "B_18H", label: "18 h" },
+      { code: "B_20H", label: "20 h" }, { code: "B_30H", label: "30 h" },
+    ],
+  },
+  {
+    key: "permis_b_man", label: "Permis B — boîte manuelle", defaut: "B_MAN20",
+    forfaits: [
+      { code: "B_MAN20", label: "20 h" }, { code: "B_MAN25", label: "25 h" },
+      { code: "B_MAN30", label: "30 h" }, { code: "B_MAN40", label: "40 h" },
+    ],
+  },
+  {
+    key: "permis_be", label: "Permis BE (remorque)", defaut: "BE_20H",
+    forfaits: [{ code: "BE_10H", label: "10 h" }, { code: "BE_20H", label: "20 h" }],
+  },
+  {
+    key: "moto_a2", label: "Permis A2 (moto)", defaut: "A2",
+    forfaits: [{ code: "A2", label: "20 h" }],
+  },
+  {
+    key: "poids_lourd", label: "Permis poids-lourd / transport", defaut: "C",
+    forfaits: [
+      { code: "C", label: "Permis C" }, { code: "C1", label: "Permis C1" },
+      { code: "CE", label: "Permis CE" }, { code: "D", label: "Permis D" },
+      { code: "D1", label: "Permis D1" }, { code: "DE", label: "Permis DE" },
+      { code: "PL_C1E", label: "Permis C1E" }, { code: "PL_D1E", label: "Permis D1E" },
+    ],
+  },
+  {
+    key: "code", label: "Code de la route", defaut: "CODE_ETG",
+    forfaits: [{ code: "CODE_ETG", label: "Code voiture (ETG)" }, { code: "CODE_ETM", label: "Code moto (ETM)" }],
+  },
+];
+
+export function groupeByKey(key: string | null | undefined): PermisGroupeDef | null {
+  if (!key) return null;
+  return PERMIS_GROUPES.find((g) => g.key === key) ?? null;
+}
+
+export function groupeForCode(code: string | null | undefined): PermisGroupeDef | null {
+  if (!code) return null;
+  const c = String(code).trim();
+  return PERMIS_GROUPES.find((g) => g.forfaits.some((f) => f.code === c)) ?? null;
+}
+
+// Normalisation insensible à la casse ET aux accents (« Boîte » ≡ « boite »).
+export function normalizeTxt(s: string | null | undefined): string {
+  return String(s ?? "").toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "").trim();
+}
+
+// Déduit, depuis un texte libre OU un code catalogue, la FAMILLE permis (groupeKey)
+// et — si dérivable sans ambiguïté — le CODE de forfait précis (sinon null → l'appelant
+// retombera sur le forfait par défaut de la famille). Conservateur : en cas de doute on
+// renvoie la famille sans code plutôt qu'un mauvais code (l'agent peut corriger).
+export function matchFormationToGroup(
+  input: string | null | undefined,
+): { groupeKey: string; code: string | null } | null {
+  const raw = String(input ?? "").trim();
+  if (!raw) return null;
+
+  // 1) Code catalogue exact (ex. « B_18H » depuis un devis Kairos) → forfait résolu direct.
+  const asCode = raw.toUpperCase().replace(/\s+/g, "");
+  const gCode = groupeForCode(asCode);
+  if (gCode) return { groupeKey: gCode.key, code: asCode };
+
+  // 2) Heuristique texte (normalisée sans accents).
+  const t = normalizeTxt(raw);
+  const hm = t.match(/(\d{1,3})\s*h/);
+  const hours = hm ? hm[1] : null;
+
+  if (/\bcode\b/.test(t) && !/permis/.test(t)) {
+    return { groupeKey: "code", code: /moto|etm/.test(t) ? "CODE_ETM" : "CODE_ETG" };
+  }
+  // Poids-lourd : sous-types spécifiques d'abord (tokens sans ambiguïté).
+  if (/\bc1e\b/.test(t)) return { groupeKey: "poids_lourd", code: "PL_C1E" };
+  if (/\bd1e\b/.test(t)) return { groupeKey: "poids_lourd", code: "PL_D1E" };
+  if (/\bc1\b/.test(t)) return { groupeKey: "poids_lourd", code: "C1" };
+  if (/\bd1\b/.test(t)) return { groupeKey: "poids_lourd", code: "D1" };
+  if (/\bce\b/.test(t)) return { groupeKey: "poids_lourd", code: "CE" };
+  if (/permis\s*d\b|\bautocar\b|\bautobus\b/.test(t)) return { groupeKey: "poids_lourd", code: "D" };
+  if (/permis\s*c\b|poids\s*lourd|\bcamion\b/.test(t)) return { groupeKey: "poids_lourd", code: "C" };
+  // BE (remorque).
+  if (/\bbe\b|remorque/.test(t)) return { groupeKey: "permis_be", code: hours === "10" ? "BE_10H" : "BE_20H" };
+  // Moto A2.
+  if (/\ba2\b|\bmoto\b|permis\s*a\b/.test(t)) return { groupeKey: "moto_a2", code: "A2" };
+  // Permis B manuelle (avant le B générique).
+  if (/manuel|\bbvm\b|boite\s*manuel/.test(t)) {
+    const c = hours === "25" ? "B_MAN25" : hours === "30" ? "B_MAN30" : hours === "40" ? "B_MAN40" : "B_MAN20";
+    return { groupeKey: "permis_b_man", code: c };
+  }
+  // Permis B boîte automatique (défaut « permis B »).
+  if (/permis\s*b|\bbva\b|boite\s*auto|voiture/.test(t) || /^b$/.test(t) || /\bpermis\b.*\bb\b/.test(t)) {
+    const c = hours === "18" ? "B_18H" : hours === "20" ? "B_20H" : hours === "30" ? "B_30H" : hours === "13" ? "B" : null;
+    return { groupeKey: "permis_b_auto", code: c };
+  }
+  return null;
+}
+
 export function resolveEdofFormationNumero(code: string | null | undefined): string | null {
   if (!code) return null;
   return CATALOGUE_EDOF_MAP[String(code).trim()] ?? null;
