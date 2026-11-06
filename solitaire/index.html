@@ -293,6 +293,71 @@
     .rail { position: sticky; top: var(--step); }
   }
 
+  .panneau { width: 100%; max-width: min(100%, 68dvh); }
+  .panneau[hidden] { display: none; }
+  @media (min-width: 860px) { .panneau { max-width: min(100%, 74dvh); } }
+
+  .panneau-carte {
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: var(--radius);
+    padding: calc(var(--step) * 1.3);
+    box-shadow: var(--shadow);
+    display: grid;
+    gap: .85rem;
+  }
+  .panneau-carte h2 {
+    font-family: "Bricolage Grotesque", Archivo, sans-serif;
+    font-size: clamp(1.1rem, .9rem + .8vw, 1.5rem);
+    font-weight: 700;
+    letter-spacing: -.018em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .panneau-carte > p { margin: 0; font-size: .88rem; color: var(--ink-soft); max-width: 48ch; }
+  .panneau-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+
+  .joueurs-champs { display: grid; gap: .45rem; }
+  .joueurs-champs label { display: flex; align-items: center; gap: .55rem; }
+  .joueurs-champs span {
+    font-size: .68rem; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--ink-faint);
+    min-width: 5.2rem;
+  }
+  .joueurs-champs input,
+  .joueurs-champs select {
+    flex: 1; min-width: 0;
+    appearance: none;
+    font: inherit; font-size: .9rem;
+    color: var(--ink);
+    background: var(--ground-deep);
+    border: 1px solid var(--panel-edge);
+    border-radius: 9px;
+    padding: .42rem .6rem;
+  }
+  .joueurs-champs input:focus-visible,
+  .joueurs-champs select:focus-visible { outline: 2.5px solid var(--brass); outline-offset: 2px; }
+
+  .classement { display: grid; gap: .4rem; }
+  .rang {
+    display: grid;
+    grid-template-columns: 1.9rem minmax(0, 1fr) auto auto;
+    gap: .7rem;
+    align-items: baseline;
+    padding: .55rem .7rem;
+    border-radius: 10px;
+    background: var(--ground-deep);
+    font-variant-numeric: tabular-nums;
+  }
+  .rang b {
+    font-family: "Bricolage Grotesque", Archivo, sans-serif;
+    font-size: 1.05rem; font-weight: 700; color: var(--ink-faint);
+  }
+  .rang .nom { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rang .val { font-size: .86rem; color: var(--ink-soft); }
+  .rang.gagnant { background: color-mix(in srgb, var(--jade) 16%, var(--ground-deep)); }
+  .rang.gagnant b, .rang.gagnant .nom { color: var(--jade-ink); }
+
   .board-wrap {
     position: relative;
     width: 100%;
@@ -559,6 +624,14 @@
     </div>
     <div class="settings">
       <label class="field">
+        <span>Mode</span>
+        <select id="modeSel">
+          <option value="libre">Partie libre</option>
+          <option value="chrono">Contre-la-montre</option>
+          <option value="defi">D&eacute;fi &agrave; plusieurs</option>
+        </select>
+      </label>
+      <label class="field">
         <span>Plateau</span>
         <select id="variantSel">
           <option value="octogone">Octogone fran&ccedil;ais &mdash; 37 trous</option>
@@ -612,6 +685,17 @@
         </div>
         <span class="pace-num" id="paceNum">&mdash;</span>
       </div>
+      <div class="panneau" id="panneau" hidden>
+        <div class="panneau-carte">
+          <h2 id="panTitre"></h2>
+          <p id="panTexte"></p>
+          <div id="panCorps"></div>
+          <div class="panneau-actions">
+            <button class="btn" id="panBtn" type="button"></button>
+            <button class="btn" id="panBtn2" type="button" hidden></button>
+          </div>
+        </div>
+      </div>
       <div class="board-wrap">
       <svg class="board" id="board" viewBox="-60 -60 820 820" role="application"
            aria-label="Plateau de solitaire. Flèches pour déplacer la sélection, Entrée pour choisir un pion puis sa case d'arrivée.">
@@ -664,7 +748,7 @@
       <dl class="stats">
         <div class="stat"><dt>Pions</dt><dd id="statPegs">36</dd></div>
         <div class="stat"><dt>Temps</dt><dd id="statTime">0:00</dd></div>
-        <div class="stat"><dt>Record</dt><dd id="statBest">&mdash;</dd></div>
+        <div class="stat"><dt id="statBestLabel">Record</dt><dd id="statBest">&mdash;</dd></div>
       </dl>
 
       <div class="verdict" id="verdict" data-show="false" role="status">
@@ -680,6 +764,10 @@
         <button class="btn" id="restartBtn" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 6"/><path d="M20 5v6h-6"/></svg>
           Recommencer
+        </button>
+        <button class="btn" id="passerBtn" type="button" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+          Passer la main
         </button>
         <button class="btn" id="hintBtn" type="button" aria-pressed="false">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.5.4.8 1 .9 1.6h5.4c.1-.6.4-1.2.9-1.6A6 6 0 0 0 12 3Z"/></svg>
@@ -712,6 +800,14 @@
         sautent dans six directions et qui se termine toujours sur une bille unique &mdash; c'est le meilleur plateau pour d&eacute;buter&nbsp;;
         le <em>petit octogone</em> &agrave; 21 trous&nbsp;; et <em>D&eacute;couverte</em>, o&ugrave; neuf pions seulement sont pos&eacute;s au centre
         du grand plateau, juste pour prendre le geste en main.</p>
+      <p><strong>Trois mani&egrave;res de jouer&nbsp;:</strong> en <em>partie libre</em>, on prend son temps.
+        En <em>contre-la-montre</em>, le chronom&egrave;tre devient l'enjeu&nbsp;: atteindre l'objectif du plateau
+        le plus vite possible, et le meilleur temps est conserv&eacute; pour chaque plateau.
+        En <em>d&eacute;fi &agrave; plusieurs</em>, deux &agrave; quatre joueurs s'affrontent sur le m&ecirc;me appareil&nbsp;:
+        chacun joue le m&ecirc;me plateau &agrave; son tour, et le classement va au plus petit nombre de pions
+        restants &mdash; &agrave; &eacute;galit&eacute;, c'est le temps qui d&eacute;partage. Le bouton
+        <em>Passer la main</em> met fin &agrave; votre tour quand vous ne voyez plus quoi tenter.
+        Le triangle &agrave; 15&nbsp;trous est le plateau conseill&eacute; pour un d&eacute;fi&nbsp;: les parties sont courtes.</p>
       <p><strong>Rythme&nbsp;:</strong> sans limite par d&eacute;faut. Les autres r&eacute;glages donnent un temps fixe
         pour chaque coup&nbsp;&mdash; 12&nbsp;s en enfant, 8&nbsp;s en d&eacute;butant, 5&nbsp;s en joueur, 3&nbsp;s en pro.
         Le compte &agrave; rebours part au premier coup et repart &agrave; z&eacute;ro apr&egrave;s chaque saut&nbsp;;
@@ -896,6 +992,11 @@
   var finished = false;
   var records = {};
 
+  var mode = 'libre';
+  var temps = {};                 /* meilleurs temps du contre-la-montre, même clef que les records */
+  var finAnnoncee = false;        /* la fin de partie n'est traitée qu'une fois */
+  var defi = { joueurs: [], tour: 0, actif: false };
+
   var elapsed = 0, tickId = null, running = false;
   var deadline = 0, leftMs = 0, rafId = null, ticking = false;
 
@@ -915,6 +1016,7 @@
   function limitMs() { return PACES[pace].secs * 1000; }
   function objective() { return OBJECTIFS[variant + (diagonals && !isTri() ? '|diag' : '|ortho')] || 1; }
   function pions(n) { return n + ' pion' + (n > 1 ? 's' : ''); }
+  function mmss(s) { var m = Math.floor(s / 60), r = s % 60; return m + ':' + (r < 10 ? '0' : '') + r; }
   function started() { return history.length > 0; }
 
   /* ---------------- Règles ---------------- */
@@ -1104,6 +1206,7 @@
     history = [];
     selected = null;
     finished = false;
+    finAnnoncee = false;
     focusIdx = board.perfect >= 0 ? board.perfect : firstEmpty();
     elapsed = 0;
     stopClock();
@@ -1176,6 +1279,7 @@
 
     selected = null;
     finished = false;
+    finAnnoncee = false;
     focusIdx = m.from;
     refresh();
     /* Le compte à rebours attend le prochain saut : on peut annuler plusieurs coups sans courir. */
@@ -1248,14 +1352,26 @@
     $('statPegs').textContent = pegs;
     $('undoBtn').disabled = history.length === 0;
 
-    var key = recordKey();
-    if (started() && (records[key] === undefined || pegs < records[key])) records[key] = pegs;
-    $('statBest').innerHTML = records[key] === undefined
-      ? '&mdash;'
-      : records[key] + ' <small>pion' + (records[key] > 1 ? 's' : '') + '</small>';
+    peindreRecord(pegs);
 
     checkEnd(pegs);
     save();
+  }
+
+  function peindreRecord(pegs) {
+    var clef = recordKey();
+    if (mode !== 'chrono' && started() && (records[clef] === undefined || pegs < records[clef])) {
+      records[clef] = pegs;
+    }
+    if (mode === 'chrono') {
+      $('statBestLabel').textContent = 'Meilleur temps';
+      $('statBest').textContent = temps[clef] === undefined ? '—' : mmss(temps[clef]);
+    } else {
+      $('statBestLabel').textContent = 'Record';
+      $('statBest').innerHTML = records[clef] === undefined
+        ? '&mdash;'
+        : records[clef] + ' <small>pion' + (records[clef] > 1 ? 's' : '') + '</small>';
+    }
   }
 
   function show(tone, title, body) {
@@ -1267,7 +1383,7 @@
   }
 
   function checkEnd(pegs) {
-    if (anyMove()) { $('verdict').setAttribute('data-show', 'false'); return; }
+    if (anyMove()) { $('verdict').setAttribute('data-show', 'false'); finAnnoncee = false; return; }
 
     finished = true; stopClock(); stopCountdown();
     var obj = objective();
@@ -1293,6 +1409,204 @@
         pions(pegs) + ', c’est le minimum possible sur ce plateau. Personne ne fera mieux.');
       announce('Partie parfaite, ' + pions(pegs) + '.');
     }
+
+    if (!finAnnoncee) { finAnnoncee = true; surFinDePartie(pegs); }
+  }
+
+  /* ---------------- Contre-la-montre et défi ---------------- */
+
+  function surFinDePartie(pegs) {
+    if (mode === 'defi' && defi.actif) { finirTourDefi(pegs); return; }
+    if (mode === 'chrono' && pegs <= objective()) {
+      var clef = recordKey();
+      var avant = temps[clef];
+      if (avant === undefined || elapsed < avant) {
+        temps[clef] = elapsed;
+        announce('Nouveau meilleur temps : ' + mmss(elapsed) + '.');
+      }
+      peindreRecord(pegs);
+      save();
+    }
+  }
+
+  function ouvrirPanneau(titre, texte, corps, b1, f1, b2, f2) {
+    $('panTitre').textContent = titre;
+    $('panTexte').textContent = texte || '';
+    $('panTexte').hidden = !texte;
+    var corpsEl = $('panCorps');
+    corpsEl.textContent = '';
+    if (corps) corpsEl.appendChild(corps);
+    var un = $('panBtn'), deux = $('panBtn2');
+    un.textContent = b1; un.onclick = f1;
+    deux.hidden = !b2;
+    if (b2) { deux.textContent = b2; deux.onclick = f2; }
+    $('panneau').hidden = false;
+    document.querySelector('.board-wrap').hidden = true;
+    $('pace').hidden = true;
+    un.focus();
+  }
+
+  function fermerPanneau() {
+    $('panneau').hidden = true;
+    document.querySelector('.board-wrap').hidden = false;
+  }
+
+  var PLATEAUX_DEFI = [
+    ['triangle', 'Triangle — 15 trous'],
+    ['petit', 'Petit octogone — 21 trous'],
+    ['decouverte', 'Découverte — 9 pions'],
+    ['croix', 'Croix anglaise — 33 trous'],
+    ['octogone', 'Octogone français — 37 trous']
+  ];
+
+  function formulaireDefi() {
+    var bloc = document.createElement('div');
+    bloc.className = 'joueurs-champs';
+
+    function ligne(libelle, champ) {
+      var l = document.createElement('label');
+      var s = document.createElement('span');
+      s.textContent = libelle;
+      l.appendChild(s); l.appendChild(champ);
+      return l;
+    }
+
+    var selPlateau = document.createElement('select');
+    selPlateau.id = 'defiPlateau';
+    PLATEAUX_DEFI.forEach(function (o) {
+      var op = document.createElement('option');
+      op.value = o[0]; op.textContent = o[1];
+      selPlateau.appendChild(op);
+    });
+    selPlateau.value = 'triangle';
+    bloc.appendChild(ligne('Plateau', selPlateau));
+
+    var selNombre = document.createElement('select');
+    selNombre.id = 'defiNombre';
+    [2, 3, 4].forEach(function (n) {
+      var op = document.createElement('option');
+      op.value = String(n); op.textContent = n + ' joueurs';
+      selNombre.appendChild(op);
+    });
+    bloc.appendChild(ligne('Joueurs', selNombre));
+
+    var noms = document.createElement('div');
+    noms.className = 'joueurs-champs';
+    noms.id = 'defiNoms';
+    bloc.appendChild(noms);
+
+    function peindreNoms() {
+      var n = +selNombre.value;
+      var gardes = [].map.call(noms.querySelectorAll('input'), function (i) { return i.value; });
+      noms.textContent = '';
+      for (var k = 0; k < n; k++) {
+        var champ = document.createElement('input');
+        champ.type = 'text';
+        champ.maxLength = 18;
+        champ.placeholder = 'Joueur ' + (k + 1);
+        champ.value = gardes[k] || '';
+        noms.appendChild(ligne('Nom ' + (k + 1), champ));
+      }
+    }
+    selNombre.addEventListener('change', peindreNoms);
+    peindreNoms();
+    return bloc;
+  }
+
+  function reglerDefi() {
+    defi.actif = false;
+    ouvrirPanneau('Défi à plusieurs',
+      'Chacun joue le même plateau à son tour, sur cet appareil. Le gagnant est celui à qui il reste le moins de pions ; à égalité, le plus rapide l’emporte.',
+      formulaireDefi(),
+      'Lancer le défi', lancerDefi,
+      'Annuler', function () {
+        mode = 'libre';
+        $('modeSel').value = 'libre';
+        syncMode();
+        fermerPanneau();
+        reset();
+      });
+  }
+
+  function lancerDefi() {
+    var nombre = +$('defiNombre').value;
+    var noms = [].map.call($('defiNoms').querySelectorAll('input'), function (champ, k) {
+      return (champ.value || '').trim().slice(0, 18) || ('Joueur ' + (k + 1));
+    });
+
+    variant = $('defiPlateau').value;
+    $('variantSel').value = variant;
+    if (variant === 'petit' && !diagonals) { diagonals = true; $('diagToggle').checked = true; }
+    syncDiagToggle();
+
+    defi.joueurs = noms.slice(0, nombre).map(function (nom) {
+      return { nom: nom, pions: null, temps: null };
+    });
+    defi.tour = 0;
+    tourDefi();
+  }
+
+  function tourDefi() {
+    defi.actif = true;
+    var j = defi.joueurs[defi.tour];
+    ouvrirPanneau('Au tour de ' + j.nom,
+      'Passez l’appareil. Le chronomètre démarre au premier saut.',
+      null,
+      'Commencer', function () { fermerPanneau(); reset(); });
+  }
+
+  function finirTourDefi(pegs) {
+    var j = defi.joueurs[defi.tour];
+    j.pions = pegs;
+    j.temps = elapsed;
+    announce(j.nom + ' termine à ' + pions(pegs) + ' en ' + mmss(elapsed) + '.');
+    defi.tour++;
+    window.setTimeout(defi.tour < defi.joueurs.length ? tourDefi : classementDefi, 1100);
+  }
+
+  function classementDefi() {
+    defi.actif = false;
+    var ordre = defi.joueurs.slice().sort(function (a, b) {
+      if (a.pions !== b.pions) return a.pions - b.pions;
+      return a.temps - b.temps;
+    });
+
+    var liste = document.createElement('div');
+    liste.className = 'classement';
+    ordre.forEach(function (j, k) {
+      var rang = document.createElement('div');
+      rang.className = 'rang' + (k === 0 ? ' gagnant' : '');
+      var place = document.createElement('b');
+      place.textContent = (k + 1) + '.';
+      var nom = document.createElement('span');
+      nom.className = 'nom';
+      nom.textContent = j.nom;
+      var p1 = document.createElement('span');
+      p1.className = 'val';
+      p1.textContent = pions(j.pions);
+      var p2 = document.createElement('span');
+      p2.className = 'val';
+      p2.textContent = mmss(j.temps);
+      rang.appendChild(place); rang.appendChild(nom); rang.appendChild(p1); rang.appendChild(p2);
+      liste.appendChild(rang);
+    });
+
+    var g = ordre[0];
+    ouvrirPanneau(g.nom + ' remporte le défi',
+      pions(g.pions) + ' sur le plateau, en ' + mmss(g.temps) + '.',
+      liste,
+      'Rejouer', function () {
+        defi.tour = 0;
+        defi.joueurs.forEach(function (j) { j.pions = null; j.temps = null; });
+        tourDefi();
+      },
+      'Nouveau défi', reglerDefi);
+  }
+
+  function syncMode() {
+    $('passerBtn').hidden = mode !== 'defi';
+    if (mode !== 'defi') defi.actif = false;
+    peindreRecord(pegCount());
   }
 
   function announce(msg) { live.textContent = msg; }
@@ -1388,6 +1702,7 @@
       'Annulez un coup pour reprendre la partie, ou recommencez.');
     announce('Temps écoulé.');
     save();
+    if (!finAnnoncee) { finAnnoncee = true; surFinDePartie(pegCount()); }
   }
 
   /* ---------------- Sélection ---------------- */
@@ -1557,6 +1872,22 @@
       : '';
   }
 
+  $('modeSel').addEventListener('change', function () {
+    mode = this.value;
+    syncMode();
+    if (mode === 'defi') { reglerDefi(); }
+    else { fermerPanneau(); reset(); }
+    save();
+  });
+
+  $('passerBtn').addEventListener('click', function () {
+    if (mode !== 'defi' || !defi.actif || finAnnoncee) return;
+    finished = true;
+    stopClock(); stopCountdown();
+    finAnnoncee = true;
+    finirTourDefi(pegCount());
+  });
+
   $('variantSel').addEventListener('change', function () {
     variant = this.value;
     /* Sans les diagonales, le petit plateau plafonne à quatre pions : on les active. */
@@ -1624,6 +1955,7 @@
     try {
       window.localStorage.setItem(STORE, JSON.stringify({
         variant: variant, pace: pace, palette: palette, custom: custom,
+        mode: mode === 'defi' ? 'libre' : mode, temps: temps,
         diagonals: diagonals, cells: cells,
         history: history.map(function (m) { return [m.from, m.over, m.to]; }),
         elapsed: elapsed, hints: hints, records: records
@@ -1642,6 +1974,8 @@
     records = (data.records && typeof data.records === 'object') ? data.records : {};
     variant = data.variant;
     pace = PACES[data.pace] ? data.pace : 'libre';
+    mode = (data.mode === 'chrono') ? 'chrono' : 'libre';
+    temps = (data.temps && typeof data.temps === 'object') ? data.temps : {};
     palette = PALETTES[data.palette] !== undefined ? data.palette : 'hetre';
     if (data.custom && data.custom.board) custom = data.custom;
     diagonals = !!data.diagonals;
@@ -1663,6 +1997,7 @@
 
   var restored = load();
 
+  $('modeSel').value = mode;
   $('variantSel').value = variant;
   $('paceSel').value = pace;
   $('paletteSel').value = palette;
@@ -1671,6 +2006,7 @@
   syncSwatches();
   syncDiagToggle();
   applyPalette();
+  $('passerBtn').hidden = mode !== 'defi';
 
   if (restored) {
     buildPlate();

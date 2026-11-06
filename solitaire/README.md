@@ -44,6 +44,17 @@ Le **triangle à 15 trous** est le meilleur plateau pour débuter : les billes y
 dans six directions et la partie se termine sur une bille unique depuis n'importe lequel
 des quinze départs.
 
+## Trois manières de jouer
+
+| Mode | Ce qu'on y cherche |
+| --- | --- |
+| Partie libre | Prendre son temps, annuler, recommencer |
+| Contre-la-montre | Atteindre l'objectif du plateau le plus vite possible ; le meilleur temps est gardé par plateau |
+| Défi à plusieurs | 2 à 4 joueurs sur le même appareil, chacun son tour sur le même plateau ; classement au nombre de pions restants, le temps départageant les ex æquo |
+
+Le défi n'a besoin d'aucun réseau ni d'aucun compte : on se passe le téléphone.
+Le triangle à 15 trous est le plateau conseillé, les parties y sont courtes.
+
 ## Ce que contient la page
 
 - **Sauts en diagonale** en option sur les plateaux carrés — quatre directions de plus,
