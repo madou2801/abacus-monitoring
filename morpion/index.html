@@ -475,6 +475,9 @@
   var windows = [];
 
   var deadline = 0, leftMs = 0, rafId = null, ticking = false;
+  /* Chaque manche porte un numéro : une réponse différée née de la manche
+     précédente s'abandonne au lieu de marquer sur la grille suivante. */
+  var generation = 0;
 
   var $ = function (id) { return document.getElementById(id); };
   var svg = $('board');
@@ -818,6 +821,7 @@
   /* ---------------- Déroulement ---------------- */
 
   function newRound() {
+    generation++;
     N = BOARDS[boardKey].n; ALIGN = BOARDS[boardKey].align;
     cells = new Int8Array(N * N);
     history = [];
@@ -846,7 +850,9 @@
     refresh();
     buzz(10);
 
+    var ma = generation;
     window.setTimeout(function () {
+      if (ma !== generation) return;
       busy = false;
       var line = lineAt(idx);
       if (line) {
@@ -878,8 +884,11 @@
     if (winner || mode !== 'ia' || turn !== 2) return;
     busy = true;
     refresh();
+    var ma = generation;
     window.setTimeout(function () {
+      if (ma !== generation) return;
       var i = chooseMove(2);
+      if (ma !== generation) return;
       busy = false;
       if (i >= 0) place(i);
     }, 240);

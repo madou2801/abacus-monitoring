@@ -539,6 +539,10 @@
   var windows = [];           /* toutes les fenêtres de 4 cases, pour l'évaluation */
 
   var deadline = 0, leftMs = 0, rafId = null, ticking = false;
+  /* Chaque manche porte un numéro. Une réponse différée née d'une manche
+     précédente — réflexion de la machine, fin de chute — se reconnaît à ce
+     numéro et s'abandonne, au lieu de jouer sur le plateau suivant. */
+  var generation = 0;
 
   var $ = function (id) { return document.getElementById(id); };
   var svg = $('board');
@@ -901,6 +905,7 @@
   /* ---------------- Déroulement ---------------- */
 
   function newRound() {
+    generation++;
     W = BOARDS[boardKey].w; H = BOARDS[boardKey].h;
     grid = new Int8Array(W * H);
     heights = new Int8Array(W);
@@ -929,7 +934,9 @@
     refresh();
     buzz(12);
 
+    var ma = generation;
     window.setTimeout(function () {
+      if (ma !== generation) return;
       busy = false;
       var line = lineAt(r, c);
       if (line) {
@@ -961,8 +968,11 @@
     if (winner || mode !== 'ia' || turn !== 2) return;
     busy = true;
     refresh();
+    var ma = generation;
     window.setTimeout(function () {
+      if (ma !== generation) return;
       var c = chooseMove(2);
+      if (ma !== generation) return;
       busy = false;
       if (c >= 0) place(c);
     }, 260);
