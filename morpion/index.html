@@ -92,6 +92,10 @@
   /* ---------- Base ---------- */
   * { box-sizing: border-box; }
 
+  /* L'attribut hidden doit l'emporter : sans cela, tout élément dont une
+     règle fixe display (un bouton en inline-flex) resterait visible. */
+  [hidden] { display: none !important; }
+
   body {
     margin: 0;
     min-height: 100dvh;
@@ -543,6 +547,7 @@
   var nomsLigne = { 1: 'Croix', 2: 'Rond' };
   var presents = { 1: false, 2: false };
   var CLE_SALON = 'morpion.salon';
+  var fermetureVoulue = false;   /* distingue un départ choisi d'une vraie coupure */
   /* Chaque manche porte un numéro : une réponse différée née de la manche
      précédente s'abandonne au lieu de marquer sur la grille suivante. */
   var generation = 0;
@@ -1127,6 +1132,7 @@
     ws.onerror = function () { if (!ouvert) panneauHorsPortee(); };
     ws.onclose = function () {
       ws = null;
+      if (fermetureVoulue) { fermetureVoulue = false; return; }
       if (mode !== 'ligne') return;
       if (!ouvert) { panneauHorsPortee(); return; }
       ouvrirPanneau('Connexion perdue',
@@ -1304,7 +1310,7 @@
     envoyer({ type: 'quitter' });
     salon = null;
     memoriserSalon();
-    if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+    if (ws) { fermetureVoulue = true; try { ws.close(); } catch (e) {} ws = null; }
     accueilLigne();
   }
 
@@ -1315,7 +1321,7 @@
   }
 
   function sortirDeLigne() {
-    if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+    if (ws) { fermetureVoulue = true; try { ws.close(); } catch (e) {} ws = null; }
     salon = null;
     memoriserSalon();
     fermerPanneau();

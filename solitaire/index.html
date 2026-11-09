@@ -114,6 +114,10 @@
   /* ---------- Base ---------- */
   * { box-sizing: border-box; }
 
+  /* L'attribut hidden doit l'emporter : sans cela, tout élément dont une
+     règle fixe display (un bouton en inline-flex) resterait visible. */
+  [hidden] { display: none !important; }
+
   body {
     margin: 0;
     min-height: 100dvh;
