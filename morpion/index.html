@@ -184,6 +184,55 @@
   }
   .pace[data-state="danger"] .pace-num { color: var(--alert); }
 
+  .panneau { width: 100%; max-width: min(100%, 68dvh); }
+  .panneau[hidden] { display: none; }
+
+  .panneau-carte {
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: var(--radius);
+    padding: calc(var(--step) * 1.3);
+    box-shadow: var(--shadow);
+    display: grid;
+    gap: .8rem;
+  }
+  .panneau-carte h2 {
+    font-family: "Bricolage Grotesque", Archivo, sans-serif;
+    font-size: clamp(1.05rem, .9rem + .7vw, 1.4rem);
+    font-weight: 700; letter-spacing: -.018em; margin: 0; text-wrap: balance;
+  }
+  .panneau-carte > p { margin: 0; font-size: .88rem; color: var(--ink-soft); max-width: 46ch; }
+  .panneau-actions { display: flex; gap: .5rem; flex-wrap: wrap; align-items: flex-end; }
+
+  .code-salon {
+    font-family: "Bricolage Grotesque", Archivo, sans-serif;
+    font-weight: 800;
+    font-size: clamp(2.2rem, 1.4rem + 3.4vw, 3.4rem);
+    letter-spacing: .14em;
+    line-height: 1;
+    color: var(--x-mark);
+    background: var(--slate);
+    border-radius: 12px;
+    padding: .5rem .7rem .55rem;
+    text-align: center;
+    user-select: all;
+  }
+
+  .champ-code {
+    font: inherit;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    width: 7.5rem;
+    color: var(--ink);
+    background: var(--ground-deep);
+    border: 1px solid var(--panel-edge);
+    border-radius: 10px;
+    padding: .45rem .6rem;
+  }
+  .champ-code:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+
   .board-wrap { position: relative; width: 100%; max-width: min(100%, 68dvh); margin-inline: auto; aspect-ratio: 1; }
   svg.board { width: 100%; height: 100%; display: block; touch-action: manipulation; }
 
@@ -319,6 +368,7 @@
         <select id="modeSel">
           <option value="duo">&Agrave; deux, m&ecirc;me &eacute;cran</option>
           <option value="ia">Contre la machine</option>
+          <option value="ligne">En ligne, &agrave; distance</option>
         </select>
       </label>
       <label class="field" id="levelField" hidden>
@@ -357,6 +407,17 @@
           <div class="pace-fill" id="paceFill"></div>
         </div>
         <span class="pace-num" id="paceNum">&mdash;</span>
+      </div>
+      <div class="panneau" id="panneau" hidden>
+        <div class="panneau-carte">
+          <h2 id="panTitre"></h2>
+          <p id="panTexte"></p>
+          <div id="panCorps"></div>
+          <div class="panneau-actions">
+            <button class="btn" id="panBtn" type="button"></button>
+            <button class="btn" id="panBtn2" type="button" hidden></button>
+          </div>
+        </div>
       </div>
       <div class="board-wrap">
         <svg class="board" id="board" role="application"
@@ -475,6 +536,13 @@
   var windows = [];
 
   var deadline = 0, leftMs = 0, rafId = null, ticking = false;
+
+  /* Partie à distance : le serveur tient la vérité, le client ne fait qu'afficher. */
+  var ws = null;
+  var salon = null;          /* { code, place, jeton } */
+  var nomsLigne = { 1: 'Croix', 2: 'Rond' };
+  var presents = { 1: false, 2: false };
+  var CLE_SALON = 'morpion.salon';
   /* Chaque manche porte un numéro : une réponse différée née de la manche
      précédente s'abandonne au lieu de marquer sur la grille suivante. */
   var generation = 0;
@@ -488,10 +556,14 @@
 
   function cx(c) { return c * CELL + CELL / 2; }
   function name(p) {
+    if (mode === 'ligne') return nomsLigne[p] || (p === 1 ? 'Croix' : 'Rond');
     if (mode === 'ia') return p === 1 ? 'Vous' : 'La machine';
     return p === 1 ? 'Croix' : 'Rond';
   }
-  function isHuman(p) { return mode === 'duo' || p === 1; }
+  function isHuman(p) {
+    if (mode === 'ligne') return !!salon && p === salon.place;
+    return mode === 'duo' || p === 1;
+  }
   function toMove() { return history.length % 2 === 0 ? opener : 3 - opener; }
 
   /* ---------------- Moteur ---------------- */
@@ -782,7 +854,7 @@
     $('turnName').textContent = winner ? (winner === 3 ? 'Match nul' : name(winner)) : name(turn);
     $('turnHint').textContent = winner
       ? (winner === 3 ? 'Grille pleine, personne ne gagne' : 'gagne la manche')
-      : (isHuman(turn) ? 'À vous de jouer' : 'réfléchit…');
+      : (isHuman(turn) ? 'À vous de jouer' : (mode === 'ligne' ? 'joue en ce moment' : 'réfléchit…'));
 
     $('scoreXLabel').textContent = name(1);
     $('scoreOLabel').textContent = name(2);
@@ -801,6 +873,28 @@
         (cells[i] === 1 ? 'croix' : cells[i] === 2 ? 'rond' : 'libre'));
     }
     save();
+  }
+
+  function ouvrirPanneau(titre, texte, corps, b1, f1, b2, f2) {
+    $('panTitre').textContent = titre;
+    $('panTexte').textContent = texte || '';
+    $('panTexte').hidden = !texte;
+    var corpsEl = $('panCorps');
+    corpsEl.textContent = '';
+    if (corps) corpsEl.appendChild(corps);
+    var un = $('panBtn'), deux = $('panBtn2');
+    un.hidden = !b1;
+    if (b1) { un.textContent = b1; un.onclick = f1; }
+    deux.hidden = !b2;
+    if (b2) { deux.textContent = b2; deux.onclick = f2; }
+    $('panneau').hidden = false;
+    document.querySelector('.board-wrap').hidden = true;
+    $('pace').hidden = true;
+  }
+
+  function fermerPanneau() {
+    $('panneau').hidden = true;
+    document.querySelector('.board-wrap').hidden = false;
   }
 
   function hideVerdict() {
@@ -841,6 +935,11 @@
 
   function place(idx) {
     if (winner || busy || cells[idx]) return;
+    if (mode === 'ligne') {
+      if (!salon || turn !== salon.place) return;
+      envoyer({ type: 'coup', coup: idx });
+      return;
+    }
     var p = turn;
     cells[idx] = p;
     history.push(idx);
@@ -940,6 +1039,7 @@
   }
 
   function restartCountdown() {
+    if (mode === 'ligne') { stopCountdown(); return; }
     if (!limitMs() || winner || !isHuman(turn)) { stopCountdown(); return; }
     leftMs = limitMs();
     deadline = Date.now() + leftMs;
@@ -986,6 +1086,239 @@
     announce('Temps écoulé, ' + name(won) + ' gagne.');
     buzz([40, 60, 120]);
     refresh();
+  }
+
+  /* ---------------- Partie à distance ---------------- */
+
+  function envoyer(objet) {
+    if (ws && ws.readyState === 1) ws.send(JSON.stringify(objet));
+  }
+
+  function adresseWs() {
+    return (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+  }
+
+  function memoriserSalon() {
+    try {
+      if (salon) window.localStorage.setItem(CLE_SALON, JSON.stringify(salon));
+      else window.localStorage.removeItem(CLE_SALON);
+    } catch (e) {}
+  }
+
+  function salonMemorise() {
+    try {
+      var brut = window.localStorage.getItem(CLE_SALON);
+      return brut ? JSON.parse(brut) : null;
+    } catch (e) { return null; }
+  }
+
+  function connecter(apresOuverture) {
+    if (ws && (ws.readyState === 0 || ws.readyState === 1)) { apresOuverture(); return; }
+    var ouvert = false;
+    try { ws = new WebSocket(adresseWs()); }
+    catch (e) { panneauHorsPortee(); return; }
+
+    ws.onopen = function () { ouvert = true; apresOuverture(); };
+    ws.onmessage = function (ev) {
+      var m;
+      try { m = JSON.parse(ev.data); } catch (e) { return; }
+      recevoir(m);
+    };
+    ws.onerror = function () { if (!ouvert) panneauHorsPortee(); };
+    ws.onclose = function () {
+      ws = null;
+      if (mode !== 'ligne') return;
+      if (!ouvert) { panneauHorsPortee(); return; }
+      ouvrirPanneau('Connexion perdue',
+        'Le serveur ne répond plus. Votre place est gardée : vous pouvez reprendre la partie où elle en était.',
+        null, 'Reprendre', function () { connecter(function () { reprendreOuCreer(); }); });
+    };
+  }
+
+  function panneauHorsPortee() {
+    ws = null;
+    ouvrirPanneau('Le jeu à distance n’est pas disponible ici',
+      'Cette page doit être servie par le serveur de jeu pour qu’une partie à distance soit possible. ' +
+      'Depuis un lien partagé, la page est enfermée dans un bac à sable qui bloque toute connexion sortante. ' +
+      'Le jeu à deux sur le même écran et contre la machine fonctionnent normalement.',
+      null,
+      'Revenir au jeu à deux', function () {
+        mode = 'duo';
+        $('modeSel').value = 'duo';
+        salon = null;
+        fermerPanneau();
+        newRound();
+      });
+  }
+
+  function recevoir(m) {
+    if (m.type === 'erreur') {
+      announce(m.message);
+      if (/salon/i.test(m.message) && !salon) accueilLigne(m.message);
+      return;
+    }
+    if (m.type === 'salon') {
+      salon = { code: m.code, place: m.place, jeton: m.jeton };
+      memoriserSalon();
+      return;
+    }
+    if (m.type === 'etat') appliquerEtat(m);
+  }
+
+  function appliquerEtat(m) {
+    if (!salon) salon = { code: m.code, place: m.vous, jeton: salon && salon.jeton };
+
+    m.joueurs.forEach(function (j) {
+      nomsLigne[j.place] = j.nom || (j.place === 1 ? 'Croix' : 'Rond');
+      presents[j.place] = j.present;
+    });
+
+    var p = m.partie;
+    if (N !== p.largeur || ALIGN !== p.align) {
+      N = p.largeur; ALIGN = p.align;
+      boardKey = String(N);
+      buildWindows();
+      focusIdx = Math.floor(N / 2) * N + Math.floor(N / 2);
+      geometry();
+      cells = new Int8Array(N * N);
+    }
+
+    var avant = cells;
+    cells = Int8Array.from(p.cases);
+
+    markLayer.textContent = '';
+    for (var i = 0; i < cells.length; i++) {
+      if (!cells[i]) continue;
+      drawMark(i, cells[i], !(avant && avant.length === cells.length && avant[i]));
+    }
+
+    turn = p.trait;
+    winner = p.fini;
+    winCells = p.ligne || [];
+    strikeLayer.textContent = '';
+    previewLayer.textContent = '';
+    if (winner === 1 || winner === 2) drawStrike();
+
+    score = { 1: m.score[1], 2: m.score[2], d: m.score.nulles };
+    busy = false;
+
+    var complet = presents[1] && presents[2];
+    if (!complet) {
+      attendreAdversaire();
+    } else {
+      fermerPanneau();
+      if (winner === 1 || winner === 2) {
+        show(name(winner) + ' gagne la manche', ALIGN + ' signes alignés.');
+      } else if (winner === 3) {
+        show('Match nul', 'La grille est pleine et personne n’a aligné ' + ALIGN + ' signes.');
+      } else {
+        hideVerdict();
+      }
+    }
+    refresh();
+  }
+
+  function attendreAdversaire() {
+    var code = document.createElement('div');
+    code.className = 'code-salon';
+    code.textContent = salon ? salon.code : '····';
+    ouvrirPanneau('En attente de votre adversaire',
+      'Donnez-lui ce code. Il le saisit dans « En ligne, à distance » et la partie commence.',
+      code,
+      'Quitter le salon', quitterSalon);
+  }
+
+  function accueilLigne(message) {
+    var bloc = document.createElement('div');
+    bloc.className = 'panneau-actions';
+
+    var prenom = document.createElement('input');
+    prenom.type = 'text';
+    prenom.id = 'champNom';
+    prenom.className = 'champ-code';
+    prenom.style.letterSpacing = 'normal';
+    prenom.style.textTransform = 'none';
+    prenom.style.width = '9rem';
+    prenom.maxLength = 18;
+    prenom.placeholder = 'Votre prénom';
+    prenom.autocomplete = 'off';
+    prenom.setAttribute('aria-label', 'Votre prénom');
+    prenom.value = monNom();
+    prenom.addEventListener('input', function () {
+      try { window.localStorage.setItem('morpion.nom', prenom.value.trim().slice(0, 18)); } catch (e) {}
+    });
+    bloc.appendChild(prenom);
+
+    var champ = document.createElement('input');
+    champ.type = 'text';
+    champ.id = 'champCode';
+    champ.className = 'champ-code';
+    champ.maxLength = 4;
+    champ.placeholder = 'CODE';
+    champ.autocomplete = 'off';
+    champ.setAttribute('aria-label', 'Code du salon');
+
+    var rejoindre = document.createElement('button');
+    rejoindre.className = 'btn';
+    rejoindre.type = 'button';
+    rejoindre.textContent = 'Rejoindre';
+    rejoindre.onclick = function () {
+      var code = (champ.value || '').trim().toUpperCase();
+      if (code.length !== 4) { announce('Un code de salon compte quatre lettres.'); champ.focus(); return; }
+      connecter(function () { envoyer({ type: 'rejoindre', code: code, nom: monNom() }); });
+    };
+    champ.addEventListener('keydown', function (e) { if (e.key === 'Enter') rejoindre.click(); });
+
+    bloc.appendChild(champ);
+    bloc.appendChild(rejoindre);
+
+    ouvrirPanneau('Jouer à distance',
+      message || 'Créez un salon et donnez son code à votre adversaire, ou entrez le code qu’on vous a donné.',
+      bloc,
+      'Créer un salon', function () {
+        connecter(function () {
+          envoyer({ type: 'creer', jeu: 'morpion', options: { grille: boardKey }, nom: monNom() });
+        });
+      },
+      'Revenir au jeu à deux', function () {
+        mode = 'duo'; $('modeSel').value = 'duo'; salon = null; memoriserSalon();
+        fermerPanneau(); newRound();
+      });
+  }
+
+  function monNom() {
+    try { return window.localStorage.getItem('morpion.nom') || ''; } catch (e) { return ''; }
+  }
+
+  function reprendreOuCreer() {
+    var garde = salon || salonMemorise();
+    if (garde && garde.code && garde.jeton) {
+      salon = garde;
+      envoyer({ type: 'reprendre', code: garde.code, jeton: garde.jeton });
+    } else {
+      accueilLigne();
+    }
+  }
+
+  function quitterSalon() {
+    envoyer({ type: 'quitter' });
+    salon = null;
+    memoriserSalon();
+    if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+    accueilLigne();
+  }
+
+  function entrerEnLigne() {
+    salon = null;
+    stopCountdown();
+    connecter(function () { reprendreOuCreer(); });
+  }
+
+  function sortirDeLigne() {
+    if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+    salon = null;
+    memoriserSalon();
+    fermerPanneau();
   }
 
   /* ---------------- Entrées ---------------- */
@@ -1043,15 +1376,35 @@
   /* ---------------- Commandes ---------------- */
 
   $('undoBtn').addEventListener('click', undo);
-  $('newBtn').addEventListener('click', function () { newRound(); announce('Nouvelle manche.'); });
+
+  $('newBtn').addEventListener('click', function () {
+    if (mode === 'ligne') { envoyer({ type: 'nouvelle' }); return; }
+    newRound();
+    announce('Nouvelle manche.');
+  });
+
   $('resetBtn').addEventListener('click', function () {
+    if (mode === 'ligne') { quitterSalon(); return; }
     score = { 1: 0, 2: 0, d: 0 }; opener = 1; newRound(); announce('Score remis à zéro.');
   });
+
   $('modeSel').addEventListener('change', function () {
+    var avant = mode;
     mode = this.value;
     $('levelField').hidden = mode !== 'ia';
+    syncLigne();
+    if (avant === 'ligne' && mode !== 'ligne') sortirDeLigne();
+    if (mode === 'ligne') { entrerEnLigne(); return; }
     score = { 1: 0, 2: 0, d: 0 }; opener = 1; newRound();
   });
+
+  /* En ligne, l'annulation et le chrono n'ont pas de sens : le serveur arbitre. */
+  function syncLigne() {
+    var dehors = mode !== 'ligne';
+    $('undoBtn').hidden = !dehors;
+    document.querySelector('label.field:has(#paceSel)').hidden = !dehors;
+    $('resetBtn').lastChild.textContent = dehors ? ' Remettre à zéro' : ' Quitter le salon';
+  }
   $('levelSel').addEventListener('change', function () { level = this.value; save(); });
   $('boardSel').addEventListener('change', function () { boardKey = this.value; newRound(); });
   $('paceSel').addEventListener('change', function () {
@@ -1065,7 +1418,8 @@
   function save() {
     try {
       window.localStorage.setItem(STORE, JSON.stringify({
-        boardKey: boardKey, mode: mode, level: level, pace: pace, score: score, opener: opener
+        boardKey: boardKey, mode: mode === 'ligne' ? 'duo' : mode, level: level,
+        pace: pace, score: score, opener: opener
       }));
     } catch (e) {}
   }
@@ -1092,6 +1446,7 @@
   $('boardSel').value = boardKey;
   $('paceSel').value = pace;
   $('levelField').hidden = mode !== 'ia';
+  syncLigne();
   newRound();
 
   window.addEventListener('beforeunload', save);

@@ -20,7 +20,7 @@ const PORT = Number(process.env.JEUX_PORT || 3860);
 const RACINE = path.resolve(process.env.JEUX_RACINE || path.join(__dirname, '..'));
 
 /* Dossiers servis en statique. Tout le reste du dépôt reste invisible. */
-const DOSSIERS_PUBLICS = ['salon', 'solitaire', 'puissance4', 'morpion'];
+const DOSSIERS_PUBLICS = ['site', 'solitaire', 'puissance4', 'morpion'];
 
 const MAX_MESSAGE = 64 * 1024;
 const SALON_INACTIF_MS = 2 * 60 * 60 * 1000;   /* deux heures sans un mot : le salon s'efface */
@@ -30,7 +30,7 @@ const PING_MS = 25 * 1000;
 /* WebSocket                                                              */
 /* ====================================================================== */
 
-const GUID = '258EAFA5-E914-47DA-95CA-5AB0DC85B11D';
+const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
 function clefDAcceptation(clef) {
   return crypto.createHash('sha1').update(clef + GUID).digest('base64');
@@ -502,7 +502,7 @@ function servirFichier(req, res) {
   try { chemin = decodeURIComponent(new URL(req.url, 'http://local').pathname); }
   catch (e) { res.writeHead(400).end('Requête illisible'); return; }
 
-  if (chemin === '/') { res.writeHead(302, { Location: '/salon/' }).end(); return; }
+  if (chemin === '/') chemin = '/site/index.html';
 
   if (chemin === '/sante') {
     res.writeHead(200, { 'Content-Type': TYPES['.json'] });

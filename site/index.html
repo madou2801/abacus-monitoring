@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Des jeux de plateau à jouer tranquillement, seul, à deux sur le même écran ou en ligne.">
+<meta name="theme-color" content="#E2E4DF">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<script>
+  window.addEventListener('load', function () {
+    try {
+      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+        navigator.serviceWorker.register('sw.js').catch(function () {});
+      }
+    } catch (e) {}
+  });
+</script>
+</head>
+<body>
+<!--ARTIFACT-START-->
+<title>La Récré</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap">
+<style>
+  /* Une étagère : un titre court, puis les jeux présentés comme des objets
+     posés côte à côte, chacun sur sa propre matière. Le chrome reste en
+     retrait — pierre pâle, ferrure laiton — pour que les objets ressortent. */
+  :root {
+    --pierre:      #E2E4DF;
+    --pierre-fond: #D2D5CE;
+    --carte:       #F1F2EE;
+    --trait:       #C5C9C0;
+    --encre:       #181C19;
+    --encre-douce: #566058;
+    --encre-pale:  #87918A;
+    --laiton:      #9C7320;
+    --laiton-vif:  #B5862F;
+    --jade:        #2F7D5E;
+
+    --ombre:       0 1px 2px rgba(24,28,25,.05), 0 10px 30px -14px rgba(24,28,25,.28);
+    --ombre-forte: 0 2px 4px rgba(24,28,25,.07), 0 22px 44px -20px rgba(24,28,25,.4);
+    --rayon:       16px;
+    --pas:         clamp(.7rem, .4rem + 1vw, 1.1rem);
+
+    --display: "Bricolage Grotesque", "Archivo", system-ui, sans-serif;
+    --texte:   "Archivo", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --pierre:      #15171A;
+      --pierre-fond: #0D0F11;
+      --carte:       #1E2124;
+      --trait:       #32373B;
+      --encre:       #E8EBE8;
+      --encre-douce: #9BA49C;
+      --encre-pale:  #6D7772;
+      --laiton:      #D6A748;
+      --laiton-vif:  #E6BC63;
+      --jade:        #58B189;
+      --ombre:       0 1px 2px rgba(0,0,0,.5), 0 14px 36px -16px rgba(0,0,0,.8);
+      --ombre-forte: 0 2px 6px rgba(0,0,0,.6), 0 26px 52px -22px rgba(0,0,0,.9);
+      color-scheme: dark;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --pierre:      #15171A;
+    --pierre-fond: #0D0F11;
+    --carte:       #1E2124;
+    --trait:       #32373B;
+    --encre:       #E8EBE8;
+    --encre-douce: #9BA49C;
+    --encre-pale:  #6D7772;
+    --laiton:      #D6A748;
+    --laiton-vif:  #E6BC63;
+    --jade:        #58B189;
+    --ombre:       0 1px 2px rgba(0,0,0,.5), 0 14px 36px -16px rgba(0,0,0,.8);
+    --ombre-forte: 0 2px 6px rgba(0,0,0,.6), 0 26px 52px -22px rgba(0,0,0,.9);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(130% 90% at 50% 0%, var(--pierre) 0%, var(--pierre-fond) 100%);
+    color: var(--encre);
+    font-family: var(--texte);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+  }
+
+  .enveloppe {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: calc(var(--pas) * 2.2) calc(var(--pas) * 3);
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--pas) * 2.4);
+  }
+
+  /* ---------- En-tête ---------- */
+  .entete { display: grid; gap: .7rem; }
+
+  .enseigne {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--laiton);
+  }
+  .enseigne::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, var(--trait), transparent);
+  }
+
+  h1 {
+    font-family: var(--display);
+    font-optical-sizing: auto;
+    font-weight: 800;
+    font-size: clamp(2.3rem, 1.4rem + 4.2vw, 4.4rem);
+    letter-spacing: -.035em;
+    line-height: .95;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .chapo {
+    max-width: 54ch;
+    font-size: clamp(1rem, .95rem + .3vw, 1.12rem);
+    color: var(--encre-douce);
+    margin: 0;
+    text-wrap: pretty;
+  }
+
+  /* ---------- Filtres ---------- */
+  .filtres { display: flex; gap: .4rem; flex-wrap: wrap; }
+
+  .filtre {
+    appearance: none;
+    font: inherit;
+    font-size: .83rem;
+    font-weight: 500;
+    color: var(--encre-douce);
+    background: transparent;
+    border: 1px solid var(--trait);
+    border-radius: 999px;
+    padding: .34rem .82rem;
+    cursor: pointer;
+    transition: color .18s ease, border-color .18s ease, background .18s ease;
+  }
+  .filtre:hover { color: var(--encre); border-color: var(--encre-pale); }
+  .filtre:focus-visible { outline: 2.5px solid var(--laiton-vif); outline-offset: 2px; }
+  .filtre[aria-pressed="true"] {
+    color: var(--pierre);
+    background: var(--encre);
+    border-color: var(--encre);
+  }
+
+  /* ---------- Étagère ---------- */
+  .etagere {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 272px), 1fr));
+    gap: calc(var(--pas) * 1.3);
+  }
+
+  .jeu {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--carte);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon);
+    overflow: hidden;
+    box-shadow: var(--ombre);
+    text-decoration: none;
+    color: inherit;
+    transition: transform .22s cubic-bezier(.33,.9,.4,1), box-shadow .22s ease, border-color .22s ease;
+  }
+  .jeu:hover { transform: translateY(-3px); box-shadow: var(--ombre-forte); border-color: var(--encre-pale); }
+  .jeu:focus-visible { outline: 3px solid var(--laiton-vif); outline-offset: 3px; }
+
+  .vitrine {
+    aspect-ratio: 4 / 3;
+    max-width: 100%;
+    display: block;
+    width: 100%;
+    border-bottom: 1px solid var(--trait);
+  }
+
+  .jeu-texte { display: grid; gap: .3rem; padding: .85rem .95rem 1rem; }
+
+  .jeu-nom {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 1.22rem;
+    letter-spacing: -.018em;
+    line-height: 1.1;
+    margin: 0;
+  }
+  .jeu-accroche { font-size: .87rem; color: var(--encre-douce); margin: 0; min-width: 0; }
+
+  .jeu-pied {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    flex-wrap: wrap;
+    margin-top: .35rem;
+    font-size: .73rem;
+    color: var(--encre-pale);
+    font-variant-numeric: tabular-nums;
+  }
+  .jeu-pied .sep { color: var(--trait); }
+
+  .jeton {
+    font-size: .68rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: .14rem .46rem;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+  }
+  .jeton.solo { color: var(--encre-pale); }
+  .jeton.duo { color: var(--laiton); }
+  .jeton.ligne { color: var(--jade); }
+
+  /* ---------- À venir ---------- */
+  .avenir { display: grid; gap: calc(var(--pas) * 1.1); }
+
+  .titre-section {
+    display: flex;
+    align-items: baseline;
+    gap: .6rem;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: -.012em;
+    margin: 0;
+  }
+  .titre-section span { font-family: var(--texte); font-size: .82rem; font-weight: 400; color: var(--encre-pale); }
+
+  .rangee-avenir {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 176px), 1fr));
+    gap: .6rem;
+  }
+
+  .fente {
+    min-width: 0;
+    border: 1px dashed var(--trait);
+    border-radius: 12px;
+    padding: .7rem .8rem;
+    display: grid;
+    gap: .12rem;
+  }
+  .fente b { font-weight: 600; font-size: .92rem; }
+  .fente span { font-size: .76rem; color: var(--encre-pale); }
+
+  /* ---------- En ligne ---------- */
+  .ligne-bloc {
+    display: grid;
+    gap: .75rem;
+    padding: calc(var(--pas) * 1.4);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon);
+    background: var(--carte);
+    box-shadow: var(--ombre);
+  }
+  .ligne-bloc h2 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 1.25rem;
+    letter-spacing: -.016em;
+    margin: 0;
+  }
+  .ligne-bloc p { margin: 0; max-width: 62ch; color: var(--encre-douce); font-size: .92rem; }
+  .ligne-bloc .etat {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    font-size: .8rem;
+    font-weight: 500;
+    color: var(--encre-douce);
+  }
+  .pastille { width: 8px; height: 8px; border-radius: 50%; background: var(--encre-pale); flex: none; }
+  .pastille.active { background: var(--jade); }
+
+  /* ---------- Pied ---------- */
+  footer {
+    border-top: 1px solid var(--trait);
+    padding-top: calc(var(--pas) * 1.2);
+    font-size: .8rem;
+    color: var(--encre-pale);
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+    align-items: baseline;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .jeu { transition: none; }
+    .jeu:hover { transform: none; }
+  }
+
+  .sr {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+</style>
+
+<div class="enveloppe">
+  <header class="entete">
+    <p class="enseigne">Jeux de plateau</p>
+    <h1>La R&eacute;cr&eacute;</h1>
+    <p class="chapo">
+      Des jeux qu&rsquo;on connaissait d&eacute;j&agrave; en bois ou &agrave; la craie, refaits pour le t&eacute;l&eacute;phone,
+      la tablette et l&rsquo;ordinateur. Seul, &agrave; deux sur le m&ecirc;me &eacute;cran, ou chacun chez soi.
+      Rien &agrave; installer, rien &agrave; cr&eacute;er&nbsp;: on ouvre et on joue.
+    </p>
+  </header>
+
+  <div class="filtres" role="group" aria-label="Filtrer les jeux">
+    <button class="filtre" type="button" data-filtre="tous" aria-pressed="true">Tous</button>
+    <button class="filtre" type="button" data-filtre="solo" aria-pressed="false">Seul</button>
+    <button class="filtre" type="button" data-filtre="duo" aria-pressed="false">&Agrave; deux</button>
+    <button class="filtre" type="button" data-filtre="ligne" aria-pressed="false">En ligne</button>
+    <button class="filtre" type="button" data-filtre="court" aria-pressed="false">Partie courte</button>
+  </div>
+
+  <main class="etagere" id="etagere"></main>
+  <p class="sr" id="annonce" role="status" aria-live="polite"></p>
+
+  <section class="ligne-bloc">
+    <h2>Jouer &agrave; distance</h2>
+    <p id="ligneTexte">
+      Chaque partie en ligne se tient dans un salon &agrave; quatre lettres&nbsp;: l&rsquo;un cr&eacute;e, l&rsquo;autre
+      entre le code, et le serveur arbitre les coups. Rien &agrave; installer, aucun compte &agrave; cr&eacute;er.
+    </p>
+    <p class="etat"><span class="pastille" id="lignePastille"></span><span id="ligneEtat">V&eacute;rification&hellip;</span></p>
+  </section>
+
+  <section class="avenir">
+    <h2 class="titre-section">La suite <span>les jeux d&eacute;j&agrave; pr&eacute;vus</span></h2>
+    <div class="rangee-avenir" id="avenir"></div>
+  </section>
+
+  <footer>
+    <span id="compte"></span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ====================================================================
+     LE CATALOGUE
+     Ajouter un jeu = ajouter une entrée ici, puis un dossier du même nom
+     à côté de celui-ci. Rien d'autre à toucher.
+     ==================================================================== */
+
+  var JEUX = [
+    {
+      cle: 'solitaire',
+      nom: 'Solitaire',
+      accroche: 'Cinq plateaux de bois, du triangle à quinze trous à l’octogone français. Seul, au chrono, ou à plusieurs en se passant l’appareil.',
+      dossier: 'solitaire',
+      publie: 'https://claude.ai/artifact/HfYKZ2gn55zNMhdfrqAsTL',
+      joueurs: '1 à 4 joueurs',
+      duree: '2 à 15 min',
+      etiquettes: ['solo', 'duo', 'court']
+    },
+    {
+      cle: 'puissance4',
+      nom: 'Puissance 4',
+      accroche: 'Aligner quatre jetons avant l’autre. À deux sur le même écran, ou contre une machine qui ne rate jamais une parade.',
+      dossier: 'puissance4',
+      publie: 'https://claude.ai/artifact/VKaW7Jbaaq5JHAsHJcRZbC',
+      joueurs: '1 ou 2 joueurs',
+      duree: '3 à 10 min',
+      etiquettes: ['solo', 'duo', 'ligne', 'court']
+    },
+    {
+      cle: 'morpion',
+      nom: 'Morpion',
+      accroche: 'À la craie sur l’ardoise. Trois signes alignés sur la petite grille, cinq sur celle du papier quadrillé.',
+      dossier: 'morpion',
+      publie: 'https://claude.ai/artifact/314SFEvsaQPbCnq8xirfQS',
+      joueurs: '1 ou 2 joueurs',
+      duree: '1 à 8 min',
+      etiquettes: ['solo', 'duo', 'ligne', 'court']
+    }
+  ];
+
+  var AVENIR = [
+    { nom: 'Dames', note: 'le damier à 100 cases' },
+    { nom: 'Awalé', note: 'les douze cases et les graines' },
+    { nom: 'Bataille navale', note: 'à deux, chacun sa grille' },
+    { nom: 'Memory', note: 'les paires retournées' },
+    { nom: 'Mots mêlés', note: 'grilles en français' },
+    { nom: 'Taquin', note: 'le carré de quinze' }
+  ];
+
+  /* ====================================================================
+     Vignettes : chaque jeu se présente par sa matière
+     ==================================================================== */
+
+  function vignetteSolitaire() {
+    var trous = [];
+    for (var r = 0; r < 7; r++) {
+      for (var c = 0; c < 7; c++) {
+        var m = 6;
+        if (!((r + c >= 2) && (r + (m - c) >= 2) && ((m - r) + c >= 2) && ((m - r) + (m - c) >= 2))) continue;
+        var x = 86 + c * 38, y = 36 + r * 38;
+        var plein = !(r === 3 && c === 3);
+        trous.push('<circle cx="' + x + '" cy="' + y + '" r="14.5" fill="#1E0F05"/>');
+        if (plein) trous.push(
+          '<circle cx="' + x + '" cy="' + y + '" r="13" fill="url(#pion)"/>' +
+          '<ellipse cx="' + (x - 3.4) + '" cy="' + (y - 5) + '" rx="5.4" ry="3.3" fill="rgba(255,255,255,.3)"/>');
+      }
+    }
+    return '<svg class="vitrine" viewBox="0 0 400 300" role="img" aria-label="Plateau de solitaire en bois">' +
+      '<defs>' +
+      '<linearGradient id="bois" x1="0" y1="0" x2=".35" y2="1">' +
+      '<stop offset="0%" stop-color="#E0BA88"/><stop offset="52%" stop-color="#CE9F63"/><stop offset="100%" stop-color="#B07C41"/>' +
+      '</linearGradient>' +
+      '<radialGradient id="pion" cx=".34" cy=".28" r=".92">' +
+      '<stop offset="0%" stop-color="#C57647"/><stop offset="45%" stop-color="#8E3E22"/><stop offset="100%" stop-color="#3D160B"/>' +
+      '</radialGradient>' +
+      '<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.01 0.3" numOctaves="3" seed="7"/>' +
+      '<feColorMatrix type="saturate" values="0"/></filter>' +
+      '</defs>' +
+      '<rect width="400" height="300" fill="#C8CCC4"/>' +
+      '<g transform="translate(0,6)">' +
+      '<path d="M122 2 L278 2 L356 80 L356 212 L278 290 L122 290 L44 212 L44 80 Z" fill="#7C5227"/>' +
+      '<path d="M122 -4 L278 -4 L356 74 L356 206 L278 284 L122 284 L44 206 L44 74 Z" fill="url(#bois)"/>' +
+      '<path d="M122 -4 L278 -4 L356 74 L356 206 L278 284 L122 284 L44 206 L44 74 Z" fill="#000" filter="url(#grain)" opacity=".1"/>' +
+      trous.join('') +
+      '</g></svg>';
+  }
+
+  function vignettePuissance4() {
+    var jetons = [[5, 3, 1], [5, 4, 2], [4, 3, 2], [5, 2, 1], [3, 3, 1], [4, 4, 1]];
+    var pris = {};
+    jetons.forEach(function (j) { pris[j[0] + ',' + j[1]] = j[2]; });
+    var trous = [], disques = [];
+    for (var r = 0; r < 6; r++) {
+      for (var c = 0; c < 7; c++) {
+        var x = 78 + c * 41, y = 36 + r * 38;
+        trous.push('<circle cx="' + x + '" cy="' + y + '" r="15.5" fill="#000"/>');
+        var q = pris[r + ',' + c];
+        if (q) disques.push('<circle cx="' + x + '" cy="' + y + '" r="14.5" fill="url(#' + (q === 1 ? 'rouge' : 'jaune') + ')"/>');
+      }
+    }
+    return '<svg class="vitrine" viewBox="0 0 400 300" role="img" aria-label="Grille de Puissance 4">' +
+      '<defs>' +
+      '<linearGradient id="tole" x1="0" y1="0" x2=".3" y2="1">' +
+      '<stop offset="0%" stop-color="#2C5C77"/><stop offset="55%" stop-color="#1E4256"/><stop offset="100%" stop-color="#163243"/>' +
+      '</linearGradient>' +
+      '<radialGradient id="rouge" cx=".34" cy=".3" r=".9">' +
+      '<stop offset="0%" stop-color="#E8837A"/><stop offset="48%" stop-color="#CE4438"/><stop offset="100%" stop-color="#8A2820"/></radialGradient>' +
+      '<radialGradient id="jaune" cx=".34" cy=".3" r=".9">' +
+      '<stop offset="0%" stop-color="#F5CE71"/><stop offset="48%" stop-color="#DFA229"/><stop offset="100%" stop-color="#96660F"/></radialGradient>' +
+      '<mask id="ajours"><rect x="46" y="8" width="320" height="266" rx="18" fill="#fff"/>' + trous.join('') + '</mask>' +
+      '</defs>' +
+      '<rect width="400" height="300" fill="#C8CCC4"/>' +
+      '<rect x="46" y="8" width="320" height="266" rx="18" fill="#0D202C"/>' +
+      disques.join('') +
+      '<rect x="46" y="8" width="320" height="266" rx="18" fill="url(#tole)" mask="url(#ajours)"/>' +
+      '</svg>';
+  }
+
+  function vignetteMorpion() {
+    var g = 'stroke="rgba(237,234,224,.5)" stroke-width="5" stroke-linecap="round" filter="url(#craie)"';
+    return '<svg class="vitrine" viewBox="0 0 400 300" role="img" aria-label="Morpion tracé à la craie sur une ardoise">' +
+      '<defs>' +
+      '<linearGradient id="ardoise" x1="0" y1="0" x2=".2" y2="1">' +
+      '<stop offset="0%" stop-color="#33443A"/><stop offset="55%" stop-color="#26332C"/><stop offset="100%" stop-color="#1B2620"/>' +
+      '</linearGradient>' +
+      '<linearGradient id="cadre" x1="0" y1="0" x2=".3" y2="1">' +
+      '<stop offset="0%" stop-color="#8C6C44"/><stop offset="100%" stop-color="#6E5433"/></linearGradient>' +
+      '<filter id="craie" filterUnits="userSpaceOnUse" x="0" y="0" width="400" height="300">' +
+      '<feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" seed="4" result="n"/>' +
+      '<feDisplacementMap in="SourceGraphic" in2="n" scale="2.6" xChannelSelector="R" yChannelSelector="G"/></filter>' +
+      '</defs>' +
+      '<rect width="400" height="300" fill="#C8CCC4"/>' +
+      '<rect x="40" y="14" width="320" height="272" rx="14" fill="url(#cadre)"/>' +
+      '<rect x="58" y="32" width="284" height="236" rx="5" fill="url(#ardoise)"/>' +
+      '<path d="M153 48 V252 M247 48 V252 M72 118 H328 M72 182 H328" fill="none" ' + g + '/>' +
+      '<g fill="none" stroke-width="9" stroke-linecap="round" filter="url(#craie)">' +
+      '<path d="M90 86 L135 131 M135 86 L90 131" stroke="#F0CE72"/>' +
+      '<path d="M200 150 m-24 0 a24 24 0 1 1 48 0 a24 24 0 1 1 -48 0" stroke="#82C3DA"/>' +
+      '<path d="M265 214 L310 259 M310 214 L265 259" stroke="#F0CE72"/>' +
+      '<path d="M90 214 L135 259 M135 214 L90 259" stroke="#F0CE72"/>' +
+      '</g></svg>';
+  }
+
+  var VIGNETTES = {
+    solitaire: vignetteSolitaire,
+    puissance4: vignettePuissance4,
+    morpion: vignetteMorpion
+  };
+
+  var NOMS_ETIQUETTES = { solo: 'Seul', duo: 'À deux', ligne: 'En ligne' };
+
+  /* ====================================================================
+     Rendu
+     ==================================================================== */
+
+  var etagere = document.getElementById('etagere');
+  var filtreActif = 'tous';
+
+  function carte(jeu) {
+    var a = document.createElement('a');
+    a.className = 'jeu';
+    a.href = jeu.publie;
+    a.setAttribute('data-cle', jeu.cle);
+    a.setAttribute('data-etiquettes', jeu.etiquettes.join(' '));
+
+    a.innerHTML = (VIGNETTES[jeu.cle] || function () { return ''; })();
+
+    var texte = document.createElement('div');
+    texte.className = 'jeu-texte';
+
+    var h = document.createElement('h2');
+    h.className = 'jeu-nom';
+    h.textContent = jeu.nom;
+
+    var p = document.createElement('p');
+    p.className = 'jeu-accroche';
+    p.textContent = jeu.accroche;
+
+    var pied = document.createElement('div');
+    pied.className = 'jeu-pied';
+    var j = document.createElement('span'); j.textContent = jeu.joueurs;
+    var s = document.createElement('span'); s.className = 'sep'; s.textContent = '·';
+    var d = document.createElement('span'); d.textContent = jeu.duree;
+    pied.appendChild(j); pied.appendChild(s); pied.appendChild(d);
+
+    ['solo', 'duo', 'ligne'].forEach(function (e) {
+      if (jeu.etiquettes.indexOf(e) < 0) return;
+      var jet = document.createElement('span');
+      jet.className = 'jeton ' + e;
+      jet.textContent = NOMS_ETIQUETTES[e];
+      pied.appendChild(jet);
+    });
+
+    texte.appendChild(h); texte.appendChild(p); texte.appendChild(pied);
+    a.appendChild(texte);
+    return a;
+  }
+
+  function peindre() {
+    etagere.textContent = '';
+    var vus = 0;
+    JEUX.forEach(function (jeu) {
+      if (filtreActif !== 'tous' && jeu.etiquettes.indexOf(filtreActif) < 0) return;
+      etagere.appendChild(carte(jeu));
+      vus++;
+    });
+    document.getElementById('annonce').textContent =
+      vus + (vus > 1 ? ' jeux affichés.' : ' jeu affiché.');
+    return vus;
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.filtre'), function (b) {
+    b.addEventListener('click', function () {
+      filtreActif = b.getAttribute('data-filtre');
+      Array.prototype.forEach.call(document.querySelectorAll('.filtre'), function (autre) {
+        autre.setAttribute('aria-pressed', autre === b ? 'true' : 'false');
+      });
+      peindre();
+      lierSelonHebergement();
+    });
+  });
+
+  peindre();
+
+  var avenir = document.getElementById('avenir');
+  AVENIR.forEach(function (x) {
+    var f = document.createElement('div');
+    f.className = 'fente';
+    var b = document.createElement('b'); b.textContent = x.nom;
+    var s = document.createElement('span'); s.textContent = x.note;
+    f.appendChild(b); f.appendChild(s);
+    avenir.appendChild(f);
+  });
+
+  document.getElementById('compte').textContent =
+    JEUX.length + ' jeux disponibles, ' + AVENIR.length + ' en préparation.';
+
+  /* ====================================================================
+     Deux hébergements, deux comportements
+     Servi depuis le serveur de jeu, le site pointe vers ses propres
+     dossiers et le jeu en ligne fonctionne. Ouvert depuis un lien
+     partagé, il pointe vers les pages publiées et le jeu en ligne est
+     hors de portée : le bac à sable interdit toute connexion sortante.
+     ==================================================================== */
+
+  var surSite = false;
+
+  function lierSelonHebergement() {
+    if (!surSite) return;
+    Array.prototype.forEach.call(etagere.querySelectorAll('.jeu'), function (a) {
+      var cle = a.getAttribute('data-cle');
+      var jeu = JEUX.filter(function (x) { return x.cle === cle; })[0];
+      if (jeu) a.href = '/' + jeu.dossier + '/';
+    });
+  }
+
+  function direEnLigne(actif, texte) {
+    document.getElementById('lignePastille').className = 'pastille' + (actif ? ' active' : '');
+    document.getElementById('ligneEtat').textContent = texte;
+  }
+
+  (function sonderServeur() {
+    var fini = false;
+    var minuteur = window.setTimeout(function () {
+      if (fini) return;
+      fini = true;
+      direEnLigne(false, 'Jeu à distance indisponible depuis ce lien.');
+    }, 4000);
+
+    fetch('/sante', { method: 'GET' })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('indisponible')); })
+      .then(function (info) {
+        if (fini) return;
+        fini = true;
+        window.clearTimeout(minuteur);
+        surSite = true;
+        lierSelonHebergement();
+        var n = info && info.salons ? info.salons : 0;
+        direEnLigne(true, n
+          ? 'Serveur de jeu en ligne — ' + n + (n > 1 ? ' salons ouverts' : ' salon ouvert') + '.'
+          : 'Serveur de jeu en ligne, aucun salon ouvert pour le moment.');
+      })
+      .catch(function () {
+        if (fini) return;
+        fini = true;
+        window.clearTimeout(minuteur);
+        direEnLigne(false, 'Jeu à distance indisponible depuis ce lien.');
+        document.getElementById('ligneTexte').textContent =
+          'Chaque partie en ligne se tient dans un salon à quatre lettres : l’un crée, l’autre entre le code, ' +
+          'et le serveur arbitre les coups. Depuis un lien partagé, cette partie-là ne fonctionne pas — la page ' +
+          'est enfermée dans un bac à sable qui bloque toute connexion sortante. Tout le reste se joue normalement, ' +
+          'y compris à deux sur le même appareil.';
+      });
+  })();
+})();
+</script>
+<!--ARTIFACT-END-->
+</body>
+</html>
