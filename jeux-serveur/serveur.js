@@ -20,7 +20,7 @@ const PORT = Number(process.env.JEUX_PORT || 3860);
 const RACINE = path.resolve(process.env.JEUX_RACINE || path.join(__dirname, '..'));
 
 /* Dossiers servis en statique. Tout le reste du dépôt reste invisible. */
-const DOSSIERS_PUBLICS = ['site', 'solitaire', 'puissance4', 'morpion'];
+const DOSSIERS_PUBLICS = ['site', 'solitaire', 'puissance4', 'morpion', 'taupes'];
 
 const MAX_MESSAGE = 64 * 1024;
 const SALON_INACTIF_MS = 2 * 60 * 60 * 1000;   /* deux heures sans un mot : le salon s'efface */

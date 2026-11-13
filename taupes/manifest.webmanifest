@@ -1,0 +1,15 @@
+{
+  "name": "Les Taupes",
+  "short_name": "Les Taupes",
+  "description": "Guidez les taupes de l'entrée à la sortie en leur distribuant des métiers : creuser, percer, bâtir, bloquer.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#16181A",
+  "theme_color": "#6B4A2A",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

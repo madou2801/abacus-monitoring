@@ -1,0 +1,1141 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Guidez les taupes de l'entrée à la sortie en leur distribuant des métiers : creuser, percer, bâtir, bloquer.">
+<meta name="theme-color" content="#6B4A2A">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<script>
+  window.addEventListener('load', function () {
+    try {
+      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+        navigator.serviceWorker.register('sw.js').catch(function () {});
+      }
+    } catch (e) {}
+  });
+</script>
+</head>
+<body>
+<!--ARTIFACT-START-->
+<title>Les Taupes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap">
+<style>
+  /* Une coupe de terre vue de profil : le jeu occupe toute la largeur, la
+     palette des métiers se range dessous comme une boîte à outils. */
+  :root {
+    --fond:        #DAD6CC;
+    --fond-creux:  #C9C4B8;
+    --panneau:     #EFECE4;
+    --trait:       #C2BCAE;
+    --encre:       #201C16;
+    --encre-douce: #5C564B;
+    --encre-pale:  #8C857A;
+
+    --terre-haut:  #8A5E33;
+    --terre:       #6B4A2A;
+    --terre-bas:   #4A331D;
+    --herbe:       #5B7A33;
+    --herbe-clair: #76953F;
+    --ciel-haut:   #BFD4DE;
+    --ciel-bas:    #9FB8C6;
+    --eau:         #2E6D87;
+
+    --taupe:       #3C342E;
+    --taupe-clair: #5B5047;
+    --museau:      #D98C8C;
+
+    --laiton:      #9C7320;
+    --laiton-vif:  #B5862F;
+    --alerte:      #B04A2E;
+    --vert:        #2F7D5E;
+
+    --ombre:       0 1px 2px rgba(32,28,22,.06), 0 10px 28px -14px rgba(32,28,22,.3);
+    --rayon:       14px;
+    --pas:         clamp(.6rem, .35rem + .9vw, .95rem);
+    --display:     "Bricolage Grotesque", Archivo, system-ui, sans-serif;
+    --texte:       Archivo, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fond:        #16181A;
+      --fond-creux:  #0E1011;
+      --panneau:     #1F2225;
+      --trait:       #33383C;
+      --encre:       #E7EAEC;
+      --encre-douce: #9BA3A9;
+      --encre-pale:  #6D757B;
+      --ciel-haut:   #2A3A44;
+      --ciel-bas:    #1C2831;
+      --laiton:      #D6A748;
+      --laiton-vif:  #E6BC63;
+      --vert:        #58B189;
+      --ombre:       0 1px 2px rgba(0,0,0,.5), 0 14px 36px -16px rgba(0,0,0,.8);
+      color-scheme: dark;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --fond:        #16181A;
+    --fond-creux:  #0E1011;
+    --panneau:     #1F2225;
+    --trait:       #33383C;
+    --encre:       #E7EAEC;
+    --encre-douce: #9BA3A9;
+    --encre-pale:  #6D757B;
+    --ciel-haut:   #2A3A44;
+    --ciel-bas:    #1C2831;
+    --laiton:      #D6A748;
+    --laiton-vif:  #E6BC63;
+    --vert:        #58B189;
+    --ombre:       0 1px 2px rgba(0,0,0,.5), 0 14px 36px -16px rgba(0,0,0,.8);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--fond);
+    color: var(--encre);
+    font-family: var(--texte);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+  }
+
+  .enveloppe {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: calc(var(--pas) * 1.5) calc(var(--pas) * 2.4);
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--pas) * 1.1);
+  }
+
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: .8rem; flex-wrap: wrap; }
+  .marque { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+
+  h1 {
+    font-family: var(--display);
+    font-optical-sizing: auto;
+    font-weight: 800;
+    font-size: clamp(1.4rem, 1.05rem + 1.7vw, 2.2rem);
+    letter-spacing: -.028em;
+    line-height: 1;
+    margin: 0;
+  }
+
+  .sourcil {
+    font-size: .71rem; font-weight: 600; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--encre-pale);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .champ { position: relative; display: inline-grid; gap: .15rem; }
+  .champ > span {
+    font-size: .62rem; font-weight: 600; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--encre-pale); padding-left: .15rem;
+  }
+  .champ select {
+    appearance: none; font: inherit; font-size: .84rem; font-weight: 500;
+    color: var(--encre); background: var(--panneau);
+    border: 1px solid var(--trait); border-radius: 10px;
+    padding: .38rem 1.8rem .38rem .66rem; cursor: pointer;
+  }
+  .champ select:focus-visible { outline: 2.5px solid var(--laiton-vif); outline-offset: 2px; }
+  .champ::after {
+    content: ""; position: absolute; right: .66rem; bottom: .82rem;
+    width: 6px; height: 6px;
+    border-right: 1.7px solid var(--encre-pale); border-bottom: 1.7px solid var(--encre-pale);
+    transform: rotate(45deg); pointer-events: none;
+  }
+
+  /* ---------- Le terrain ---------- */
+  .scene {
+    position: relative;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon);
+    overflow: hidden;
+    background: var(--fond-creux);
+    box-shadow: var(--ombre);
+    touch-action: none;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    image-rendering: pixelated;
+    cursor: crosshair;
+  }
+
+  .bandeau {
+    display: flex; align-items: center; gap: .5rem 1rem; flex-wrap: wrap;
+    padding: .5rem .7rem;
+    border-top: 1px solid var(--trait);
+    background: var(--panneau);
+    font-size: .8rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--encre-douce);
+  }
+  .bandeau b {
+    font-family: var(--display); font-weight: 700; font-size: 1rem;
+    color: var(--encre); letter-spacing: -.01em;
+  }
+  .bandeau .groupe { display: flex; align-items: baseline; gap: .35rem; }
+  .bandeau .urgence b { color: var(--alerte); }
+
+  /* ---------- La boîte à outils ---------- */
+  .outils {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
+    gap: .4rem;
+  }
+
+  .outil {
+    appearance: none;
+    font: inherit;
+    display: grid;
+    gap: .1rem;
+    justify-items: center;
+    padding: .45rem .3rem .4rem;
+    border: 1px solid var(--trait);
+    border-radius: 11px;
+    background: var(--panneau);
+    color: var(--encre);
+    cursor: pointer;
+    box-shadow: var(--ombre);
+    transition: border-color .15s ease, transform .1s ease;
+  }
+  .outil:hover:not(:disabled) { border-color: var(--encre-pale); }
+  .outil:active:not(:disabled) { transform: translateY(1px); }
+  .outil:disabled { opacity: .36; cursor: not-allowed; box-shadow: none; }
+  .outil:focus-visible { outline: 2.5px solid var(--laiton-vif); outline-offset: 2px; }
+  .outil[aria-pressed="true"] { border-color: var(--laiton-vif); background: color-mix(in srgb, var(--laiton-vif) 14%, var(--panneau)); }
+  .outil svg { width: 24px; height: 24px; }
+  .outil .nom { font-size: .67rem; font-weight: 600; letter-spacing: .01em; }
+  .outil .reste {
+    font-family: var(--display); font-weight: 700; font-size: .95rem;
+    line-height: 1; font-variant-numeric: tabular-nums;
+  }
+  .outil[data-vide="true"] .reste { color: var(--encre-pale); }
+
+  .commandes { display: flex; gap: .45rem; flex-wrap: wrap; }
+
+  .btn {
+    appearance: none; font: inherit; font-weight: 500; font-size: .86rem;
+    display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+    padding: .5rem .8rem; border-radius: 10px;
+    border: 1px solid var(--trait); background: var(--panneau); color: var(--encre);
+    cursor: pointer; box-shadow: var(--ombre);
+  }
+  .btn:hover:not(:disabled) { border-color: var(--encre-pale); }
+  .btn:focus-visible { outline: 2.5px solid var(--laiton-vif); outline-offset: 2px; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn svg { width: 15px; height: 15px; }
+
+  /* ---------- Panneau de fin ---------- */
+  .verdict {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    padding: 1rem;
+    background: color-mix(in srgb, var(--fond-creux) 82%, transparent);
+    backdrop-filter: blur(3px);
+  }
+  .verdict[hidden] { display: none !important; }
+  .verdict-carte {
+    background: var(--panneau);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon);
+    padding: 1.1rem 1.2rem;
+    box-shadow: var(--ombre);
+    display: grid; gap: .55rem;
+    max-width: 38ch;
+    text-align: center;
+    justify-items: center;
+  }
+  .verdict-carte h2 {
+    font-family: var(--display); font-weight: 700;
+    font-size: 1.3rem; letter-spacing: -.02em; margin: 0;
+  }
+  .verdict-carte h2.gagne { color: var(--vert); }
+  .verdict-carte h2.perdu { color: var(--alerte); }
+  .verdict-carte p { margin: 0; font-size: .88rem; color: var(--encre-douce); }
+
+  details.regle { border-top: 1px solid var(--trait); padding-top: var(--pas); }
+  details.regle summary {
+    cursor: pointer; font-size: .8rem; font-weight: 600; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--encre-pale);
+    list-style: none; display: flex; align-items: center; gap: .4rem;
+  }
+  details.regle summary::-webkit-details-marker { display: none; }
+  details.regle summary::before {
+    content: ""; width: 7px; height: 7px;
+    border-right: 1.8px solid currentColor; border-bottom: 1.8px solid currentColor;
+    transform: rotate(-45deg); transition: transform .2s ease;
+  }
+  details.regle[open] summary::before { transform: rotate(45deg); }
+  details.regle summary:focus-visible { outline: 2.5px solid var(--laiton-vif); outline-offset: 3px; border-radius: 4px; }
+  .regle-corps { max-width: 64ch; margin-top: .7rem; font-size: .88rem; color: var(--encre-douce); display: grid; gap: .5rem; }
+  .regle-corps strong { color: var(--encre); font-weight: 600; }
+  .regle-corps ul { margin: 0; padding-left: 1.1rem; display: grid; gap: .25rem; }
+
+  .sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+</style>
+
+<div class="enveloppe">
+  <header>
+    <div class="marque">
+      <h1>Les Taupes</h1>
+      <span class="sourcil" id="titreNiveau"></span>
+    </div>
+    <label class="champ">
+      <span>Niveau</span>
+      <select id="selNiveau"></select>
+    </label>
+  </header>
+
+  <div class="scene" id="scene">
+    <canvas id="toile" width="480" height="200"></canvas>
+    <div class="bandeau">
+      <span class="groupe">Sorties <b id="statSorties">0</b> / <span id="statObjectif">0</span></span>
+      <span class="groupe">Dehors <b id="statDehors">0</b></span>
+      <span class="groupe">Restantes <b id="statRestantes">0</b></span>
+      <span class="groupe" id="groupeTemps">Temps <b id="statTemps">0:00</b></span>
+      <span class="groupe">Cadence <b id="statCadence">0</b></span>
+    </div>
+    <div class="verdict" id="verdict" hidden>
+      <div class="verdict-carte">
+        <h2 id="verdictTitre"></h2>
+        <p id="verdictTexte"></p>
+        <div class="commandes">
+          <button class="btn" id="verdictBtn" type="button"></button>
+          <button class="btn" id="verdictBtn2" type="button" hidden></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="outils" id="outils"></div>
+
+  <div class="commandes">
+    <button class="btn" id="btnPause" type="button" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
+      <span id="libPause">Pause</span>
+    </button>
+    <button class="btn" id="btnMoins" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
+      Cadence
+    </button>
+    <button class="btn" id="btnPlus" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      Cadence
+    </button>
+    <button class="btn" id="btnRecommencer" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 6"/><path d="M20 5v6h-6"/></svg>
+      Recommencer
+    </button>
+    <button class="btn" id="btnDeluge" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v6M12 22a7 7 0 0 0 7-7c0-3-3-6-7-11-4 5-7 8-7 11a7 7 0 0 0 7 7Z"/></svg>
+      Tout faire sauter
+    </button>
+  </div>
+
+  <details class="regle">
+    <summary>R&egrave;gle du jeu</summary>
+    <div class="regle-corps">
+      <p>Les taupes sortent du terrier et marchent droit devant elles sans jamais r&eacute;fl&eacute;chir. Elles font demi-tour contre un mur, tombent dans les trous, et se tuent d'une chute trop haute. &Agrave; vous de leur donner un m&eacute;tier pour ouvrir un chemin jusqu'&agrave; la sortie.</p>
+      <ul>
+        <li><strong>Choisissez un m&eacute;tier</strong> dans la bo&icirc;te &agrave; outils, puis <strong>touchez une taupe</strong>. Chaque m&eacute;tier est en nombre limit&eacute;, indiqu&eacute; sous son nom.</li>
+        <li><strong>Creuseuse</strong> descend tout droit, <strong>Perceuse</strong> traverse &agrave; l'horizontale, <strong>Mineuse</strong> creuse en biais vers le bas.</li>
+        <li><strong>B&acirc;tisseuse</strong> pose douze marches en montant. <strong>Bloqueuse</strong> s'plante et renvoie les autres. <strong>Grimpeuse</strong> escalade les murs, <strong>Parachutiste</strong> survit &agrave; toutes les chutes.</li>
+        <li><strong>Bombe</strong> fait exploser la taupe au bout de cinq secondes&nbsp;: elle y laisse sa peau mais ouvre un trou.</li>
+      </ul>
+      <p>La <strong>cadence</strong> r&egrave;gle l'intervalle entre deux sorties du terrier. Il faut sauver le nombre de taupes demand&eacute; avant la fin du temps.</p>
+    </div>
+  </details>
+</div>
+
+<p class="sr" id="annonce" role="status" aria-live="polite"></p>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ====================================================================
+     Le terrain est une image. Un masque de pixels dit où c'est plein, et
+     creuser veut dire effacer dans l'image et dans le masque ensemble.
+     Tout le jeu tient là-dessus.
+     ==================================================================== */
+
+  var LARGEUR = 480, HAUTEUR = 200;
+  var PAS_LOGIQUE = 1000 / 30;        /* 30 pas de simulation par seconde */
+  var HAUTEUR_TAUPE = 10;
+  var CHUTE_MORTELLE = 64;
+
+  var toile = document.getElementById('toile');
+  var ctx = toile.getContext('2d');
+
+  var terre = document.createElement('canvas');
+  terre.width = LARGEUR; terre.height = HAUTEUR;
+  var tctx = terre.getContext('2d', { willReadFrequently: true });
+
+  var masque = new Uint8Array(LARGEUR * HAUTEUR);
+
+  function solide(x, y) {
+    if (x < 0 || x >= LARGEUR) return true;      /* les bords sont des murs */
+    if (y < 0) return false;
+    if (y >= HAUTEUR) return false;              /* sous le niveau : le vide */
+    return masque[y * LARGEUR + x] === 1;
+  }
+
+  function relireMasque() {
+    var d = tctx.getImageData(0, 0, LARGEUR, HAUTEUR).data;
+    for (var i = 0, n = LARGEUR * HAUTEUR; i < n; i++) masque[i] = d[i * 4 + 3] > 128 ? 1 : 0;
+  }
+
+  function creuserRect(x, y, l, h) {
+    tctx.save();
+    tctx.globalCompositeOperation = 'destination-out';
+    tctx.fillStyle = '#000';
+    tctx.fillRect(x, y, l, h);
+    tctx.restore();
+    for (var yy = Math.max(0, y); yy < Math.min(HAUTEUR, y + h); yy++) {
+      for (var xx = Math.max(0, x); xx < Math.min(LARGEUR, x + l); xx++) masque[yy * LARGEUR + xx] = 0;
+    }
+  }
+
+  function creuserCercle(cx, cy, r) {
+    tctx.save();
+    tctx.globalCompositeOperation = 'destination-out';
+    tctx.fillStyle = '#000';
+    tctx.beginPath();
+    tctx.arc(cx, cy, r, 0, Math.PI * 2);
+    tctx.fill();
+    tctx.restore();
+    var r2 = r * r;
+    for (var yy = Math.max(0, cy - r); yy <= Math.min(HAUTEUR - 1, cy + r); yy++) {
+      for (var xx = Math.max(0, cx - r); xx <= Math.min(LARGEUR - 1, cx + r); xx++) {
+        var dx = xx - cx, dy = yy - cy;
+        if (dx * dx + dy * dy <= r2) masque[yy * LARGEUR + xx] = 0;
+      }
+    }
+  }
+
+  /* Les marches de la bâtisseuse ajoutent de la matière. */
+  function poserRect(x, y, l, h) {
+    tctx.fillStyle = '#A8762F';
+    tctx.fillRect(x, y, l, h);
+    tctx.fillStyle = 'rgba(0,0,0,.18)';
+    tctx.fillRect(x, y + h - 1, l, 1);
+    for (var yy = Math.max(0, y); yy < Math.min(HAUTEUR, y + h); yy++) {
+      for (var xx = Math.max(0, x); xx < Math.min(LARGEUR, x + l); xx++) masque[yy * LARGEUR + xx] = 1;
+    }
+  }
+
+  /* ====================================================================
+     Les métiers
+     ==================================================================== */
+
+  var METIERS = [
+    { cle: 'grimpeuse',    nom: 'Grimpeuse',    icone: 'M6 20V6l6 4 6-4v14', permanent: true },
+    { cle: 'parachutiste', nom: 'Parachutiste', icone: 'M4 11a8 8 0 0 1 16 0M4 11l8 9 8-9M12 20v-9', permanent: true },
+    { cle: 'bombe',        nom: 'Bombe',        icone: 'M11 21a6 6 0 1 0 0-12 6 6 0 0 0 0 12M15 9l3-3M18 6l2-2M18 6V3' },
+    { cle: 'bloqueuse',    nom: 'Bloqueuse',    icone: 'M12 3v18M6 8l-3 4 3 4M18 8l3 4-3 4' },
+    { cle: 'batisseuse',   nom: 'Bâtisseuse', icone: 'M3 20h6v-5h6v-5h6' },
+    { cle: 'perceuse',     nom: 'Perceuse',     icone: 'M3 12h12M15 7l5 5-5 5' },
+    { cle: 'mineuse',      nom: 'Mineuse',      icone: 'M5 5l10 10M15 15h5v-5' },
+    { cle: 'creuseuse',    nom: 'Creuseuse',    icone: 'M12 3v14M7 12l5 5 5-5' }
+  ];
+
+  /* ====================================================================
+     Les niveaux
+     ==================================================================== */
+
+  function sol(x, l, y) { return { x: x, y: y, l: l, h: HAUTEUR - y }; }
+
+  var NIVEAUX = [
+    {
+      nom: 'Le premier pont',
+      entree: { x: 60, y: 76 },
+      sortie: { x: 436, y: 120 },
+      nombre: 10, aSauver: 7, secondes: 180, cadence: 50,
+      stock: { grimpeuse: 0, parachutiste: 0, bombe: 2, bloqueuse: 2, batisseuse: 6, perceuse: 0, mineuse: 0, creuseuse: 0 },
+      terrain: [
+        sol(0, 200, 120),
+        sol(220, 260, 120)
+      ],
+      dangers: []
+    },
+    {
+      nom: 'La dalle',
+      entree: { x: 44, y: 76 },
+      sortie: { x: 440, y: 120 },
+      nombre: 12, aSauver: 9, secondes: 210, cadence: 50,
+      stock: { grimpeuse: 2, parachutiste: 2, bombe: 1, bloqueuse: 2, batisseuse: 4, perceuse: 4, mineuse: 2, creuseuse: 2 },
+      terrain: [
+        sol(0, 230, 120),
+        { x: 230, y: 40, l: 46, h: 160 },
+        sol(276, 204, 120)
+      ],
+      dangers: []
+    },
+    {
+      nom: 'Au-dessus de l\u2019eau',
+      entree: { x: 54, y: 16 },
+      sortie: { x: 430, y: 90 },
+      nombre: 14, aSauver: 10, secondes: 270, cadence: 40,
+      stock: { grimpeuse: 2, parachutiste: 4, bombe: 2, bloqueuse: 2, batisseuse: 8, perceuse: 2, mineuse: 2, creuseuse: 2 },
+      terrain: [
+        { x: 0, y: 50, l: 176, h: 14 },
+        { x: 150, y: 104, l: 120, h: 12 },
+        { x: 330, y: 90, l: 150, h: 110 }
+      ],
+      dangers: [{ x: 0, y: 176, l: 480, h: 24 }]
+    }
+  ];
+
+  /* ====================================================================
+     État de la partie
+     ==================================================================== */
+
+  var MARCHE = 0, CHUTE = 1, GRIMPE = 2, BATIT = 3, PERCE = 4, MINE = 5,
+      CREUSE = 6, BLOQUE = 7, TOMBE_PARA = 8, MORTE = 9;
+
+  var niveau = null, indexNiveau = 0;
+  var taupes = [], stock = {}, metierChoisi = null;
+  var sorties = 0, sorties_ = 0, dehors = 0, apparues = 0;
+  var cadence = 50, compteurCadence = 0;
+  var restantSecondes = 0, pasDepuisSeconde = 0;
+  var enPause = false, finie = false, boucle = null, dernier = 0, reliquat = 0;
+  var survol = null;
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function annoncer(t) { $('annonce').textContent = t; }
+
+  /* ---------------- Mise en place ---------------- */
+
+  function dessinerTerrain(n) {
+    tctx.clearRect(0, 0, LARGEUR, HAUTEUR);
+
+    n.terrain.forEach(function (f) {
+      var g = tctx.createLinearGradient(0, f.y, 0, Math.min(HAUTEUR, f.y + f.h));
+      g.addColorStop(0, '#8A5E33');
+      g.addColorStop(0.35, '#6B4A2A');
+      g.addColorStop(1, '#4A331D');
+      tctx.fillStyle = g;
+      tctx.fillRect(f.x, f.y, f.l, f.h);
+
+      /* la croûte d'herbe sur le dessus */
+      tctx.fillStyle = '#5B7A33';
+      tctx.fillRect(f.x, f.y, f.l, 3);
+      tctx.fillStyle = '#76953F';
+      tctx.fillRect(f.x, f.y, f.l, 1);
+
+      /* quelques cailloux, pour que la terre ne soit pas une teinte plate */
+      for (var k = 0; k < (f.l * f.h) / 420; k++) {
+        var cx = f.x + Math.random() * f.l;
+        var cy = f.y + 5 + Math.random() * Math.max(1, f.h - 6);
+        tctx.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.16)' : 'rgba(255,255,255,.07)';
+        tctx.fillRect(cx | 0, cy | 0, 1 + ((Math.random() * 2) | 0), 1);
+      }
+    });
+
+    relireMasque();
+  }
+
+  function charger(i) {
+    indexNiveau = ((i % NIVEAUX.length) + NIVEAUX.length) % NIVEAUX.length;
+    niveau = NIVEAUX[indexNiveau];
+
+    dessinerTerrain(niveau);
+
+    taupes = [];
+    stock = {};
+    METIERS.forEach(function (m) { stock[m.cle] = niveau.stock[m.cle] || 0; });
+    metierChoisi = null;
+    sorties = 0; dehors = 0; apparues = 0;
+    cadence = niveau.cadence;
+    compteurCadence = 0;
+    restantSecondes = niveau.secondes;
+    pasDepuisSeconde = 0;
+    finie = false;
+    enPause = false;
+    survol = null;
+
+    $('titreNiveau').textContent = niveau.nom;
+    $('selNiveau').value = String(indexNiveau);
+    $('verdict').hidden = true;
+    majPause();
+    peindreOutils();
+    majBandeau();
+    lancer();
+  }
+
+  /* ---------------- Les taupes ---------------- */
+
+  function naitre() {
+    taupes.push({
+      x: niveau.entree.x, y: niveau.entree.y,
+      dir: 1, etat: CHUTE, chute: 0, compteur: 0,
+      grimpeuse: false, parachutiste: false,
+      minuterie: -1, briques: 0, vivante: true, sauvee: false
+    });
+    apparues++;
+    dehors++;
+  }
+
+  function tuer(t) {
+    t.vivante = false;
+    t.etat = MORTE;
+    dehors--;
+  }
+
+  function sauver(t) {
+    t.vivante = false;
+    t.sauvee = true;
+    sorties++;
+    dehors--;
+  }
+
+  /* Cherche où poser les pieds à la colonne nx : on accepte de monter
+     jusqu'à six pixels et de descendre jusqu'à quatre. */
+  function solSous(nx, y) {
+    for (var yy = y - 6; yy <= y + 4; yy++) if (solide(nx, yy)) return yy;
+    return -1;
+  }
+
+  function bloqueuseDevant(t) {
+    for (var i = 0; i < taupes.length; i++) {
+      var b = taupes[i];
+      if (b === t || !b.vivante || b.etat !== BLOQUE) continue;
+      if (Math.abs(b.y - t.y) > 10) continue;
+      var dx = b.x - t.x;
+      if (dx * t.dir > 0 && Math.abs(dx) <= 5) return true;
+    }
+    return false;
+  }
+
+  function avancerTaupe(t) {
+    if (!t.vivante) return;
+
+    /* la mèche brûle quel que soit le métier en cours */
+    if (t.minuterie > 0) {
+      t.minuterie--;
+      if (t.minuterie === 0) {
+        creuserCercle(t.x, t.y - 5, 10);
+        tuer(t);
+        return;
+      }
+    }
+
+    if (t.etat === BLOQUE) return;
+
+    switch (t.etat) {
+
+      case CHUTE:
+      case TOMBE_PARA: {
+        var vitesse = (t.etat === TOMBE_PARA) ? 1 : 3;
+        for (var k = 0; k < vitesse; k++) {
+          if (solide(t.x, t.y)) break;
+          t.y++;
+          t.chute++;
+          if (t.y >= HAUTEUR) { tuer(t); return; }
+        }
+        if (t.parachutiste && t.etat === CHUTE && t.chute > 8) { t.etat = TOMBE_PARA; return; }
+        if (solide(t.x, t.y)) {
+          if (t.etat === CHUTE && t.chute >= CHUTE_MORTELLE) { tuer(t); return; }
+          t.chute = 0;
+          t.etat = MARCHE;
+        }
+        return;
+      }
+
+      case GRIMPE: {
+        /* le mur est devant : on monte le long de la paroi */
+        if (solide(t.x, t.y - HAUTEUR_TAUPE - 1)) {   /* plafond : on retombe */
+          t.dir = -t.dir;
+          t.etat = CHUTE; t.chute = 0;
+          return;
+        }
+        t.y--;
+        if (!solide(t.x + t.dir, t.y - HAUTEUR_TAUPE + 1)) {
+          /* le sommet est passé : on bascule sur le dessus */
+          t.x += t.dir;
+          var sl = solSous(t.x, t.y);
+          t.y = (sl >= 0) ? sl : t.y;
+          t.etat = MARCHE;
+        }
+        return;
+      }
+
+      case BATIT: {
+        t.compteur++;
+        if (t.compteur % 4 !== 0) return;
+        if (t.briques <= 0) { t.etat = MARCHE; t.dir = -t.dir; return; }
+        var bx = t.dir > 0 ? t.x : t.x - 5;
+        poserRect(bx, t.y - 1, 6, 1);
+        t.briques--;
+        t.y -= 1;
+        t.x += t.dir * 2;
+        if (solide(t.x + t.dir, t.y - 3) || t.x <= 1 || t.x >= LARGEUR - 2) {
+          t.dir = -t.dir;
+          t.etat = MARCHE;
+        }
+        return;
+      }
+
+      case PERCE: {
+        t.compteur++;
+        if (t.compteur % 2 !== 0) return;
+        var px = t.dir > 0 ? t.x : t.x - 9;
+        creuserRect(px, t.y - HAUTEUR_TAUPE, 10, HAUTEUR_TAUPE);
+        t.x += t.dir;
+        if (!solide(t.x, t.y)) { t.etat = CHUTE; t.chute = 0; return; }
+        /* plus rien à percer devant : on repart à pied */
+        var reste = false;
+        for (var yy = t.y - HAUTEUR_TAUPE; yy < t.y; yy++) {
+          for (var xx = 1; xx <= 8; xx++) if (solide(t.x + t.dir * xx, yy)) { reste = true; break; }
+          if (reste) break;
+        }
+        if (!reste) t.etat = MARCHE;
+        return;
+      }
+
+      case MINE: {
+        t.compteur++;
+        if (t.compteur % 3 !== 0) return;
+        var mx = t.dir > 0 ? t.x : t.x - 9;
+        creuserRect(mx, t.y - HAUTEUR_TAUPE + 2, 10, HAUTEUR_TAUPE);
+        t.x += t.dir * 2;
+        t.y += 1;
+        if (t.x <= 1 || t.x >= LARGEUR - 2) { t.dir = -t.dir; t.etat = MARCHE; return; }
+        if (!solide(t.x, t.y)) { t.etat = CHUTE; t.chute = 0; }
+        return;
+      }
+
+      case CREUSE: {
+        t.compteur++;
+        if (t.compteur % 3 !== 0) return;
+        creuserRect(t.x - 4, t.y, 9, 2);
+        t.y += 2;
+        if (t.y >= HAUTEUR) { tuer(t); return; }
+        if (!solide(t.x, t.y)) { t.etat = CHUTE; t.chute = 0; }
+        return;
+      }
+
+      default: {   /* MARCHE */
+        if (bloqueuseDevant(t)) { t.dir = -t.dir; return; }
+
+        var nx = t.x + t.dir;
+        if (nx < 1 || nx > LARGEUR - 2) { t.dir = -t.dir; return; }
+
+        var ny = solSous(nx, t.y);
+
+        if (ny === -1) {                       /* plus de sol : on tombe */
+          t.x = nx;
+          t.etat = CHUTE; t.chute = 0;
+          return;
+        }
+        if (ny === t.y - 6 && solide(nx, t.y - 7)) {   /* une paroi */
+          if (t.grimpeuse) { t.etat = GRIMPE; return; }
+          t.dir = -t.dir;
+          return;
+        }
+        t.x = nx;
+        t.y = ny;
+        return;
+      }
+    }
+  }
+
+  function dansLaSortie(t) {
+    var s = niveau.sortie;
+    return t.x >= s.x - 9 && t.x <= s.x + 9 && t.y >= s.y - 4 && t.y <= s.y + 12;
+  }
+
+  function dansUnDanger(t) {
+    for (var i = 0; i < niveau.dangers.length; i++) {
+      var d = niveau.dangers[i];
+      if (!d.l || !d.h) continue;
+      if (t.x >= d.x && t.x < d.x + d.l && t.y >= d.y && t.y < d.y + d.h) return true;
+    }
+    return false;
+  }
+
+  /* ---------------- Un pas de simulation ---------------- */
+
+  function pas() {
+    if (finie) return;
+
+    if (apparues < niveau.nombre) {
+      compteurCadence--;
+      if (compteurCadence <= 0) {
+        naitre();
+        compteurCadence = Math.max(2, Math.round((105 - cadence) / 4));
+      }
+    }
+
+    for (var i = 0; i < taupes.length; i++) {
+      var t = taupes[i];
+      if (!t.vivante) continue;
+      avancerTaupe(t);
+      if (!t.vivante) continue;
+      if (dansUnDanger(t)) { tuer(t); continue; }
+      if (dansLaSortie(t)) { sauver(t); continue; }
+    }
+
+    pasDepuisSeconde++;
+    if (pasDepuisSeconde >= 30) {
+      pasDepuisSeconde = 0;
+      if (restantSecondes > 0) restantSecondes--;
+    }
+
+    if (restantSecondes <= 0) return terminer();
+    if (apparues >= niveau.nombre && dehors === 0) return terminer();
+  }
+
+  function terminer() {
+    finie = true;
+    var gagne = sorties >= niveau.aSauver;
+    $('verdictTitre').textContent = gagne ? 'Niveau réussi' : 'Raté';
+    $('verdictTitre').className = gagne ? 'gagne' : 'perdu';
+    $('verdictTexte').textContent = gagne
+      ? sorties + ' taupe' + (sorties > 1 ? 's' : '') + ' sauvée' + (sorties > 1 ? 's' : '') +
+        ' sur ' + niveau.nombre + '. Il en fallait ' + niveau.aSauver + '.'
+      : (restantSecondes <= 0 ? 'Le temps est écoulé. ' : '') +
+        sorties + ' taupe' + (sorties > 1 ? 's' : '') + ' sauvée' + (sorties > 1 ? 's' : '') +
+        ', il en fallait ' + niveau.aSauver + '.';
+
+    var suivant = indexNiveau + 1 < NIVEAUX.length;
+    $('verdictBtn').textContent = gagne && suivant ? 'Niveau suivant' : 'Recommencer';
+    $('verdictBtn').onclick = function () { charger(gagne && suivant ? indexNiveau + 1 : indexNiveau); };
+    $('verdictBtn2').hidden = !(gagne && suivant);
+    if (gagne && suivant) {
+      $('verdictBtn2').textContent = 'Rejouer celui-ci';
+      $('verdictBtn2').onclick = function () { charger(indexNiveau); };
+    }
+    $('verdict').hidden = false;
+    annoncer(gagne ? 'Niveau réussi.' : 'Niveau raté.');
+    majBandeau();
+  }
+
+  /* ---------------- Rendu ---------------- */
+
+  function peindreTaupe(t) {
+    var x = Math.round(t.x), y = Math.round(t.y);
+    var teinte = '#3C342E';
+    if (t.etat === BLOQUE) teinte = '#9C5A1E';
+    else if (t.etat === BATIT) teinte = '#A8762F';
+    else if (t.etat === PERCE || t.etat === MINE || t.etat === CREUSE) teinte = '#7A4A2A';
+    else if (t.etat === TOMBE_PARA) teinte = '#2F6B7D';
+
+    /* corps */
+    ctx.fillStyle = teinte;
+    ctx.fillRect(x - 3, y - 9, 6, 8);
+    ctx.fillStyle = '#5B5047';
+    ctx.fillRect(x - 3, y - 9, 6, 2);
+
+    /* museau, dans le sens de la marche */
+    ctx.fillStyle = '#D98C8C';
+    ctx.fillRect(t.dir > 0 ? x + 3 : x - 4, y - 7, 1, 2);
+
+    /* parachute ouvert */
+    if (t.etat === TOMBE_PARA) {
+      ctx.fillStyle = '#2F6B7D';
+      ctx.fillRect(x - 6, y - 15, 12, 2);
+      ctx.fillRect(x - 4, y - 13, 1, 3);
+      ctx.fillRect(x + 3, y - 13, 1, 3);
+    }
+    /* grimpeuse : une griffe visible */
+    if (t.etat === GRIMPE) {
+      ctx.fillStyle = '#C8A24A';
+      ctx.fillRect(t.dir > 0 ? x + 3 : x - 4, y - 10, 1, 2);
+    }
+    /* mèche allumée */
+    if (t.minuterie > 0) {
+      ctx.fillStyle = (t.minuterie % 8 < 4) ? '#E8C64A' : '#C4442A';
+      ctx.fillRect(x - 1, y - 13, 2, 2);
+    }
+  }
+
+  function peindre() {
+    /* le ciel */
+    var g = ctx.createLinearGradient(0, 0, 0, HAUTEUR);
+    g.addColorStop(0, lire('--ciel-haut'));
+    g.addColorStop(1, lire('--ciel-bas'));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, LARGEUR, HAUTEUR);
+
+    /* l'eau et les autres dangers, sous le terrain */
+    niveau.dangers.forEach(function (d) {
+      if (!d.l || !d.h) return;
+      ctx.fillStyle = '#2E6D87';
+      ctx.fillRect(d.x, d.y, d.l, d.h);
+      ctx.fillStyle = 'rgba(255,255,255,.14)';
+      for (var k = 0; k < d.l; k += 8) {
+        ctx.fillRect(d.x + k, d.y + 1 + ((Math.sin((k + Date.now() / 220) / 7) * 1.5) | 0), 4, 1);
+      }
+    });
+
+    ctx.drawImage(terre, 0, 0);
+
+    /* le terrier et la sortie */
+    var e = niveau.entree;
+    ctx.fillStyle = '#4A331D';
+    ctx.fillRect(e.x - 11, e.y - 18, 22, 8);
+    ctx.fillStyle = '#20150B';
+    ctx.fillRect(e.x - 7, e.y - 12, 14, 4);
+
+    var s = niveau.sortie;
+    ctx.fillStyle = '#2F7D5E';
+    ctx.fillRect(s.x - 10, s.y - 2, 20, 14);
+    ctx.fillStyle = '#153D2D';
+    ctx.fillRect(s.x - 5, s.y + 2, 10, 10);
+    ctx.fillStyle = '#9BD8B8';
+    ctx.fillRect(s.x - 10, s.y - 4, 20, 2);
+
+    taupes.forEach(function (t) { if (t.vivante) peindreTaupe(t); });
+
+    /* la taupe sous le curseur */
+    if (survol && survol.vivante) {
+      ctx.strokeStyle = lire('--laiton-vif');
+      ctx.lineWidth = 1;
+      ctx.strokeRect(Math.round(survol.x) - 5.5, Math.round(survol.y) - 12.5, 11, 13);
+    }
+  }
+
+  var cacheVar = {};
+  function lire(nom) {
+    if (cacheVar[nom]) return cacheVar[nom];
+    var v = getComputedStyle(document.documentElement).getPropertyValue(nom).trim();
+    cacheVar[nom] = v || '#888';
+    return cacheVar[nom];
+  }
+
+  /* ---------------- Boucle ---------------- */
+
+  function image(maintenant) {
+    boucle = window.requestAnimationFrame(image);
+    if (!dernier) dernier = maintenant;
+    var ecoule = Math.min(250, maintenant - dernier);
+    dernier = maintenant;
+
+    if (!enPause && !finie) {
+      reliquat += ecoule;
+      var tours = 0;
+      while (reliquat >= PAS_LOGIQUE && tours < 8) {
+        pas();
+        reliquat -= PAS_LOGIQUE;
+        tours++;
+      }
+    } else {
+      reliquat = 0;
+    }
+
+    peindre();
+    majBandeau();
+  }
+
+  function lancer() {
+    if (boucle) window.cancelAnimationFrame(boucle);
+    dernier = 0; reliquat = 0;
+    boucle = window.requestAnimationFrame(image);
+  }
+
+  /* ---------------- Interface ---------------- */
+
+  function majBandeau() {
+    $('statSorties').textContent = sorties;
+    $('statObjectif').textContent = niveau.aSauver;
+    $('statDehors').textContent = dehors;
+    $('statRestantes').textContent = niveau.nombre - apparues;
+    $('statCadence').textContent = cadence;
+    var m = Math.floor(restantSecondes / 60), s2 = restantSecondes % 60;
+    $('statTemps').textContent = m + ':' + (s2 < 10 ? '0' : '') + s2;
+    $('groupeTemps').className = 'groupe' + (restantSecondes <= 30 ? ' urgence' : '');
+  }
+
+  function peindreOutils() {
+    var zone = $('outils');
+    zone.textContent = '';
+    METIERS.forEach(function (m) {
+      var b = document.createElement('button');
+      b.className = 'outil';
+      b.type = 'button';
+      b.setAttribute('data-metier', m.cle);
+      b.setAttribute('aria-pressed', metierChoisi === m.cle ? 'true' : 'false');
+      b.disabled = stock[m.cle] <= 0;
+      b.setAttribute('data-vide', stock[m.cle] <= 0 ? 'true' : 'false');
+      b.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + m.icone + '"/></svg>' +
+        '<span class="nom"></span><span class="reste"></span>';
+      b.querySelector('.nom').textContent = m.nom;
+      b.querySelector('.reste').textContent = stock[m.cle];
+      b.setAttribute('aria-label', m.nom + ', ' + stock[m.cle] + ' disponible' + (stock[m.cle] > 1 ? 's' : ''));
+      b.addEventListener('click', function () { choisir(m.cle); });
+      zone.appendChild(b);
+    });
+  }
+
+  function majOutils() {
+    Array.prototype.forEach.call($('outils').children, function (b) {
+      var cle = b.getAttribute('data-metier');
+      b.querySelector('.reste').textContent = stock[cle];
+      b.disabled = stock[cle] <= 0;
+      b.setAttribute('data-vide', stock[cle] <= 0 ? 'true' : 'false');
+      b.setAttribute('aria-pressed', metierChoisi === cle ? 'true' : 'false');
+      b.setAttribute('aria-label', b.querySelector('.nom').textContent + ', ' + stock[cle] +
+        ' disponible' + (stock[cle] > 1 ? 's' : ''));
+    });
+  }
+
+  function choisir(cle) {
+    if (stock[cle] <= 0) return;
+    metierChoisi = (metierChoisi === cle) ? null : cle;
+    majOutils();
+    annoncer(metierChoisi ? METIERS.filter(function (m) { return m.cle === cle; })[0].nom + ' choisie.' : 'Aucun métier choisi.');
+  }
+
+  function pointLogique(ev) {
+    var r = toile.getBoundingClientRect();
+    return {
+      x: (ev.clientX - r.left) * (LARGEUR / r.width),
+      y: (ev.clientY - r.top) * (HAUTEUR / r.height)
+    };
+  }
+
+  function taupeSous(p) {
+    var meilleure = null, meilleureD = 1e9;
+    for (var i = 0; i < taupes.length; i++) {
+      var t = taupes[i];
+      if (!t.vivante) continue;
+      var dx = p.x - t.x, dy = p.y - (t.y - 5);
+      if (Math.abs(dx) > 7 || Math.abs(dy) > 9) continue;
+      var d = dx * dx + dy * dy;
+      if (d < meilleureD) { meilleureD = d; meilleure = t; }
+    }
+    return meilleure;
+  }
+
+  function appliquer(t) {
+    if (!metierChoisi || !t || !t.vivante || finie) return false;
+    var cle = metierChoisi;
+    if (stock[cle] <= 0) return false;
+
+    if (cle === 'grimpeuse') { if (t.grimpeuse) return false; t.grimpeuse = true; }
+    else if (cle === 'parachutiste') { if (t.parachutiste) return false; t.parachutiste = true; }
+    else if (cle === 'bombe') { if (t.minuterie > 0) return false; t.minuterie = 5 * 30; }
+    else {
+      if (t.etat === CHUTE || t.etat === TOMBE_PARA || t.etat === BLOQUE) return false;
+      if (cle === 'bloqueuse') t.etat = BLOQUE;
+      else if (cle === 'batisseuse') { t.etat = BATIT; t.briques = 12; t.compteur = 0; }
+      else if (cle === 'perceuse') { t.etat = PERCE; t.compteur = 0; }
+      else if (cle === 'mineuse') { t.etat = MINE; t.compteur = 0; }
+      else if (cle === 'creuseuse') { t.etat = CREUSE; t.compteur = 0; }
+    }
+
+    stock[cle]--;
+    if (stock[cle] <= 0) metierChoisi = null;
+    majOutils();
+    return true;
+  }
+
+  toile.addEventListener('pointermove', function (ev) {
+    survol = taupeSous(pointLogique(ev));
+    toile.style.cursor = survol && metierChoisi ? 'pointer' : 'crosshair';
+  });
+  toile.addEventListener('pointerleave', function () { survol = null; });
+
+  toile.addEventListener('pointerdown', function (ev) {
+    ev.preventDefault();
+    var p = pointLogique(ev);
+    var t = taupeSous(p);
+    survol = t;
+    if (t) appliquer(t);
+  });
+
+  function majPause() {
+    $('btnPause').setAttribute('aria-pressed', enPause ? 'true' : 'false');
+    $('libPause').textContent = enPause ? 'Reprendre' : 'Pause';
+  }
+
+  $('btnPause').addEventListener('click', function () {
+    if (finie) return;
+    enPause = !enPause;
+    majPause();
+    annoncer(enPause ? 'Jeu en pause.' : 'Reprise.');
+  });
+
+  $('btnMoins').addEventListener('click', function () { cadence = Math.max(10, cadence - 10); majBandeau(); });
+  $('btnPlus').addEventListener('click', function () { cadence = Math.min(99, cadence + 10); majBandeau(); });
+  $('btnRecommencer').addEventListener('click', function () { charger(indexNiveau); });
+
+  $('btnDeluge').addEventListener('click', function () {
+    if (finie) return;
+    var n = 0;
+    taupes.forEach(function (t) {
+      if (t.vivante && t.minuterie <= 0) { t.minuterie = (n % 10) * 3 + 10; n++; }
+    });
+    apparues = niveau.nombre;
+    annoncer('Toutes les taupes ont la mèche allumée.');
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === ' ') { e.preventDefault(); $('btnPause').click(); return; }
+    var n = parseInt(e.key, 10);
+    if (n >= 1 && n <= METIERS.length) { choisir(METIERS[n - 1].cle); }
+  });
+
+  /* ---------------- Démarrage ---------------- */
+
+  NIVEAUX.forEach(function (n, i) {
+    var o = document.createElement('option');
+    o.value = String(i);
+    o.textContent = (i + 1) + '. ' + n.nom;
+    $('selNiveau').appendChild(o);
+  });
+  $('selNiveau').addEventListener('change', function () { charger(parseInt(this.value, 10)); });
+
+  charger(0);
+
+  /* exposé pour les essais automatisés */
+  window.__taupes = {
+    etat: function () {
+      return {
+        niveau: niveau.nom, sorties: sorties, dehors: dehors, apparues: apparues,
+        restantes: niveau.nombre - apparues, temps: restantSecondes, finie: finie,
+        vivantes: taupes.filter(function (t) { return t.vivante; }).map(function (t) {
+          return { x: Math.round(t.x), y: Math.round(t.y), dir: t.dir, etat: t.etat };
+        }),
+        stock: JSON.parse(JSON.stringify(stock))
+      };
+    },
+    pas: function (n) { for (var i = 0; i < (n || 1); i++) pas(); },
+    pause: function (v) { enPause = v; majPause(); },
+    choisir: choisir,
+    appliquerA: function (i) { return appliquer(taupes.filter(function (t) { return t.vivante; })[i]); },
+    solide: solide,
+    charger: charger,
+    ETATS: { MARCHE: MARCHE, CHUTE: CHUTE, GRIMPE: GRIMPE, BATIT: BATIT, PERCE: PERCE,
+             MINE: MINE, CREUSE: CREUSE, BLOQUE: BLOQUE, TOMBE_PARA: TOMBE_PARA, MORTE: MORTE }
+  };
+})();
+</script>
+<!--ARTIFACT-END-->
+</body>
+</html>

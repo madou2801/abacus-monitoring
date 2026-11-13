@@ -409,6 +409,16 @@
       joueurs: '1 ou 2 joueurs',
       duree: '1 à 8 min',
       etiquettes: ['solo', 'duo', 'ligne', 'court']
+    },
+    {
+      cle: 'taupes',
+      nom: 'Les Taupes',
+      accroche: 'Elles sortent du terrier et marchent sans réfléchir. À vous de leur donner un métier — creuser, percer, bâtir — pour leur ouvrir un chemin.',
+      dossier: 'taupes',
+      publie: 'https://claude.ai/artifact/BaKi61QbAX9vRFc2gpRcvT',
+      joueurs: '1 joueur',
+      duree: '3 à 10 min',
+      etiquettes: ['solo', 'court']
     }
   ];
 
@@ -515,10 +525,45 @@
       '</g></svg>';
   }
 
+  function vignetteTaupes() {
+    var bestioles = [];
+    [132, 186, 240, 300].forEach(function (x) {
+      bestioles.push(
+        '<rect x="' + (x - 11) + '" y="166" width="22" height="30" rx="4" fill="#3C342E"/>' +
+        '<rect x="' + (x - 11) + '" y="166" width="22" height="8" rx="4" fill="#5B5047"/>' +
+        '<rect x="' + (x + 11) + '" y="174" width="5" height="7" fill="#D98C8C"/>');
+    });
+    return '<svg class="vitrine" viewBox="0 0 400 300" role="img" aria-label="Des taupes marchant vers un pont de marches">' +
+      '<defs>' +
+      '<linearGradient id="solT" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0%" stop-color="#8A5E33"/><stop offset="35%" stop-color="#6B4A2A"/><stop offset="100%" stop-color="#4A331D"/></linearGradient>' +
+      '<linearGradient id="cielT" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0%" stop-color="#BFD4DE"/><stop offset="100%" stop-color="#9FB8C6"/></linearGradient>' +
+      '</defs>' +
+      '<rect width="400" height="300" fill="url(#cielT)"/>' +
+      '<rect x="0" y="196" width="250" height="104" fill="url(#solT)"/>' +
+      '<rect x="0" y="196" width="250" height="7" fill="#5B7A33"/>' +
+      '<rect x="0" y="196" width="250" height="2" fill="#76953F"/>' +
+      '<rect x="310" y="196" width="90" height="104" fill="url(#solT)"/>' +
+      '<rect x="310" y="196" width="90" height="7" fill="#5B7A33"/>' +
+      '<rect x="310" y="196" width="90" height="2" fill="#76953F"/>' +
+      '<g fill="#A8762F">' +
+      '<rect x="250" y="192" width="18" height="5"/><rect x="268" y="186" width="18" height="5"/>' +
+      '<rect x="286" y="180" width="18" height="5"/><rect x="304" y="174" width="18" height="5"/></g>' +
+      '<rect x="58" y="146" width="48" height="16" rx="3" fill="#4A331D"/>' +
+      '<rect x="71" y="158" width="22" height="7" fill="#20150B"/>' +
+      '<rect x="336" y="170" width="40" height="28" fill="#2F7D5E"/>' +
+      '<rect x="346" y="178" width="20" height="20" fill="#153D2D"/>' +
+      '<rect x="336" y="166" width="40" height="5" fill="#9BD8B8"/>' +
+      bestioles.join('') +
+      '</svg>';
+  }
+
   var VIGNETTES = {
     solitaire: vignetteSolitaire,
     puissance4: vignettePuissance4,
-    morpion: vignetteMorpion
+    morpion: vignetteMorpion,
+    taupes: vignetteTaupes
   };
 
   var NOMS_ETIQUETTES = { solo: 'Seul', duo: 'À deux', ligne: 'En ligne' };
