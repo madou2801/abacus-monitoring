@@ -238,7 +238,10 @@
   .champ-code:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
 
   .board-wrap { position: relative; width: 100%; max-width: min(100%, 68dvh); margin-inline: auto; aspect-ratio: 1; }
-  svg.board { width: 100%; height: 100%; display: block; touch-action: manipulation; }
+  /* none, et non manipulation : sans cela le navigateur prend le glissement
+     pour un defilement et l'on ne peut plus corriger sa visee au doigt.
+     C'est deja le reglage du plateau de solitaire. */
+  svg.board { width: 100%; height: 100%; display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
 
   .cell-hit { fill: transparent; cursor: pointer; outline: none; }
   .cell-hit.taken { cursor: default; }
@@ -358,6 +361,13 @@
   kbd { font: inherit; font-size: .8em; background: var(--ground-deep); border: 1px solid var(--panel-edge); border-radius: 5px; padding: .05em .35em; }
 
   .sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  /* ---------- Au doigt : aucune commande sous 46 px ---------- */
+  @media (pointer: coarse) {
+    .btn { min-height: 46px; padding-top: .62rem; padding-bottom: .62rem; }
+    .field select { min-height: 46px; padding-top: .66rem; padding-bottom: .66rem; }
+    .field::after { bottom: 1.12rem; }
+  }
 </style>
 
 <div class="shell">
@@ -505,7 +515,7 @@
         <li><strong>Contre la machine&nbsp;:</strong> en 3 &times; 3, le niveau <em>Fort</em> calcule la partie enti&egrave;re et ne peut pas perdre &mdash; au mieux vous ferez match nul.</li>
         <li><strong>Croix commence</strong> la premi&egrave;re manche, puis c'est le perdant de la pr&eacute;c&eacute;dente qui ouvre.</li>
       </ul>
-      <p><strong>Pour jouer&nbsp;:</strong> touchez une case libre. Au clavier, les <kbd>fl&egrave;ches</kbd> d&eacute;placent la s&eacute;lection et <kbd>Entr&eacute;e</kbd> marque&nbsp;; <kbd>Ctrl</kbd>+<kbd>Z</kbd> annule.</p>
+      <p><strong>Pour jouer&nbsp;:</strong> au doigt, posez-le sur une case libre&nbsp;: la marque appara&icirc;t en aper&ccedil;u et ne se pose vraiment qu'au moment o&ugrave; vous relevez le doigt. Glissez d'ici l&agrave; pour corriger votre visée &mdash; utile sur le grand plateau. &Agrave; la souris, un clic suffit. Au clavier, les <kbd>fl&egrave;ches</kbd> d&eacute;placent la s&eacute;lection et <kbd>Entr&eacute;e</kbd> marque&nbsp;; <kbd>Ctrl</kbd>+<kbd>Z</kbd> annule.</p>
     </div>
   </details>
 </div>
@@ -1329,13 +1339,61 @@
 
   /* ---------------- Entrées ---------------- */
 
+  /* Au doigt, une case du 11 x 11 fait environ 8 mm : on pose l'aperçu dès
+     l'appui, on le déplace tant que le doigt glisse, et le coup ne part qu'au
+     relâchement. On peut donc corriger sa visée sans perdre le tour.
+     À la souris, rien ne change : survol puis clic. */
+  var doigt = null, finDoigt = 0;
+
   hitLayer.addEventListener('pointermove', function (e) {
+    if (doigt && e.pointerId === doigt.id) {
+      e.preventDefault();
+      var sous = document.elementFromPoint(e.clientX, e.clientY);
+      if (sous && sous.hasAttribute && sous.hasAttribute('data-idx')) {
+        doigt.idx = +sous.getAttribute('data-idx');
+        paintPreview(doigt.idx);
+      } else {
+        doigt.idx = -1;
+        previewLayer.textContent = '';
+      }
+      return;
+    }
+    if (e.pointerType && e.pointerType !== 'mouse') return;
     if (!e.target.hasAttribute || !e.target.hasAttribute('data-idx')) return;
     paintPreview(+e.target.getAttribute('data-idx'));
   });
-  hitLayer.addEventListener('pointerleave', function () { previewLayer.textContent = ''; });
+  hitLayer.addEventListener('pointerleave', function () { if (!doigt) previewLayer.textContent = ''; });
+
+  hitLayer.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'mouse') return;
+    if (!e.target.hasAttribute || !e.target.hasAttribute('data-idx')) return;
+    e.preventDefault();
+    doigt = { id: e.pointerId, idx: +e.target.getAttribute('data-idx') };
+    paintPreview(doigt.idx);
+  });
+
+  hitLayer.addEventListener('pointerup', function (e) {
+    if (!doigt || e.pointerId !== doigt.id) return;
+    e.preventDefault();
+    var i = doigt.idx;
+    doigt = null;
+    finDoigt = Date.now();
+    previewLayer.textContent = '';
+    if (i < 0) return;
+    focusIdx = i;
+    if (isHuman(turn)) place(i);
+  });
+
+  hitLayer.addEventListener('pointercancel', function (e) {
+    if (!doigt || e.pointerId !== doigt.id) return;
+    doigt = null;
+    finDoigt = Date.now();
+    previewLayer.textContent = '';
+  });
 
   hitLayer.addEventListener('click', function (e) {
+    /* le clic synthetique qui suit un toucher ferait jouer deux fois */
+    if (Date.now() - finDoigt < 700) return;
     if (!e.target.hasAttribute || !e.target.hasAttribute('data-idx')) return;
     var i = +e.target.getAttribute('data-idx');
     focusIdx = i;

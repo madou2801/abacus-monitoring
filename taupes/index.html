@@ -171,6 +171,7 @@
     background: var(--fond-creux);
     box-shadow: var(--ombre);
     touch-action: none;
+    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
   }
   canvas {
     display: block;
@@ -179,6 +180,49 @@
     max-width: 100%;
     image-rendering: pixelated;
     cursor: crosshair;
+  }
+
+  /* ---------- La loupe de visee au doigt ---------- */
+  .visee {
+    position: fixed; left: 0; top: 0;
+    width: 136px; height: 136px;
+    margin: -68px 0 0 -68px;
+    pointer-events: none;
+    z-index: 40;
+    opacity: 0; transform: scale(.84);
+    transition: opacity .11s ease, transform .11s ease;
+  }
+  .visee[data-actif="true"] { opacity: 1; transform: scale(1); }
+  .visee canvas {
+    display: block;
+    width: 136px; height: 136px;
+    border-radius: 50%;
+    border: 2px solid var(--laiton-vif);
+    background: var(--fond-creux);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, .38), 0 0 0 3px color-mix(in srgb, var(--panneau) 82%, transparent);
+    image-rendering: pixelated;
+    cursor: default;
+  }
+  .visee-nom {
+    position: absolute; left: 50%;
+    transform: translateX(-50%);
+    padding: .28rem .64rem;
+    border-radius: 999px;
+    background: var(--encre); color: var(--panneau);
+    font-size: .74rem; font-weight: 650; letter-spacing: .01em;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .3);
+  }
+  .visee[data-sens="haut"] .visee-nom { top: -1.75rem; }
+  .visee[data-sens="bas"]  .visee-nom { bottom: -1.75rem; }
+
+  /* ---------- Au doigt : toute commande fait au moins 46 px ---------- */
+  @media (pointer: coarse) {
+    .btn { min-height: 46px; padding-top: .55rem; padding-bottom: .55rem; }
+    .champ select { min-height: 46px; padding-top: .62rem; padding-bottom: .62rem; }
+    .champ::after { bottom: 1.1rem; }
+    .outil { min-height: 80px; padding-top: .6rem; padding-bottom: .55rem; }
+    .outil svg { width: 27px; height: 27px; }
   }
 
   .bandeau {
@@ -328,6 +372,11 @@
     </div>
   </div>
 
+  <div class="visee" id="visee" data-actif="false" data-sens="haut" aria-hidden="true">
+    <canvas id="loupe" width="136" height="136"></canvas>
+    <span class="visee-nom" id="viseeNom"></span>
+  </div>
+
   <div class="outils" id="outils"></div>
 
   <div class="commandes">
@@ -358,7 +407,8 @@
     <div class="regle-corps">
       <p>Les taupes sortent du terrier et marchent droit devant elles sans jamais r&eacute;fl&eacute;chir. Elles font demi-tour contre un mur, tombent dans les trous, et se tuent d'une chute trop haute. &Agrave; vous de leur donner un m&eacute;tier pour ouvrir un chemin jusqu'&agrave; la sortie.</p>
       <ul>
-        <li><strong>Choisissez un m&eacute;tier</strong> dans la bo&icirc;te &agrave; outils, puis <strong>touchez une taupe</strong>. Chaque m&eacute;tier est en nombre limit&eacute;, indiqu&eacute; sous son nom.</li>
+        <li><strong>Choisissez un m&eacute;tier</strong> dans la bo&icirc;te &agrave; outils, puis d&eacute;signez une taupe. Chaque m&eacute;tier est en nombre limit&eacute;, indiqu&eacute; sous son nom.</li>
+        <li><strong>Au doigt&nbsp;:</strong> posez le doigt pr&egrave;s d'une taupe. Le temps se g&egrave;le et une loupe s'ouvre au-dessus de votre doigt, la taupe retenue cercl&eacute;e. Glissez pour en choisir une autre, <strong>relevez le doigt pour donner le m&eacute;tier</strong>. Relever le doigt loin de toute taupe ne co&ucirc;te rien. &Agrave; la souris, un simple clic suffit.</li>
         <li><strong>Creuseuse</strong> descend tout droit, <strong>Perceuse</strong> traverse &agrave; l'horizontale, <strong>Mineuse</strong> creuse en biais vers le bas.</li>
         <li><strong>B&acirc;tisseuse</strong> pose douze marches en montant. <strong>Bloqueuse</strong> s'plante et renvoie les autres. <strong>Grimpeuse</strong> escalade les murs, <strong>Parachutiste</strong> survit &agrave; toutes les chutes.</li>
         <li><strong>Bombe</strong> fait exploser la taupe au bout de cinq secondes&nbsp;: elle y laisse sa peau mais ouvre un trou.</li>
@@ -522,6 +572,12 @@
   var enPause = false, finie = false, boucle = null, dernier = 0, reliquat = 0;
   var survol = null;
 
+  /* visee au doigt : on appuie, le temps se gele, on ajuste, on relache */
+  var visee = null;            /* { x, y, cible } en coordonnees logiques */
+  var geleParVisee = false;
+  var idVisee = null;
+  var ZOOM_LOUPE = 3.4;
+
   var $ = function (id) { return document.getElementById(id); };
 
   function annoncer(t) { $('annonce').textContent = t; }
@@ -575,6 +631,9 @@
     finie = false;
     enPause = false;
     survol = null;
+    if (visee) { visee = null; $('visee').setAttribute('data-actif', 'false'); }
+    geleParVisee = false;
+    idVisee = null;
 
     $('titreNiveau').textContent = niveau.nom;
     $('selNiveau').value = String(indexNiveau);
@@ -912,10 +971,120 @@
 
     /* la taupe sous le curseur */
     if (survol && survol.vivante) {
+      var vise = !!visee;
+      if (vise) {
+        ctx.strokeStyle = 'rgba(0,0,0,.4)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(Math.round(survol.x) - 7.5, Math.round(survol.y) - 14.5, 15, 17);
+      }
       ctx.strokeStyle = lire('--laiton-vif');
-      ctx.lineWidth = 1;
+      ctx.lineWidth = vise ? 2 : 1;
       ctx.strokeRect(Math.round(survol.x) - 5.5, Math.round(survol.y) - 12.5, 11, 13);
     }
+  }
+
+  /* ---------------- La loupe ---------------- */
+
+  function peindreLoupe() {
+    var cadre = $('loupe');
+    var lc = cadre.getContext('2d');
+    var taille = cadre.width;
+    var fenetre = taille / ZOOM_LOUPE;          /* pixels logiques montres */
+
+    /* On centre sur la taupe verrouillee, pas sur le doigt : sinon la cible
+       se retrouve au bord de la bulle, a moitie coupee. Faute de cible, on
+       centre sur le doigt. La fenetre reste dans la toile, sinon drawImage
+       decalerait l'image au lieu de la rogner. */
+    var cx0 = visee.cible && visee.cible.vivante ? visee.cible.x : visee.x;
+    var cy0 = visee.cible && visee.cible.vivante ? visee.cible.y - 5 : visee.y;
+    var sx = Math.max(0, Math.min(LARGEUR - fenetre, cx0 - fenetre / 2));
+    var sy = Math.max(0, Math.min(HAUTEUR - fenetre, cy0 - fenetre / 2));
+
+    lc.imageSmoothingEnabled = false;
+    lc.fillStyle = lire('--fond-creux');
+    lc.fillRect(0, 0, taille, taille);
+    lc.drawImage(toile, sx, sy, fenetre, fenetre, 0, 0, taille, taille);
+
+    /* le reticule, a l'endroit exact du doigt */
+    var rx = (visee.x - sx) * ZOOM_LOUPE, ry = (visee.y - sy) * ZOOM_LOUPE;
+    lc.strokeStyle = 'rgba(255,255,255,.72)';
+    lc.shadowColor = 'rgba(0,0,0,.5)'; lc.shadowBlur = 2;
+    lc.lineWidth = 1;
+    lc.beginPath();
+    lc.moveTo(rx - 9, ry); lc.lineTo(rx - 3, ry);
+    lc.moveTo(rx + 3, ry); lc.lineTo(rx + 9, ry);
+    lc.moveTo(rx, ry - 9); lc.lineTo(rx, ry - 3);
+    lc.moveTo(rx, ry + 3); lc.lineTo(rx, ry + 9);
+    lc.stroke();
+    lc.shadowBlur = 0;
+
+    /* l'anneau sur la taupe verrouillee */
+    if (visee.cible && visee.cible.vivante) {
+      var cx = (visee.cible.x - sx) * ZOOM_LOUPE;
+      var cy = (visee.cible.y - 5 - sy) * ZOOM_LOUPE;
+      lc.strokeStyle = lire('--laiton-vif');
+      lc.lineWidth = 2.5;
+      lc.beginPath(); lc.arc(cx, cy, 21, 0, Math.PI * 2); lc.stroke();
+      lc.strokeStyle = 'rgba(0,0,0,.35)';
+      lc.lineWidth = 1;
+      lc.beginPath(); lc.arc(cx, cy, 23.5, 0, Math.PI * 2); lc.stroke();
+    }
+  }
+
+  function texteVisee() {
+    if (!metierChoisi) return 'Choisissez un metier';
+    var m = METIERS.filter(function (x) { return x.cle === metierChoisi; })[0];
+    var nom = m ? m.nom : 'Metier';
+    return visee && visee.cible ? nom + ' \u00b7 rel\u00e2chez' : 'Visez une taupe';
+  }
+
+  function placerVisee(clientX, clientY) {
+    var cadre = $('visee');
+    var b = 136, marge = 30;
+    var dessus = (clientY - b - marge) > 6;
+    var cy = dessus ? clientY - b / 2 - marge : clientY + b / 2 + marge;
+    cy = Math.max(b / 2 + 8, Math.min(window.innerHeight - b / 2 - 8, cy));
+    var cx = Math.max(b / 2 + 8, Math.min(window.innerWidth - b / 2 - 8, clientX));
+    cadre.style.left = Math.round(cx) + 'px';
+    cadre.style.top = Math.round(cy) + 'px';
+    cadre.setAttribute('data-sens', dessus ? 'haut' : 'bas');
+  }
+
+  function majVisee(ev) {
+    var p = pointLogique(ev);
+    visee.x = Math.max(0, Math.min(LARGEUR - 1, p.x));
+    visee.y = Math.max(0, Math.min(HAUTEUR - 1, p.y));
+    var avant = visee.cible;
+    visee.cible = taupeVers(visee, rayonDoigt());
+    survol = visee.cible;
+    if (visee.cible && visee.cible !== avant) vibrer(8);
+    placerVisee(ev.clientX, ev.clientY);
+    $('viseeNom').textContent = texteVisee();
+  }
+
+  function ouvrirVisee(ev) {
+    visee = { x: 0, y: 0, cible: null };
+    geleParVisee = true;
+    $('visee').setAttribute('data-actif', 'true');
+    majVisee(ev);
+    peindreLoupe();
+  }
+
+  function fermerVisee(valider) {
+    if (!visee) return;
+    var cible = visee.cible;
+    visee = null;
+    geleParVisee = false;
+    survol = null;
+    idVisee = null;
+    $('visee').setAttribute('data-actif', 'false');
+    if (valider && cible && cible.vivante) {
+      if (appliquer(cible)) vibrer(20);
+    }
+  }
+
+  function relacherDoigt(id) {
+    try { if (toile.hasPointerCapture && toile.hasPointerCapture(id)) toile.releasePointerCapture(id); } catch (e) {}
   }
 
   var cacheVar = {};
@@ -934,7 +1103,7 @@
     var ecoule = Math.min(250, maintenant - dernier);
     dernier = maintenant;
 
-    if (!enPause && !finie) {
+    if (!enPause && !geleParVisee && !finie) {
       reliquat += ecoule;
       var tours = 0;
       while (reliquat >= PAS_LOGIQUE && tours < 8) {
@@ -947,6 +1116,7 @@
     }
 
     peindre();
+    if (visee) peindreLoupe();
     majBandeau();
   }
 
@@ -1032,6 +1202,33 @@
     return meilleure;
   }
 
+  /* Le doigt couvre environ 10 mm : on cherche la taupe la plus proche dans
+     un rayon de cette taille, converti en pixels logiques d'apres l'echelle
+     reellement affichee. La loupe montre laquelle est retenue, donc un rayon
+     large ne vole personne. */
+  function rayonDoigt() {
+    var r = toile.getBoundingClientRect();
+    var logiqueParCss = LARGEUR / Math.max(1, r.width);
+    return Math.max(12, Math.min(30, 20 * logiqueParCss));
+  }
+
+  function taupeVers(p, rayon) {
+    var meilleure = null, meilleureD = Infinity, r2 = rayon * rayon;
+    for (var i = 0; i < taupes.length; i++) {
+      var t = taupes[i];
+      if (!t.vivante) continue;
+      var dx = p.x - t.x, dy = p.y - (t.y - 5);
+      var d = dx * dx + dy * dy;
+      if (d > r2) continue;
+      if (d < meilleureD) { meilleureD = d; meilleure = t; }
+    }
+    return meilleure;
+  }
+
+  function vibrer(ms) {
+    try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {}
+  }
+
   function appliquer(t) {
     if (!metierChoisi || !t || !t.vivante || finie) return false;
     var cle = metierChoisi;
@@ -1056,18 +1253,42 @@
   }
 
   toile.addEventListener('pointermove', function (ev) {
+    if (visee && ev.pointerId === idVisee) { ev.preventDefault(); majVisee(ev); return; }
+    if (ev.pointerType && ev.pointerType !== 'mouse') return;
     survol = taupeSous(pointLogique(ev));
     toile.style.cursor = survol && metierChoisi ? 'pointer' : 'crosshair';
   });
-  toile.addEventListener('pointerleave', function () { survol = null; });
+  toile.addEventListener('pointerleave', function () { if (!visee) survol = null; });
 
+  /* A la souris, le pointeur est precis : un clic suffit, comme avant.
+     Au doigt, on ouvre la loupe, le temps se gele, et le metier ne part
+     qu'au relachement -- on peut donc corriger sa visee en glissant. */
   toile.addEventListener('pointerdown', function (ev) {
     ev.preventDefault();
-    var p = pointLogique(ev);
-    var t = taupeSous(p);
-    survol = t;
-    if (t) appliquer(t);
+    if (ev.pointerType === 'mouse') {
+      var t = taupeSous(pointLogique(ev));
+      survol = t;
+      if (t) appliquer(t);
+      return;
+    }
+    if (finie || visee) return;
+    idVisee = ev.pointerId;
+    try { toile.setPointerCapture(ev.pointerId); } catch (e) {}
+    ouvrirVisee(ev);
   });
+
+  toile.addEventListener('pointerup', function (ev) {
+    if (!visee || ev.pointerId !== idVisee) return;
+    ev.preventDefault();
+    relacherDoigt(ev.pointerId);
+    fermerVisee(true);
+  });
+  toile.addEventListener('pointercancel', function (ev) {
+    if (!visee || ev.pointerId !== idVisee) return;
+    relacherDoigt(ev.pointerId);
+    fermerVisee(false);
+  });
+  toile.addEventListener('contextmenu', function (ev) { ev.preventDefault(); });
 
   function majPause() {
     $('btnPause').setAttribute('aria-pressed', enPause ? 'true' : 'false');
@@ -1131,6 +1352,10 @@
     appliquerA: function (i) { return appliquer(taupes.filter(function (t) { return t.vivante; })[i]); },
     solide: solide,
     charger: charger,
+    visee: function () {
+      return visee ? { x: Math.round(visee.x), y: Math.round(visee.y), aCible: !!visee.cible, gele: geleParVisee } : null;
+    },
+    rayonDoigt: rayonDoigt,
     ETATS: { MARCHE: MARCHE, CHUTE: CHUTE, GRIMPE: GRIMPE, BATIT: BATIT, PERCE: PERCE,
              MINE: MINE, CREUSE: CREUSE, BLOQUE: BLOQUE, TOMBE_PARA: TOMBE_PARA, MORTE: MORTE }
   };

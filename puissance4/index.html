@@ -405,6 +405,13 @@
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
   }
+
+  /* ---------- Au doigt : aucune commande sous 46 px ---------- */
+  @media (pointer: coarse) {
+    .btn { min-height: 46px; padding-top: .62rem; padding-bottom: .62rem; }
+    .field select { min-height: 46px; padding-top: .66rem; padding-bottom: .66rem; }
+    .field::after { bottom: 1.12rem; }
+  }
 </style>
 
 <div class="shell">

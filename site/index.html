@@ -326,6 +326,11 @@
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
   }
+
+  /* ---------- Au doigt : aucune commande sous 46 px ---------- */
+  @media (pointer: coarse) {
+    .filtre { min-height: 46px; padding-top: .55rem; padding-bottom: .55rem; padding-left: 1rem; padding-right: 1rem; }
+  }
 </style>
 
 <div class="enveloppe">
