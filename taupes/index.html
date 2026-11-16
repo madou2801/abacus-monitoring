@@ -216,6 +216,68 @@
   .visee[data-sens="haut"] .visee-nom { top: -1.75rem; }
   .visee[data-sens="bas"]  .visee-nom { bottom: -1.75rem; }
 
+  /* ---------- Les metiers, sous le doigt ---------- */
+  .voile {
+    position: fixed; inset: 0; z-index: 38;
+    background: rgba(0, 0, 0, .28);
+    animation: voileEntre .12s ease;
+  }
+  @keyframes voileEntre { from { opacity: 0; } to { opacity: 1; } }
+
+  .palette {
+    position: fixed; left: 0; top: 0;
+    z-index: 42;
+    display: grid;
+    grid-auto-flow: row;
+    gap: .3rem;
+    padding: .38rem;
+    border-radius: 16px;
+    border: 1px solid var(--trait);
+    background: var(--panneau);
+    box-shadow: 0 16px 34px rgba(0, 0, 0, .34);
+    opacity: 0; transform: scale(.9); transform-origin: top center;
+    transition: opacity .11s ease, transform .11s ease;
+    pointer-events: none;
+  }
+  .palette[data-actif="true"] { opacity: 1; transform: scale(1); }
+  .palette[data-colonnes="1"] { grid-template-columns: repeat(1, 1fr); }
+  .palette[data-colonnes="2"] { grid-template-columns: repeat(2, 1fr); }
+  .palette[data-colonnes="3"] { grid-template-columns: repeat(3, 1fr); }
+  .palette[data-colonnes="4"] { grid-template-columns: repeat(4, 1fr); }
+
+  .palette-btn {
+    appearance: none; font: inherit;
+    display: grid; justify-items: center; gap: .04rem;
+    width: 62px; min-height: 58px;
+    padding: .34rem .2rem .28rem;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--encre);
+    cursor: pointer;
+    /* toujours cliquable : meme pendant le glissement, elementFromPoint doit
+       pouvoir le trouver, et la capture du pointeur l'empeche de voler l'evenement */
+    pointer-events: auto;
+  }
+  .palette-btn svg { width: 23px; height: 23px; }
+  .palette-btn .pn { font-size: .58rem; font-weight: 600; letter-spacing: .01em; }
+  .palette-btn .pr {
+    font-family: var(--display); font-weight: 700; font-size: .82rem;
+    color: var(--encre-douce);
+  }
+  .palette-btn[data-vise="true"] {
+    border-color: var(--laiton-vif);
+    background: color-mix(in srgb, var(--laiton-vif) 20%, var(--panneau));
+    transform: scale(1.06);
+  }
+  .palette-btn[data-vise="true"] .pr { color: var(--encre); }
+  .palette-btn:focus-visible { outline: 2.5px solid var(--laiton-vif); outline-offset: 1px; }
+
+  @media (pointer: coarse) {
+    .palette-btn { width: 68px; min-height: 64px; }
+    .palette-btn svg { width: 26px; height: 26px; }
+  }
+
   /* ---------- Au doigt : toute commande fait au moins 46 px ---------- */
   @media (pointer: coarse) {
     .btn { min-height: 46px; padding-top: .55rem; padding-bottom: .55rem; }
@@ -372,6 +434,9 @@
     </div>
   </div>
 
+  <div class="voile" id="voile" hidden></div>
+  <div class="palette" id="palette" data-actif="false" data-choix="false" role="group" aria-label="Metiers disponibles"></div>
+
   <div class="visee" id="visee" data-actif="false" data-sens="haut" aria-hidden="true">
     <canvas id="loupe" width="136" height="136"></canvas>
     <span class="visee-nom" id="viseeNom"></span>
@@ -407,8 +472,10 @@
     <div class="regle-corps">
       <p>Les taupes sortent du terrier et marchent droit devant elles sans jamais r&eacute;fl&eacute;chir. Elles font demi-tour contre un mur, tombent dans les trous, et se tuent d'une chute trop haute. &Agrave; vous de leur donner un m&eacute;tier pour ouvrir un chemin jusqu'&agrave; la sortie.</p>
       <ul>
-        <li><strong>Choisissez un m&eacute;tier</strong> dans la bo&icirc;te &agrave; outils, puis d&eacute;signez une taupe. Chaque m&eacute;tier est en nombre limit&eacute;, indiqu&eacute; sous son nom.</li>
-        <li><strong>Au doigt&nbsp;:</strong> posez le doigt pr&egrave;s d'une taupe. Le temps se g&egrave;le et une loupe s'ouvre au-dessus de votre doigt, la taupe retenue cercl&eacute;e. Glissez pour en choisir une autre, <strong>relevez le doigt pour donner le m&eacute;tier</strong>. Relever le doigt loin de toute taupe ne co&ucirc;te rien. &Agrave; la souris, un simple clic suffit.</li>
+        <li><strong>Posez le doigt sur une taupe.</strong> Le temps s'arr&ecirc;te&nbsp;: une loupe s'ouvre au-dessus de votre doigt, la taupe retenue cercl&eacute;e, et <strong>les m&eacute;tiers encore disponibles s'ouvrent juste en dessous</strong>. Glissez sur l'un d'eux et rel&acirc;chez&nbsp;; ou rel&acirc;chez sur la taupe et choisissez ensuite, sans montre qui tourne.</li>
+        <li><strong>Le m&eacute;tier choisi le reste.</strong> La taupe suivante ne demande plus qu'un appui suivi d'un rel&acirc;chement. Pour en changer, glissez sur un autre pendant l'appui &mdash; il n'y a jamais &agrave; redescendre en bas de page.</li>
+        <li>Rel&acirc;cher loin de toute taupe ne co&ucirc;te rien, et un appui &agrave; c&ocirc;t&eacute; des m&eacute;tiers referme tout. &Agrave; la souris&nbsp;: un clic applique le m&eacute;tier retenu, et s'il n'y en a aucun, il ouvre les m&eacute;tiers sur place. La bo&icirc;te &agrave; outils du bas reste utilisable, mais ne sert plus &agrave; rien d'obligatoire.</li>
+        <li>Chaque m&eacute;tier est en nombre limit&eacute;, indiqu&eacute; sous son nom.</li>
         <li><strong>Creuseuse</strong> descend tout droit, <strong>Perceuse</strong> traverse &agrave; l'horizontale, <strong>Mineuse</strong> creuse en biais vers le bas.</li>
         <li><strong>B&acirc;tisseuse</strong> pose douze marches en montant. <strong>Bloqueuse</strong> s'plante et renvoie les autres. <strong>Grimpeuse</strong> escalade les murs, <strong>Parachutiste</strong> survit &agrave; toutes les chutes.</li>
         <li><strong>Bombe</strong> fait exploser la taupe au bout de cinq secondes&nbsp;: elle y laisse sa peau mais ouvre un trou.</li>
@@ -638,8 +705,11 @@
     $('titreNiveau').textContent = niveau.nom;
     $('selNiveau').value = String(indexNiveau);
     $('verdict').hidden = true;
+    $('voile').hidden = true;
+    $('palette').setAttribute('data-actif', 'false');
     majPause();
     peindreOutils();
+    construirePalette();
     majBandeau();
     lancer();
   }
@@ -1031,11 +1101,81 @@
     }
   }
 
+  function nomMetier(cle) {
+    var m = METIERS.filter(function (x) { return x.cle === cle; })[0];
+    return m ? m.nom : 'M\u00e9tier';
+  }
+
+  /* ---------------- Les m\u00e9tiers, sous le doigt ----------------
+
+     L'aller-retour vers la bo\u00eete \u00e0 outils du bas \u00e9tait le vrai co\u00fbt du jeu :
+     descendre choisir, remonter viser, redescendre. Les m\u00e9tiers encore en
+     stock s'ouvrent donc l\u00e0 o\u00f9 se trouve le doigt, pendant que le temps est
+     gel\u00e9. Glisser dessus et rel\u00e2cher suffit ; sinon ils restent ouverts et
+     l'on tape celui que l'on veut, sans montre qui tourne. */
+
+  function metiersDisponibles() {
+    return METIERS.filter(function (m) { return stock[m.cle] > 0; });
+  }
+
+  function construirePalette() {
+    var p = $('palette');
+    p.textContent = '';
+    var dispo = metiersDisponibles();
+    p.setAttribute('data-colonnes', String(Math.min(4, Math.max(1, dispo.length))));
+    dispo.forEach(function (m) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'palette-btn';
+      b.setAttribute('data-palette-metier', m.cle);
+      b.setAttribute('data-vise', 'false');
+      b.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + m.icone + '"/></svg>' +
+        '<span class="pn"></span><span class="pr"></span>';
+      b.querySelector('.pn').textContent = m.nom;
+      b.querySelector('.pr').textContent = stock[m.cle];
+      b.setAttribute('aria-label', m.nom + ', ' + stock[m.cle] + ' disponible' + (stock[m.cle] > 1 ? 's' : ''));
+      b.addEventListener('click', function (ev) { ev.preventDefault(); validerDepuisPalette(m.cle); });
+      p.appendChild(b);
+    });
+  }
+
+  function metierSousPoint(x, y) {
+    var n = document.elementFromPoint(x, y);
+    while (n && n !== document.body) {
+      if (n.hasAttribute && n.hasAttribute('data-palette-metier')) return n.getAttribute('data-palette-metier');
+      n = n.parentNode;
+    }
+    return null;
+  }
+
+  function surlignerPalette(cle) {
+    Array.prototype.forEach.call($('palette').children, function (b) {
+      b.setAttribute('data-vise', b.getAttribute('data-palette-metier') === cle ? 'true' : 'false');
+    });
+  }
+
+  function placerPalette(clientX, clientY) {
+    var p = $('palette');
+    p.style.left = '0px';
+    p.style.top = '0px';
+    var r = p.getBoundingClientRect();
+    var g = clientX - r.width / 2;
+    g = Math.max(8, Math.min(window.innerWidth - r.width - 8, g));
+    var h = clientY + 36;
+    if (h + r.height > window.innerHeight - 8) h = Math.max(8, clientY - 36 - r.height);
+    p.style.left = Math.round(g) + 'px';
+    p.style.top = Math.round(h) + 'px';
+  }
+
   function texteVisee() {
-    if (!metierChoisi) return 'Choisissez un metier';
-    var m = METIERS.filter(function (x) { return x.cle === metierChoisi; })[0];
-    var nom = m ? m.nom : 'Metier';
-    return visee && visee.cible ? nom + ' \u00b7 rel\u00e2chez' : 'Visez une taupe';
+    if (!visee) return '';
+    if (visee.surMetier) return nomMetier(visee.surMetier) + ' \u00b7 rel\u00e2chez';
+    if (!visee.cible) return 'Visez une taupe';
+    if (visee.choix) return 'Choisissez un m\u00e9tier';
+    if (metierChoisi) return nomMetier(metierChoisi) + ' \u00b7 rel\u00e2chez';
+    return 'Rel\u00e2chez pour choisir';
   }
 
   function placerVisee(clientX, clientY) {
@@ -1051,26 +1191,43 @@
   }
 
   function majVisee(ev) {
-    var p = pointLogique(ev);
-    visee.x = Math.max(0, Math.min(LARGEUR - 1, p.x));
-    visee.y = Math.max(0, Math.min(HAUTEUR - 1, p.y));
-    var avant = visee.cible;
-    visee.cible = taupeVers(visee, rayonDoigt());
-    survol = visee.cible;
-    if (visee.cible && visee.cible !== avant) vibrer(8);
-    placerVisee(ev.clientX, ev.clientY);
+    var surM = metierSousPoint(ev.clientX, ev.clientY);
+    if (surM) {
+      visee.surMetier = surM;
+      surlignerPalette(surM);
+    } else {
+      visee.surMetier = null;
+      surlignerPalette(null);
+      var p = pointLogique(ev);
+      visee.x = Math.max(0, Math.min(LARGEUR - 1, p.x));
+      visee.y = Math.max(0, Math.min(HAUTEUR - 1, p.y));
+      var avant = visee.cible;
+      visee.cible = visee.souris ? taupeSous(p) : taupeVers(visee, rayonDoigt());
+      survol = visee.cible;
+      if (visee.cible && visee.cible !== avant) vibrer(8);
+      placerVisee(ev.clientX, ev.clientY);
+      placerPalette(ev.clientX, ev.clientY);
+    }
     $('viseeNom').textContent = texteVisee();
   }
 
-  function ouvrirVisee(ev) {
-    visee = { x: 0, y: 0, cible: null };
-    geleParVisee = true;
-    $('visee').setAttribute('data-actif', 'true');
-    majVisee(ev);
-    peindreLoupe();
+  function majChoix() {
+    var enChoix = !!(visee && visee.choix);
+    $('voile').hidden = !enChoix;
+    $('palette').setAttribute('data-choix', enChoix ? 'true' : 'false');
   }
 
-  function fermerVisee(valider) {
+  function ouvrirVisee(ev) {
+    visee = { x: 0, y: 0, cible: null, surMetier: null, choix: false,
+              souris: ev.pointerType === 'mouse' };
+    geleParVisee = true;
+    $('visee').setAttribute('data-actif', visee.souris ? 'false' : 'true');
+    $('palette').setAttribute('data-actif', 'true');
+    majVisee(ev);
+    if (!visee.souris) peindreLoupe();
+  }
+
+  function fermerVisee(cle) {
     if (!visee) return;
     var cible = visee.cible;
     visee = null;
@@ -1078,9 +1235,23 @@
     survol = null;
     idVisee = null;
     $('visee').setAttribute('data-actif', 'false');
-    if (valider && cible && cible.vivante) {
-      if (appliquer(cible)) vibrer(20);
+    $('palette').setAttribute('data-actif', 'false');
+    $('palette').setAttribute('data-choix', 'false');
+    $('voile').hidden = true;
+    surlignerPalette(null);
+    if (cle && cible && cible.vivante) {
+      metierChoisi = cle;              /* la taupe suivante part en un seul appui */
+      if (appliquerMetier(cible, cle)) {
+        vibrer(20);
+        annoncer(nomMetier(cle) + ' donn\u00e9e.');
+      }
     }
+    majOutils();
+  }
+
+  function validerDepuisPalette(cle) {
+    if (!visee || !visee.choix) return;
+    fermerVisee(cle);
   }
 
   function relacherDoigt(id) {
@@ -1116,7 +1287,7 @@
     }
 
     peindre();
-    if (visee) peindreLoupe();
+    if (visee && !visee.souris) peindreLoupe();
     majBandeau();
   }
 
@@ -1229,9 +1400,10 @@
     try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {}
   }
 
-  function appliquer(t) {
-    if (!metierChoisi || !t || !t.vivante || finie) return false;
-    var cle = metierChoisi;
+  function appliquer(t) { return appliquerMetier(t, metierChoisi); }
+
+  function appliquerMetier(t, cle) {
+    if (!cle || !t || !t.vivante || finie) return false;
     if (stock[cle] <= 0) return false;
 
     if (cle === 'grimpeuse') { if (t.grimpeuse) return false; t.grimpeuse = true; }
@@ -1247,12 +1419,14 @@
     }
 
     stock[cle]--;
-    if (stock[cle] <= 0) metierChoisi = null;
+    if (stock[cle] <= 0 && metierChoisi === cle) metierChoisi = null;
     majOutils();
+    construirePalette();
     return true;
   }
 
   toile.addEventListener('pointermove', function (ev) {
+    if (visee && visee.choix) return;
     if (visee && ev.pointerId === idVisee) { ev.preventDefault(); majVisee(ev); return; }
     if (ev.pointerType && ev.pointerType !== 'mouse') return;
     survol = taupeSous(pointLogique(ev));
@@ -1265,28 +1439,55 @@
      qu'au relachement -- on peut donc corriger sa visee en glissant. */
   toile.addEventListener('pointerdown', function (ev) {
     ev.preventDefault();
+    if (visee && visee.choix) { fermerVisee(null); return; }   /* un appui ailleurs annule */
+    if (finie || visee) return;
+
     if (ev.pointerType === 'mouse') {
       var t = taupeSous(pointLogique(ev));
       survol = t;
-      if (t) appliquer(t);
+      if (!t) return;
+      if (metierChoisi) { appliquer(t); return; }
+      /* aucun metier retenu : on les ouvre sur place plutot que d'envoyer
+         le joueur les chercher en bas de page */
+      if (!metiersDisponibles().length) return;
+      ouvrirVisee(ev);
+      visee.choix = true;
+      majChoix();
+      $('viseeNom').textContent = texteVisee();
       return;
     }
-    if (finie || visee) return;
+
     idVisee = ev.pointerId;
     try { toile.setPointerCapture(ev.pointerId); } catch (e) {}
     ouvrirVisee(ev);
   });
 
   toile.addEventListener('pointerup', function (ev) {
-    if (!visee || ev.pointerId !== idVisee) return;
+    if (!visee || visee.choix || ev.pointerId !== idVisee) return;
     ev.preventDefault();
     relacherDoigt(ev.pointerId);
-    fermerVisee(true);
+
+    if (visee.surMetier) { fermerVisee(visee.surMetier); return; }
+    if (visee.cible && metierChoisi) { fermerVisee(metierChoisi); return; }
+    if (visee.cible && metiersDisponibles().length) {
+      /* la taupe est retenue, le temps reste gele : on choisit sans se presser */
+      visee.choix = true;
+      majChoix();
+      $('viseeNom').textContent = texteVisee();
+      return;
+    }
+    fermerVisee(null);
   });
+
   toile.addEventListener('pointercancel', function (ev) {
     if (!visee || ev.pointerId !== idVisee) return;
     relacherDoigt(ev.pointerId);
-    fermerVisee(false);
+    fermerVisee(null);
+  });
+
+  $('voile').addEventListener('pointerdown', function (ev) {
+    ev.preventDefault();
+    fermerVisee(null);
   });
   toile.addEventListener('contextmenu', function (ev) { ev.preventDefault(); });
 
