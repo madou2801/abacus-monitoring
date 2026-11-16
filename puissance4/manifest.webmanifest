@@ -1,0 +1,15 @@
+{
+  "name": "Puissance 4",
+  "short_name": "Puissance 4",
+  "description": "Puissance 4 : à deux sur le même écran ou contre la machine, quatre niveaux.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#14181B",
+  "theme_color": "#1E4256",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "La Récré",
+  "short_name": "La Récré",
+  "description": "Des jeux de plateau à jouer tranquillement, seul, à deux sur le même écran ou en ligne.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#15171A",
+  "theme_color": "#E2E4DF",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
